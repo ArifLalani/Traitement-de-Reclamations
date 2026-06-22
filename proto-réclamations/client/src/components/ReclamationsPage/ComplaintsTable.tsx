@@ -1,0 +1,186 @@
+import { useState } from 'react';
+import warningIcon from '../../assets/figma/warning-icon.svg';
+import {
+  AVANCEMENT_LABEL,
+  CONFORMITE_LABEL,
+  complaints,
+  type Avancement,
+  type Complaint,
+  type Conformite,
+} from './complaintsData';
+
+type SortKey = 'ticket' | 'requerant' | 'dateReception' | 'echeance' | 'avancement' | 'conformite';
+type SortDirection = 'asc' | 'desc';
+
+type Column = { key: SortKey; label: string; width: number; info?: boolean };
+
+const COLUMNS: Column[] = [
+  { key: 'ticket', label: 'N° ticket', width: 89 },
+  { key: 'requerant', label: 'Requérant', width: 160 },
+  { key: 'dateReception', label: 'Date de réception', width: 150 },
+  { key: 'echeance', label: 'Échéance', width: 180, info: true },
+  { key: 'avancement', label: "État d'avancement", width: 152 },
+  { key: 'conformite', label: 'Statut de conformité', width: 166 },
+];
+
+const AVANCEMENT_ORDER: Record<Avancement, number> = {
+  'a-traiter': 0,
+  'en-cours': 1,
+  'en-attente': 2,
+  cloture: 3,
+};
+
+const CONFORMITE_ORDER: Record<Conformite, number> = {
+  conforme: 0,
+  'non-conforme': 1,
+};
+
+function parseDateFR(value: string): number {
+  const [day, month, year] = value.split('/').map(Number);
+  return new Date(year, month - 1, day).getTime();
+}
+
+function echeanceValue(c: Complaint): number {
+  const match = c.echeanceLabel.match(/(\d+)/);
+  return match ? Number(match[1]) : Infinity;
+}
+
+const COMPARATORS: Record<SortKey, (a: Complaint, b: Complaint) => number> = {
+  ticket: (a, b) => Number(a.ticket.replace('#', '')) - Number(b.ticket.replace('#', '')),
+  requerant: (a, b) => a.requerant.localeCompare(b.requerant),
+  dateReception: (a, b) => parseDateFR(a.dateReception) - parseDateFR(b.dateReception),
+  echeance: (a, b) => echeanceValue(a) - echeanceValue(b),
+  avancement: (a, b) => AVANCEMENT_ORDER[a.avancement] - AVANCEMENT_ORDER[b.avancement],
+  conformite: (a, b) => CONFORMITE_ORDER[a.conformite] - CONFORMITE_ORDER[b.conformite],
+};
+
+function SortArrows({ active, direction }: { active: boolean; direction: SortDirection }) {
+  const upActive = active && direction === 'desc';
+  const downActive = active && direction === 'asc';
+  return (
+    <span className="complaints-sort-arrows">
+      <svg width="9" height="5.5575" viewBox="0 0 9 5.5575" fill="none">
+        <path
+          d="M7.9425 5.5575L4.5 2.1225L1.0575 5.5575L0 4.5L4.5 0L9 4.5L7.9425 5.5575Z"
+          fill={upActive ? 'rgba(0,0,0,0.87)' : 'rgba(0,0,0,0.3)'}
+        />
+      </svg>
+      <svg width="9" height="5.5575" viewBox="0 0 9 5.5575" fill="none">
+        <path
+          d="M7.9425 0L4.5 3.435L1.0575 0L0 1.0575L4.5 5.5575L9 1.0575L7.9425 0Z"
+          fill={downActive ? 'rgba(0,0,0,0.87)' : 'rgba(0,0,0,0.3)'}
+        />
+      </svg>
+    </span>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" stroke="rgba(0,0,0,0.6)" strokeWidth="1.2" />
+      <rect x="7.25" y="6.5" width="1.5" height="5" rx="0.5" fill="rgba(0,0,0,0.6)" />
+      <rect x="7.25" y="4" width="1.5" height="1.5" rx="0.5" fill="rgba(0,0,0,0.6)" />
+    </svg>
+  );
+}
+
+function ComplaintRow({ complaint }: { complaint: Complaint }) {
+  return (
+    <div className="complaints-row">
+      <div className="complaints-cell" style={{ width: 89 }}>
+        <span className="complaints-text">{complaint.ticket}</span>
+      </div>
+      <div className="complaints-cell" style={{ width: 160 }}>
+        <span className="complaints-text">{complaint.requerant}</span>
+      </div>
+      <div className="complaints-cell" style={{ width: 150 }}>
+        <span className="complaints-text">{complaint.dateReception}</span>
+      </div>
+      <div className="complaints-cell complaints-cell-gap" style={{ width: 180 }}>
+        {complaint.echeanceWarning && <img src={warningIcon} alt="" width={20} height={17.86} />}
+        <span className={`complaints-text ${complaint.echeanceWarning ? 'complaints-text-warning' : ''}`}>
+          {complaint.echeanceLabel}
+        </span>
+      </div>
+      <div className="complaints-cell" style={{ width: 152 }}>
+        <span className={`chip complaints-chip-avancement-${complaint.avancement}`}>
+          {AVANCEMENT_LABEL[complaint.avancement]}
+        </span>
+      </div>
+      <div className="complaints-cell" style={{ width: 166 }}>
+        <span className={`chip complaints-chip-conformite-${complaint.conformite}`}>
+          {CONFORMITE_LABEL[complaint.conformite]}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+type ComplaintsTableProps = {
+  query?: string;
+};
+
+export default function ComplaintsTable({ query = '' }: ComplaintsTableProps) {
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDirection>('asc');
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = normalizedQuery
+    ? complaints.filter(
+        (c) =>
+          c.ticket.toLowerCase().includes(normalizedQuery) ||
+          c.requerant.toLowerCase().includes(normalizedQuery) ||
+          AVANCEMENT_LABEL[c.avancement].toLowerCase().includes(normalizedQuery) ||
+          CONFORMITE_LABEL[c.conformite].toLowerCase().includes(normalizedQuery),
+      )
+    : complaints;
+
+  const sorted = sortKey
+    ? [...filtered].sort((a, b) => {
+        const result = COMPARATORS[sortKey](a, b);
+        return sortDir === 'asc' ? result : -result;
+      })
+    : filtered;
+
+  return (
+    <div className="complaints-table">
+      <div className="complaints-header">
+        {COLUMNS.map((col) => {
+          const active = sortKey === col.key;
+          return (
+            <button
+              key={col.key}
+              type="button"
+              className="complaints-header-cell"
+              style={{ width: col.width }}
+              onClick={() => handleSort(col.key)}
+            >
+              <span className={`complaints-header-label ${active ? 'complaints-header-label-active' : ''}`}>
+                {col.label}
+              </span>
+              {col.info && <InfoIcon />}
+              <SortArrows active={active} direction={sortDir} />
+            </button>
+          );
+        })}
+      </div>
+      <div className="complaints-divider" />
+      {sorted.map((complaint, index) => (
+        <div key={complaint.id}>
+          <ComplaintRow complaint={complaint} />
+          {index < sorted.length - 1 && <div className="complaints-divider" />}
+        </div>
+      ))}
+    </div>
+  );
+}

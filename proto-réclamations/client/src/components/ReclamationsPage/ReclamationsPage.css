@@ -987,3 +987,112 @@
 .field-outlined-textarea .field-label-floating {
   top: 0;
 }
+
+/* Complaints table */
+.complaints-table {
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.complaints-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.complaints-header-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.complaints-header-label-active {
+  color: var(--color-primary-blue);
+}
+
+.complaints-header-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.1px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.complaints-sort-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.complaints-sort-arrows svg path {
+  transition: fill 0.2s ease;
+}
+
+.complaints-divider {
+  height: 1px;
+  background: var(--color-grey-200);
+  width: 100%;
+}
+
+.complaints-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 64px;
+}
+
+.complaints-cell {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.complaints-cell-gap {
+  gap: 8px;
+}
+
+.complaints-text {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.complaints-text-warning {
+  color: #ed6c02;
+}
+
+.complaints-chip-avancement-a-traiter,
+.complaints-chip-conformite-conforme {
+  background: var(--color-lightblue-50);
+  color: var(--color-lightblue-text);
+}
+
+.complaints-chip-avancement-en-cours {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.complaints-chip-avancement-en-attente,
+.complaints-chip-avancement-cloture {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-text-primary);
+}
+
+.complaints-chip-conformite-non-conforme {
+  background: #fdecea;
+  color: #c62828;
+}
