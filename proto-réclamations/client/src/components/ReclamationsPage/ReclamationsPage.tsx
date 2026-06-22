@@ -143,7 +143,10 @@ export default function ReclamationsPage() {
                 transform: `translateX(-${activeIndex * (100 / TABS.length)}%)`,
               }}
             >
-              <div className="tab-panel" style={{ width: `${100 / TABS.length}%` }}>
+              <div
+                className="tab-panel"
+                style={{ width: `${100 / TABS.length}%`, opacity: activeTab === 'mentions' ? 1 : 0 }}
+              >
                 <div className="panel-body">
                   <div className="appbar">
                     <div className="search-field">
@@ -181,7 +184,10 @@ export default function ReclamationsPage() {
                 </div>
               </div>
 
-              <div className="tab-panel" style={{ width: `${100 / TABS.length}%` }}>
+              <div
+                className="tab-panel"
+                style={{ width: `${100 / TABS.length}%`, opacity: activeTab === 'reclamations' ? 1 : 0 }}
+              >
                 <div className="panel-body panel-empty">
                   <p>Aucune réclamation pour le moment.</p>
                 </div>

@@ -144,6 +144,7 @@
 .tab-panel {
   flex-shrink: 0;
   box-sizing: border-box;
+  transition: opacity 0.35s ease;
 }
 
 .panel-body {
