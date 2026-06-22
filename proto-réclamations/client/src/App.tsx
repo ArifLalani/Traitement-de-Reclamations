@@ -1,5 +1,7 @@
+import ReclamationsPage from './components/ReclamationsPage/ReclamationsPage';
+
 function App() {
-  return <h1>Hello World</h1>
+  return <ReclamationsPage />;
 }
 
-export default App
+export default App;
