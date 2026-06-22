@@ -366,10 +366,21 @@
   align-items: center;
 }
 
+.card-text-wrapper {
+  width: 100%;
+}
+
 .card-text {
   font: var(--font-body1);
   letter-spacing: 0.15px;
   color: var(--color-text-secondary);
+}
+
+.card-text-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .btn-link {
@@ -382,6 +393,14 @@
   color: var(--color-primary-blue);
   padding: 4px 0;
   align-self: flex-start;
+}
+
+.btn-link-icon {
+  transition: transform 0.25s ease;
+}
+
+.btn-link-icon-flipped {
+  transform: rotate(180deg);
 }
 
 .card-actions {

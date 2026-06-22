@@ -24,7 +24,7 @@ export const reclamations: Reclamation[] = [
     url: 'www.facebook.com/assurance/2154231ef...',
     author: 'User unknown',
     rating: 1,
-    text: "Je suis vraiment très déçu par votre service. Mon dossier de remboursement est bloqué depuis 6 semaines, et je n'ai reçu aucune réponse à mes appels. J'espère que vous pourrez résoudre ce problème rapidement. J'attends une mise à jour de votre part.",
+    text: "Je suis vraiment très déçu par votre service. Mon dossier de remboursement est bloqué depuis 6 semaines, et je n'ai reçu aucune réponse à mes appels malgré mes nombreuses relances par téléphone et par email. J'ai l'impression de parler dans le vide et personne ne semble vouloir prendre en charge mon dossier sérieusement. J'espère que vous pourrez résoudre ce problème rapidement. J'attends une mise à jour de votre part avant d'envisager d'autres démarches plus officielles.",
   },
   {
     id: '2',
@@ -35,7 +35,7 @@ export const reclamations: Reclamation[] = [
     url: 'www.google.com/maps/reviews/avis/389021...',
     author: 'Marc D.',
     rating: 2,
-    text: "L'agence ne répond jamais au téléphone. J'ai laissé 3 messages cette semaine sans aucun retour. Très déçu de la gestion de mon sinistre, je pensais que ce serait plus rapide.",
+    text: "L'agence ne répond jamais au téléphone. J'ai laissé 3 messages cette semaine sans aucun retour, et chaque fois qu'on me transfère vers un conseiller, je tombe sur une messagerie vocale. Très déçu de la gestion de mon sinistre, je pensais que ce serait beaucoup plus rapide vu le contrat premium que j'ai souscrit il y a deux ans avec vous.",
   },
   {
     id: '3',
@@ -90,6 +90,6 @@ export const reclamations: Reclamation[] = [
     url: 'forum-assures.fr/sujet/avis-assurance-os...',
     author: 'PatriceR78',
     rating: 4,
-    text: "Globalement satisfait du contrat auto, mais j'ai eu une mauvaise expérience récente avec le remboursement d'un pare-brise, traité avec 3 semaines de retard.",
+    text: "Globalement satisfait du contrat auto depuis plusieurs années, mais j'ai eu une mauvaise expérience récente avec le remboursement d'un pare-brise, traité avec 3 semaines de retard alors que le devis avait été validé rapidement. J'espère que ce n'était qu'un incident isolé car le reste du service a toujours été correct jusqu'à présent.",
   },
 ];
