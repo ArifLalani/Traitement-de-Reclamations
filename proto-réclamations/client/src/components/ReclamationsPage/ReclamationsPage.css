@@ -153,7 +153,7 @@
 }
 
 .panel-body > * {
-  animation: panel-fade-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: panel-fade-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
 .panel-body > *:nth-child(1) {
@@ -169,7 +169,7 @@
 }
 
 .card-list > * {
-  animation: panel-fade-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: panel-fade-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
 .card-list > *:nth-child(1) {

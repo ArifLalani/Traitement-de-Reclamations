@@ -30,6 +30,7 @@ const PAGE_SIZE = 20;
 export default function ReclamationsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('mentions');
   const [activeFilter, setActiveFilter] = useState<Filter>('toutes');
+  const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
 
@@ -52,6 +53,12 @@ export default function ReclamationsPage() {
     if (id === activeFilter) return;
     prevTops.current = measureTops();
     setActiveFilter(id);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const handleSearchChange = (value: string) => {
+    prevTops.current = measureTops();
+    setSearch(value);
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -97,7 +104,7 @@ export default function ReclamationsPage() {
         el.style.transform = '';
       });
     });
-  }, [activeFilter]);
+  }, [activeFilter, search]);
 
   const counts: Record<Filter, number> = {
     toutes: reclamations.length,
@@ -107,7 +114,18 @@ export default function ReclamationsPage() {
     declinee: reclamations.filter((r) => r.state === 'declinee').length,
   };
 
-  const filtered = reclamations.filter((r) => (activeFilter === 'toutes' ? true : r.state === activeFilter));
+  const query = search.trim().toLowerCase();
+
+  const filtered = reclamations.filter((r) => {
+    if (activeFilter !== 'toutes' && r.state !== activeFilter) return false;
+    if (!query) return true;
+    return (
+      r.author.toLowerCase().includes(query) ||
+      r.text.toLowerCase().includes(query) ||
+      r.source.toLowerCase().includes(query) ||
+      r.url.toLowerCase().includes(query)
+    );
+  });
   filteredLength.current = filtered.length;
   const visibleItems = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -161,7 +179,12 @@ export default function ReclamationsPage() {
                 <div className="appbar">
                   <div className="search-field">
                     <img src={searchIcon} alt="" width={24} height={24} />
-                    <input type="text" placeholder="Recherches" />
+                    <input
+                      type="text"
+                      placeholder="Recherches"
+                      value={search}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                    />
                   </div>
                 </div>
 
