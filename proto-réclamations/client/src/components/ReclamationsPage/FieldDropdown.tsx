@@ -88,7 +88,7 @@ export default function FieldDropdown({ label, required, value, onChange, option
           <div
             ref={menuRef}
             className="field-dropdown-menu"
-            style={{ top: menuPosition.top, left: menuPosition.left, minWidth: menuPosition.width }}
+            style={{ top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}
           >
             {options.map((option) => (
               <button

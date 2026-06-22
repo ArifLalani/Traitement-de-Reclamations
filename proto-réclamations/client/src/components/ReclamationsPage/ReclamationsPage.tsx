@@ -43,7 +43,11 @@ export default function ReclamationsPage() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
-  const [snackbar, setSnackbar] = useState<{ id: string; message: string } | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    id: string;
+    message: string;
+    variant: 'info' | 'success';
+  } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -143,12 +147,15 @@ export default function ReclamationsPage() {
     setCreatedIds((prev) => new Set(prev).add(id));
     setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
     setCreateTarget(null);
+    setSnackbar({ id, message: 'Réclamation créée.', variant: 'success' });
+    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
+    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
   };
 
   const handleDisqualify = (id: string) => {
     prevTops.current = measureTops();
     setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
-    setSnackbar({ id, message: 'Mention disqualifiée' });
+    setSnackbar({ id, message: 'Mention disqualifiée', variant: 'info' });
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
     snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
   };
@@ -363,8 +370,9 @@ export default function ReclamationsPage() {
       <AlertSnackbar
         visible={!!snackbar}
         message={snackbar?.message ?? ''}
-        actionLabel="Annuler"
-        onAction={handleUndoDisqualify}
+        variant={snackbar?.variant ?? 'info'}
+        actionLabel={snackbar?.variant === 'info' ? 'Annuler' : undefined}
+        onAction={snackbar?.variant === 'info' ? handleUndoDisqualify : undefined}
       />
 
       {createTarget && (

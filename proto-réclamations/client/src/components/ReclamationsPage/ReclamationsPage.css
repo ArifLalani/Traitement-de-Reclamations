@@ -601,8 +601,6 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #e5f6fd;
-  border-radius: 4px;
   padding: 6px 16px;
   box-shadow:
     0 5px 5px -3px rgba(0, 0, 0, 0.2),
@@ -615,6 +613,16 @@
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
+.alert-snackbar-info {
+  background: #e5f6fd;
+  border-radius: 4px;
+}
+
+.alert-snackbar-success {
+  background: #edf7ed;
+  border-radius: 8px;
+}
+
 .alert-snackbar-visible {
   opacity: 1;
   transform: translate(-50%, 0);
@@ -622,13 +630,23 @@
 }
 
 .alert-snackbar-text {
+  white-space: nowrap;
+}
+
+.alert-snackbar-info .alert-snackbar-text {
   color: #014361;
   font: var(--font-h6);
   font-size: 16px;
   font-weight: 500;
   letter-spacing: 0.15px;
   padding: 8px 0;
-  white-space: nowrap;
+}
+
+.alert-snackbar-success .alert-snackbar-text {
+  color: #1e4620;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  padding: 8px 0;
 }
 
 .alert-snackbar-action {
@@ -669,6 +687,26 @@
   }
 }
 
+@keyframes modal-backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-paper-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -679,6 +717,10 @@
   padding: 24px;
   z-index: 30;
   animation: modal-backdrop-fade-in 0.2s ease;
+}
+
+.modal-backdrop.modal-closing {
+  animation: modal-backdrop-fade-out 0.2s ease forwards;
 }
 
 .modal-paper {
@@ -693,6 +735,10 @@
     0 24px 38px 3px rgba(0, 0, 0, 0.14),
     0 11px 15px -7px rgba(0, 0, 0, 0.2);
   animation: modal-paper-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-closing .modal-paper {
+  animation: modal-paper-fade-out 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .modal-title {
@@ -818,7 +864,6 @@
   background: var(--color-white);
   border-radius: 4px;
   padding: 8px 0;
-  width: fit-content;
   box-shadow:
     0 5px 5px -3px rgba(0, 0, 0, 0.2),
     0 8px 10px 1px rgba(0, 0, 0, 0.14),

@@ -112,6 +112,8 @@ type CreateReclamationModalProps = {
   onSubmit: () => void;
 };
 
+const CLOSE_ANIMATION_DURATION = 200;
+
 export default function CreateReclamationModal({ reclamation, onClose, onSubmit }: CreateReclamationModalProps) {
   const [requerant, setRequerant] = useState(reclamation.author || 'Requérant inconnu');
   const [canal, setCanal] = useState<string>(reclamation.source);
@@ -120,16 +122,24 @@ export default function CreateReclamationModal({ reclamation, onClose, onSubmit 
   const [objet, setObjet] = useState(() => suggestObjet(reclamation.text));
   const [description, setDescription] = useState(reclamation.text);
   const [interlocuteur, setInterlocuteur] = useState(INTERLOCUTEURS[0]);
+  const [closing, setClosing] = useState(false);
 
   const canSubmit = canal.trim().length > 0 && dateReception.trim().length > 0 && description.trim().length > 0;
 
+  const requestClose = (action: () => void) => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(action, CLOSE_ANIMATION_DURATION);
+  };
+
+  const handleClose = () => requestClose(onClose);
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSubmit();
+    requestClose(onSubmit);
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className={`modal-backdrop ${closing ? 'modal-closing' : ''}`} onClick={handleClose}>
       <div className="modal-paper" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Créer une réclamation</div>
         <div className="modal-body">
@@ -151,7 +161,7 @@ export default function CreateReclamationModal({ reclamation, onClose, onSubmit 
           <FieldDropdown label="Interlocuteur en charge" value={interlocuteur} onChange={setInterlocuteur} options={INTERLOCUTEURS} />
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn-text" onClick={onClose}>
+          <button type="button" className="btn-text" onClick={handleClose}>
             Annuler
           </button>
           <button type="button" className="btn-filled" disabled={!canSubmit} onClick={handleSubmit}>
