@@ -239,6 +239,24 @@
   color: var(--color-text-disabled);
 }
 
+.search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 100px;
+  color: var(--color-text-disabled);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.search-clear:hover {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-text-primary);
+}
+
 /* Filters */
 .filters {
   display: flex;

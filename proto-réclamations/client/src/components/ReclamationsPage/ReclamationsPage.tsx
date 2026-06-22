@@ -106,26 +106,26 @@ export default function ReclamationsPage() {
     });
   }, [activeFilter, search]);
 
-  const counts: Record<Filter, number> = {
-    toutes: reclamations.length,
-    possible: reclamations.filter((r) => r.state === 'possible').length,
-    'a-traiter': reclamations.filter((r) => r.state === 'a-traiter').length,
-    'mes-reclamations': reclamations.filter((r) => r.state === 'mes-reclamations').length,
-    declinee: reclamations.filter((r) => r.state === 'declinee').length,
-  };
-
   const query = search.trim().toLowerCase();
 
-  const filtered = reclamations.filter((r) => {
-    if (activeFilter !== 'toutes' && r.state !== activeFilter) return false;
-    if (!query) return true;
-    return (
-      r.author.toLowerCase().includes(query) ||
-      r.text.toLowerCase().includes(query) ||
-      r.source.toLowerCase().includes(query) ||
-      r.url.toLowerCase().includes(query)
-    );
-  });
+  const matchesQuery = (r: (typeof reclamations)[number]) =>
+    !query ||
+    r.author.toLowerCase().includes(query) ||
+    r.text.toLowerCase().includes(query) ||
+    r.source.toLowerCase().includes(query) ||
+    r.url.toLowerCase().includes(query);
+
+  const searched = reclamations.filter(matchesQuery);
+
+  const counts: Record<Filter, number> = {
+    toutes: searched.length,
+    possible: searched.filter((r) => r.state === 'possible').length,
+    'a-traiter': searched.filter((r) => r.state === 'a-traiter').length,
+    'mes-reclamations': searched.filter((r) => r.state === 'mes-reclamations').length,
+    declinee: searched.filter((r) => r.state === 'declinee').length,
+  };
+
+  const filtered = searched.filter((r) => activeFilter === 'toutes' || r.state === activeFilter);
   filteredLength.current = filtered.length;
   const visibleItems = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -185,6 +185,23 @@ export default function ReclamationsPage() {
                       value={search}
                       onChange={(e) => handleSearchChange(e.target.value)}
                     />
+                    {search.length > 0 && (
+                      <button
+                        type="button"
+                        className="search-clear"
+                        aria-label="Effacer la recherche"
+                        onClick={() => handleSearchChange('')}
+                      >
+                        <svg viewBox="0 0 24 24" width={18} height={18}>
+                          <path
+                            d="M6 6l12 12M18 6 6 18"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
