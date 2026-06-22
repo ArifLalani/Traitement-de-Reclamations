@@ -477,6 +477,7 @@
 .card-text-clamped {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1095,4 +1096,247 @@
 .complaints-chip-conformite-non-conforme {
   background: #fdecea;
   color: #c62828;
+}
+
+.complaints-row-clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.complaints-row-clickable:hover {
+  background: var(--color-action-hover);
+}
+
+.complaints-row-highlighted {
+  background: rgba(16, 45, 105, 0.08);
+  transition: background 0.8s ease;
+}
+
+/* Complaint detail drawer */
+@keyframes drawer-backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-panel-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawer-panel-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+  animation: drawer-backdrop-fade-in 0.2s ease;
+}
+
+.drawer-backdrop.drawer-closing {
+  animation: drawer-backdrop-fade-out 0.2s ease forwards;
+}
+
+.drawer-panel {
+  background: var(--color-white);
+  width: 695px;
+  max-width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  animation: drawer-panel-slide-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drawer-closing .drawer-panel {
+  animation: drawer-panel-slide-out 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.drawer-appbar {
+  background: var(--color-grey-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 72px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.drawer-title {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-primary-blue);
+}
+
+.drawer-close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+
+.drawer-close-button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: 24px;
+}
+
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawer-section-title {
+  font-size: 24px;
+  line-height: 1.334;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.drawer-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.drawer-edit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+
+.drawer-edit-button:hover {
+  background: var(--color-action-hover);
+}
+
+.drawer-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.drawer-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawer-field-label {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.drawer-field-value {
+  display: flex;
+  align-items: center;
+}
+
+.drawer-text {
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.drawer-canal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.drawer-description-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.drawer-action-card {
+  background: #fafafa;
+  border: 1px solid var(--color-grey-200);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.drawer-action-card:hover {
+  background: var(--color-chip-selected-bg);
+}
+
+.drawer-action-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.drawer-action-card-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.drawer-action-card-text {
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  color: var(--color-text-secondary);
+  margin: 0;
 }

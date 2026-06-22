@@ -106,10 +106,20 @@ function FormTextarea({ label, required, value, onChange }: FormFieldProps) {
   );
 }
 
+export type ReclamationFormData = {
+  requerant: string;
+  canal: string;
+  dateReception: string;
+  email: string;
+  objet: string;
+  description: string;
+  interlocuteur: string;
+};
+
 type CreateReclamationModalProps = {
   reclamation: Reclamation;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: (data: ReclamationFormData) => void;
 };
 
 const CLOSE_ANIMATION_DURATION = 200;
@@ -135,7 +145,9 @@ export default function CreateReclamationModal({ reclamation, onClose, onSubmit 
   const handleClose = () => requestClose(onClose);
   const handleSubmit = () => {
     if (!canSubmit) return;
-    requestClose(onSubmit);
+    requestClose(() =>
+      onSubmit({ requerant, canal, dateReception, email, objet, description, interlocuteur }),
+    );
   };
 
   return (

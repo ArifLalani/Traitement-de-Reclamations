@@ -22,9 +22,16 @@ type ReclamationCardProps = {
   isNew: boolean;
   onCreate: () => void;
   onDisqualify: () => void;
+  onFollow: () => void;
 };
 
-export default function ReclamationCard({ reclamation, isNew, onCreate, onDisqualify }: ReclamationCardProps) {
+export default function ReclamationCard({
+  reclamation,
+  isNew,
+  onCreate,
+  onDisqualify,
+  onFollow,
+}: ReclamationCardProps) {
   const { state, source, date, url, author, rating, text } = reclamation;
   const isDeclinee = state === 'declinee';
   const isMesReclamations = state === 'mes-reclamations';
@@ -143,7 +150,7 @@ export default function ReclamationCard({ reclamation, isNew, onCreate, onDisqua
 
       <div className="card-actions">
         {isMesReclamations ? (
-          <button type="button" className="btn-outlined">
+          <button type="button" className="btn-outlined" onClick={onFollow}>
             Suivre la réclamation
           </button>
         ) : (

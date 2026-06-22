@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import warningIcon from '../../assets/figma/warning-icon.svg';
+import ComplaintDetailDrawer from './ComplaintDetailDrawer';
 import {
   AVANCEMENT_LABEL,
   CONFORMITE_LABEL,
-  complaints,
   type Avancement,
   type Complaint,
   type Conformite,
@@ -85,9 +85,23 @@ function InfoIcon() {
   );
 }
 
-function ComplaintRow({ complaint }: { complaint: Complaint }) {
+function ComplaintRow({
+  complaint,
+  onClick,
+  rowRef,
+  highlighted,
+}: {
+  complaint: Complaint;
+  onClick: () => void;
+  rowRef?: (el: HTMLDivElement | null) => void;
+  highlighted?: boolean;
+}) {
   return (
-    <div className="complaints-row">
+    <div
+      className={`complaints-row complaints-row-clickable ${highlighted ? 'complaints-row-highlighted' : ''}`}
+      onClick={onClick}
+      ref={rowRef}
+    >
       <div className="complaints-cell" style={{ width: 89 }}>
         <span className="complaints-text">{complaint.ticket}</span>
       </div>
@@ -118,12 +132,18 @@ function ComplaintRow({ complaint }: { complaint: Complaint }) {
 }
 
 type ComplaintsTableProps = {
+  complaints: Complaint[];
   query?: string;
+  focusId?: string | null;
+  onFocusHandled?: () => void;
 };
 
-export default function ComplaintsTable({ query = '' }: ComplaintsTableProps) {
+export default function ComplaintsTable({ complaints, query = '', focusId, onFocusHandled }: ComplaintsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
+  const [selected, setSelected] = useState<Complaint | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -133,6 +153,39 @@ export default function ComplaintsTable({ query = '' }: ComplaintsTableProps) {
       setSortDir('asc');
     }
   };
+
+  useEffect(() => {
+    if (!focusId) return;
+    const match = complaints.find((c) => c.sourceReclamationId === focusId || c.id === focusId);
+    if (!match) return;
+
+    // Let the tab's own entrance animation settle before scrolling, so the
+    // two transitions don't compete visually.
+    const scrollTimeout = setTimeout(() => {
+      const el = rowRefs.current.get(match.id);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedId(match.id);
+    }, 450);
+
+    // Open the drawer once the smooth scroll has had time to finish.
+    const drawerTimeout = setTimeout(() => {
+      setSelected(match);
+    }, 950);
+
+    const highlightTimeout = setTimeout(() => setHighlightedId(null), 2450);
+
+    // Clear the pending focus request last, once the whole sequence has
+    // played out, so changing it doesn't cancel the timeouts above.
+    const clearTimeoutId = setTimeout(() => onFocusHandled?.(), 1000);
+
+    return () => {
+      clearTimeout(scrollTimeout);
+      clearTimeout(drawerTimeout);
+      clearTimeout(highlightTimeout);
+      clearTimeout(clearTimeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = normalizedQuery
@@ -176,11 +229,21 @@ export default function ComplaintsTable({ query = '' }: ComplaintsTableProps) {
       </div>
       <div className="complaints-divider" />
       {sorted.map((complaint, index) => (
-        <div key={complaint.id}>
-          <ComplaintRow complaint={complaint} />
+        <Fragment key={complaint.id}>
+          <ComplaintRow
+            complaint={complaint}
+            onClick={() => setSelected(complaint)}
+            rowRef={(el) => {
+              if (el) rowRefs.current.set(complaint.id, el);
+              else rowRefs.current.delete(complaint.id);
+            }}
+            highlighted={highlightedId === complaint.id}
+          />
           {index < sorted.length - 1 && <div className="complaints-divider" />}
-        </div>
+        </Fragment>
       ))}
+
+      {selected && <ComplaintDetailDrawer complaint={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

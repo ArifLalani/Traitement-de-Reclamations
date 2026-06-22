@@ -6,10 +6,12 @@ import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
 import AlertSnackbar from './AlertSnackbar';
 import ComplaintsTable from './ComplaintsTable';
-import CreateReclamationModal from './CreateReclamationModal';
+import CreateReclamationModal, { type ReclamationFormData } from './CreateReclamationModal';
 import ReclamationCard from './ReclamationCard';
 import ScrollTopButton from './ScrollTopButton';
 import { reclamations, type Reclamation, type ReclamationState } from './data';
+import { complaints as initialComplaints, type Complaint } from './complaintsData';
+import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
 
 type Filter = 'toutes' | ReclamationState | 'nouveau';
@@ -51,6 +53,8 @@ export default function ReclamationsPage() {
     variant: 'info' | 'success';
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
+  const [complaintsList, setComplaintsList] = useState<Complaint[]>(initialComplaints);
+  const [focusComplaintId, setFocusComplaintId] = useState<string | null>(null);
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [seenIds] = useState<Set<string>>(() => {
@@ -142,16 +146,42 @@ export default function ReclamationsPage() {
     setCreateTarget(r);
   };
 
-  const handleConfirmCreate = () => {
+  const handleConfirmCreate = (formData: ReclamationFormData) => {
     if (!createTarget) return;
     const id = createTarget.id;
     prevTops.current = measureTops();
     setCreatedIds((prev) => new Set(prev).add(id));
     setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
+
+    const nextTicketNumber =
+      Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1;
+    const newComplaint: Complaint = {
+      id: `created-${id}`,
+      sourceReclamationId: id,
+      ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
+      requerant: formData.requerant,
+      dateReception: formData.dateReception,
+      echeanceLabel: '-',
+      avancement: 'a-traiter',
+      conformite: 'conforme',
+      canal: formData.canal as Source,
+      denominateurSocial: 'Inconnu',
+      assureur: 'Inconnu',
+      email: formData.email,
+      objet: formData.objet,
+      description: formData.description,
+    };
+    setComplaintsList((prev) => [newComplaint, ...prev]);
+
     setCreateTarget(null);
     setSnackbar({ id, message: 'Réclamation créée.', variant: 'success' });
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
     snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
+  };
+
+  const handleFollowReclamation = (id: string) => {
+    setActiveTab('reclamations');
+    setFocusComplaintId(id);
   };
 
   const handleDisqualify = (id: string) => {
@@ -344,6 +374,7 @@ export default function ReclamationsPage() {
                         isNew={isEffectivelyNew(reclamation)}
                         onCreate={() => handleRequestCreate(reclamation)}
                         onDisqualify={() => handleDisqualify(reclamation.id)}
+                        onFollow={() => handleFollowReclamation(reclamation.id)}
                       />
                     </div>
                   ))}
@@ -385,7 +416,12 @@ export default function ReclamationsPage() {
                     )}
                   </div>
                 </div>
-                <ComplaintsTable query={complaintsSearch} />
+                <ComplaintsTable
+                  complaints={complaintsList}
+                  query={complaintsSearch}
+                  focusId={focusComplaintId}
+                  onFocusHandled={() => setFocusComplaintId(null)}
+                />
               </div>
             )}
           </div>
