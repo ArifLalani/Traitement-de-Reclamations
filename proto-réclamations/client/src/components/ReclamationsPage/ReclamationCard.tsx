@@ -40,24 +40,29 @@ export default function ReclamationCard({ reclamation }: ReclamationCardProps) {
     const wrapper = wrapperRef.current;
     if (!wrapper || fromHeight.current === null) return;
     const from = fromHeight.current;
-    const to = wrapper.getBoundingClientRect().height;
     fromHeight.current = null;
 
-    if (Math.abs(to - from) < 1) return;
-
     wrapper.style.transition = 'none';
-    wrapper.style.maxHeight = `${from}px`;
+    wrapper.style.height = 'auto';
+    const to = wrapper.getBoundingClientRect().height;
+
+    if (Math.abs(to - from) < 1) {
+      wrapper.style.height = '';
+      return;
+    }
+
+    wrapper.style.height = `${from}px`;
     wrapper.style.overflow = 'hidden';
     wrapper.getBoundingClientRect();
 
     const raf = requestAnimationFrame(() => {
-      wrapper.style.transition = 'max-height 0.3s ease';
-      wrapper.style.maxHeight = `${to}px`;
+      wrapper.style.transition = 'height 0.3s ease';
+      wrapper.style.height = `${to}px`;
     });
 
     const handleEnd = (e: TransitionEvent) => {
-      if (e.propertyName !== 'max-height') return;
-      wrapper.style.maxHeight = '';
+      if (e.propertyName !== 'height') return;
+      wrapper.style.height = '';
       wrapper.style.overflow = '';
       wrapper.style.transition = '';
     };
