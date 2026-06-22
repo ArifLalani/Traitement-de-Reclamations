@@ -94,7 +94,7 @@ const curated: Reclamation[] = [
   },
 ];
 
-const sources: Source[] = ['Facebook', 'Google', 'X', 'Trustpilot', 'Instagram', 'LinkedIn', 'Web'];
+export const sources: Source[] = ['Facebook', 'Google', 'X', 'Trustpilot', 'Instagram', 'LinkedIn', 'Web'];
 
 const authors = [
   'Nadia K.',

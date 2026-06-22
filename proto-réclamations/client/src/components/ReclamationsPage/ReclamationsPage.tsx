@@ -4,9 +4,11 @@ import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
+import AlertSnackbar from './AlertSnackbar';
+import CreateReclamationModal from './CreateReclamationModal';
 import ReclamationCard from './ReclamationCard';
 import ScrollTopButton from './ScrollTopButton';
-import { reclamations, type ReclamationState } from './data';
+import { reclamations, type Reclamation, type ReclamationState } from './data';
 import './ReclamationsPage.css';
 
 type Filter = 'toutes' | ReclamationState | 'nouveau';
@@ -17,7 +19,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'possible', label: 'Possible réclamation' },
   { id: 'a-traiter', label: 'À traiter' },
   { id: 'mes-reclamations', label: 'Mes réclamations' },
-  { id: 'declinee', label: 'Déclinées' },
+  { id: 'declinee', label: 'Non qualifiées' },
 ];
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids';
@@ -40,6 +42,10 @@ export default function ReclamationsPage() {
   const [scrolled, setScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
+  const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
+  const [snackbar, setSnackbar] = useState<{ id: string; message: string } | null>(null);
+  const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
+  const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [seenIds] = useState<Set<string>>(() => {
     try {
@@ -104,6 +110,15 @@ export default function ReclamationsPage() {
   }, []);
 
   useEffect(() => {
+    if (!createTarget) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [createTarget]);
+
+  useEffect(() => {
     try {
       const allIds = reclamations.map((r) => r.id);
       const merged = new Set([...seenIds, ...allIds]);
@@ -117,9 +132,44 @@ export default function ReclamationsPage() {
   const isEffectivelyNew = (r: (typeof reclamations)[number]) =>
     r.isNew && r.state !== 'mes-reclamations' && !createdIds.has(r.id) && !seenIds.has(r.id);
 
-  const handleCreate = (id: string) => {
-    setCreatedIds((prev) => new Set(prev).add(id));
+  const handleRequestCreate = (r: (typeof reclamations)[number]) => {
+    setCreateTarget(r);
   };
+
+  const handleConfirmCreate = () => {
+    if (!createTarget) return;
+    const id = createTarget.id;
+    prevTops.current = measureTops();
+    setCreatedIds((prev) => new Set(prev).add(id));
+    setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
+    setCreateTarget(null);
+  };
+
+  const handleDisqualify = (id: string) => {
+    prevTops.current = measureTops();
+    setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
+    setSnackbar({ id, message: 'Mention disqualifiée' });
+    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
+    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
+  };
+
+  const handleUndoDisqualify = () => {
+    if (!snackbar) return;
+    prevTops.current = measureTops();
+    setStateOverrides((prev) => {
+      const next = { ...prev };
+      delete next[snackbar.id];
+      return next;
+    });
+    setSnackbar(null);
+    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -148,18 +198,22 @@ export default function ReclamationsPage() {
         el.style.transform = '';
       });
     });
-  }, [activeFilter, search]);
+  }, [activeFilter, search, stateOverrides]);
+
+  const effectiveReclamations = reclamations.map((r) =>
+    stateOverrides[r.id] ? { ...r, state: stateOverrides[r.id] } : r,
+  );
 
   const query = search.trim().toLowerCase();
 
-  const matchesQuery = (r: (typeof reclamations)[number]) =>
+  const matchesQuery = (r: (typeof effectiveReclamations)[number]) =>
     !query ||
     r.author.toLowerCase().includes(query) ||
     r.text.toLowerCase().includes(query) ||
     r.source.toLowerCase().includes(query) ||
     r.url.toLowerCase().includes(query);
 
-  const searched = reclamations.filter(matchesQuery);
+  const searched = effectiveReclamations.filter(matchesQuery);
 
   const counts: Record<Filter, number> = {
     toutes: searched.length,
@@ -279,7 +333,8 @@ export default function ReclamationsPage() {
                       <ReclamationCard
                         reclamation={reclamation}
                         isNew={isEffectivelyNew(reclamation)}
-                        onCreate={() => handleCreate(reclamation.id)}
+                        onCreate={() => handleRequestCreate(reclamation)}
+                        onDisqualify={() => handleDisqualify(reclamation.id)}
                       />
                     </div>
                   ))}
@@ -304,6 +359,21 @@ export default function ReclamationsPage() {
         visible={showScrollTop}
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       />
+
+      <AlertSnackbar
+        visible={!!snackbar}
+        message={snackbar?.message ?? ''}
+        actionLabel="Annuler"
+        onAction={handleUndoDisqualify}
+      />
+
+      {createTarget && (
+        <CreateReclamationModal
+          reclamation={createTarget}
+          onClose={() => setCreateTarget(null)}
+          onSubmit={handleConfirmCreate}
+        />
+      )}
     </div>
   );
 }

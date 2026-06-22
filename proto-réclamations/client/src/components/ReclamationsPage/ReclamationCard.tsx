@@ -8,8 +8,8 @@ import type { Reclamation } from './data';
 const STATE_LABEL: Record<Reclamation['state'], string> = {
   possible: 'Possible réclamation',
   'a-traiter': 'À traiter',
-  declinee: 'Déclinée',
-  'mes-reclamations': 'Réclamation créée',
+  declinee: 'Non qualifiée',
+  'mes-reclamations': 'Réclamation en cours',
 };
 
 function toHref(url: string) {
@@ -21,9 +21,10 @@ type ReclamationCardProps = {
   reclamation: Reclamation;
   isNew: boolean;
   onCreate: () => void;
+  onDisqualify: () => void;
 };
 
-export default function ReclamationCard({ reclamation, isNew, onCreate }: ReclamationCardProps) {
+export default function ReclamationCard({ reclamation, isNew, onCreate, onDisqualify }: ReclamationCardProps) {
   const { state, source, date, url, author, rating, text } = reclamation;
   const isDeclinee = state === 'declinee';
   const isMesReclamations = state === 'mes-reclamations';
@@ -150,9 +151,9 @@ export default function ReclamationCard({ reclamation, isNew, onCreate }: Reclam
             <button
               type="button"
               className="btn-text"
-              onClick={isDeclinee ? onCreate : undefined}
+              onClick={isDeclinee ? onCreate : onDisqualify}
             >
-              {isDeclinee ? 'Créer une réclamation' : 'Ignorer'}
+              {isDeclinee ? 'Créer une réclamation' : 'Disqualifier'}
             </button>
             {!isDeclinee && (
               <button type="button" className="btn-outlined" onClick={onCreate}>

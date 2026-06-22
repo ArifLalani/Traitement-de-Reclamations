@@ -592,3 +592,353 @@
   right: 18.75%;
   bottom: 53.13%;
 }
+
+/* Alert snackbar */
+.alert-snackbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #e5f6fd;
+  border-radius: 4px;
+  padding: 6px 16px;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.alert-snackbar-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.alert-snackbar-text {
+  color: #014361;
+  font: var(--font-h6);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+  padding: 8px 0;
+  white-space: nowrap;
+}
+
+.alert-snackbar-action {
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.46px;
+  text-transform: uppercase;
+  color: var(--color-primary-blue);
+}
+
+.alert-snackbar-action:hover {
+  background: var(--color-action-hover);
+}
+
+/* Create reclamation modal */
+@keyframes modal-backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-paper-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 30;
+  animation: modal-backdrop-fade-in 0.2s ease;
+}
+
+.modal-paper {
+  background: var(--color-white);
+  border-radius: 4px;
+  width: 900px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow:
+    0 9px 46px 8px rgba(0, 0, 0, 0.12),
+    0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 11px 15px -7px rgba(0, 0, 0, 0.2);
+  animation: modal-paper-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-title {
+  padding: 16px 24px;
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 24px 20px;
+}
+
+.modal-row {
+  display: flex;
+  gap: 16px;
+}
+
+.modal-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+}
+
+.btn-filled {
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+  cursor: pointer;
+  font: var(--font-button-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 5px 0 rgba(0, 0, 0, 0.12),
+    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 3px 1px -2px rgba(0, 0, 0, 0.2);
+}
+
+.btn-filled:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Outlined form fields */
+.field-outlined {
+  position: relative;
+}
+
+.field-border {
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 4px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  position: relative;
+}
+
+.field-border input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+}
+
+.field-border input::placeholder {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.field-dropdown-trigger {
+  width: 100%;
+  background: none;
+  cursor: pointer;
+  padding-right: 24px;
+  text-align: left;
+}
+
+.field-dropdown-value {
+  flex: 1;
+  min-width: 0;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.field-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+.field-caret-open {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.field-dropdown-menu {
+  position: fixed;
+  background: var(--color-white);
+  border-radius: 4px;
+  padding: 8px 0;
+  width: fit-content;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  z-index: 40;
+  animation: panel-fade-slide-up 0.15s ease backwards;
+}
+
+.field-dropdown-item {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 6px 16px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.field-dropdown-item:hover {
+  background: var(--color-action-hover);
+}
+
+.field-dropdown-item-selected {
+  background: rgba(16, 45, 105, 0.08);
+}
+
+.field-border-textarea {
+  align-items: flex-start;
+  padding: 0;
+}
+
+.field-border-textarea textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 12px;
+  transition: height 0.1s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.field-fade-top textarea {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 20px, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 20px, black 100%);
+}
+
+.field-fade-bottom textarea {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%);
+}
+
+.field-fade-top.field-fade-bottom textarea {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 20px,
+    black calc(100% - 20px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%);
+}
+
+.field-border-textarea textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.field-border-textarea textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.field-border-textarea textarea::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 100px;
+}
+
+.field-border-textarea textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.field-border-textarea textarea::placeholder {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.field-label {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  background: transparent;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, background-color 0.15s ease, padding 0.15s ease;
+}
+
+.field-label-floating {
+  top: 0;
+  background: var(--color-white);
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+.field-outlined-textarea .field-label {
+  top: 28px;
+}
+
+.field-outlined-textarea .field-label-floating {
+  top: 0;
+}
