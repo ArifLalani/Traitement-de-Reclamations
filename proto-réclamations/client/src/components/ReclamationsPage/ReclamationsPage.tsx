@@ -1,22 +1,26 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import bellIcon from '../../assets/figma/bell-icon.svg';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
 import ReclamationCard from './ReclamationCard';
+import ScrollTopButton from './ScrollTopButton';
 import { reclamations, type ReclamationState } from './data';
 import './ReclamationsPage.css';
 
-type Filter = 'toutes' | ReclamationState;
+type Filter = 'toutes' | ReclamationState | 'nouveau';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'toutes', label: 'Toutes' },
+  { id: 'nouveau', label: 'Nouveau' },
   { id: 'possible', label: 'Possible réclamation' },
   { id: 'a-traiter', label: 'À traiter' },
   { id: 'mes-reclamations', label: 'Mes réclamations' },
   { id: 'declinee', label: 'Déclinées' },
 ];
+
+const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids';
 
 const TABS = [
   { id: 'mentions', label: 'Mes Mentions web' },
@@ -33,6 +37,18 @@ export default function ReclamationsPage() {
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+  const [scrolled, setScrolled] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
+
+  const [seenIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(SEEN_IDS_STORAGE_KEY);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
@@ -77,6 +93,34 @@ export default function ReclamationsPage() {
     sentinelObserver.current.observe(el);
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 4);
+      setShowScrollTop(window.scrollY > 600);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const allIds = reclamations.map((r) => r.id);
+      const merged = new Set([...seenIds, ...allIds]);
+      localStorage.setItem(SEEN_IDS_STORAGE_KEY, JSON.stringify([...merged]));
+    } catch {
+      // localStorage unavailable, ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isEffectivelyNew = (r: (typeof reclamations)[number]) =>
+    r.isNew && r.state !== 'mes-reclamations' && !createdIds.has(r.id) && !seenIds.has(r.id);
+
+  const handleCreate = (id: string) => {
+    setCreatedIds((prev) => new Set(prev).add(id));
+  };
+
   useLayoutEffect(() => {
     const measure = () => {
       const activeButton = tabRefs.current[activeTab];
@@ -119,20 +163,25 @@ export default function ReclamationsPage() {
 
   const counts: Record<Filter, number> = {
     toutes: searched.length,
+    nouveau: searched.filter(isEffectivelyNew).length,
     possible: searched.filter((r) => r.state === 'possible').length,
     'a-traiter': searched.filter((r) => r.state === 'a-traiter').length,
     'mes-reclamations': searched.filter((r) => r.state === 'mes-reclamations').length,
     declinee: searched.filter((r) => r.state === 'declinee').length,
   };
 
-  const filtered = searched.filter((r) => activeFilter === 'toutes' || r.state === activeFilter);
+  const filtered = searched.filter((r) => {
+    if (activeFilter === 'toutes') return true;
+    if (activeFilter === 'nouveau') return isEffectivelyNew(r);
+    return r.state === activeFilter;
+  });
   filteredLength.current = filtered.length;
   const visibleItems = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
 
   return (
     <div className="page">
-      <header className="header">
+      <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <div className="header-top">
           <div className="logo">
             <img src={logoText} alt="Opinion System" className="logo-text" />
@@ -227,7 +276,11 @@ export default function ReclamationsPage() {
                         else cardRefs.current.delete(reclamation.id);
                       }}
                     >
-                      <ReclamationCard reclamation={reclamation} />
+                      <ReclamationCard
+                        reclamation={reclamation}
+                        isNew={isEffectivelyNew(reclamation)}
+                        onCreate={() => handleCreate(reclamation.id)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -246,6 +299,11 @@ export default function ReclamationsPage() {
           </div>
         </div>
       </main>
+
+      <ScrollTopButton
+        visible={showScrollTop}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      />
     </div>
   );
 }

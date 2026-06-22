@@ -21,9 +21,17 @@
 /* Header */
 .header {
   background: var(--color-dark-blue);
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0);
+  transition: box-shadow 0.25s ease;
+}
+
+.header-scrolled {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
 .header-top {
@@ -527,4 +535,60 @@
 
 .btn-outlined:hover {
   background: var(--color-action-hover);
+}
+
+/* Scroll to top FAB */
+.scroll-top-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 100px;
+  background: #e0e0e0;
+  box-shadow:
+    0 1px 18px 0 rgba(0, 0, 0, 0.12),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 3px 5px -1px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  transform: translateY(16px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scroll-top-fab-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.scroll-top-fab:hover {
+  background: #d5d5d5;
+}
+
+.scroll-top-fab-icon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.scroll-top-fab-line {
+  position: absolute;
+  top: 12.5%;
+  bottom: 12.5%;
+  left: 46.88%;
+  right: 46.88%;
+}
+
+.scroll-top-fab-chevron {
+  position: absolute;
+  top: 12.5%;
+  left: 18.75%;
+  right: 18.75%;
+  bottom: 53.13%;
 }

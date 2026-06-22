@@ -19,10 +19,12 @@ function toHref(url: string) {
 
 type ReclamationCardProps = {
   reclamation: Reclamation;
+  isNew: boolean;
+  onCreate: () => void;
 };
 
-export default function ReclamationCard({ reclamation }: ReclamationCardProps) {
-  const { state, isNew, source, date, url, author, rating, text } = reclamation;
+export default function ReclamationCard({ reclamation, isNew, onCreate }: ReclamationCardProps) {
+  const { state, source, date, url, author, rating, text } = reclamation;
   const isDeclinee = state === 'declinee';
   const isMesReclamations = state === 'mes-reclamations';
 
@@ -145,11 +147,15 @@ export default function ReclamationCard({ reclamation }: ReclamationCardProps) {
           </button>
         ) : (
           <>
-            <button type="button" className="btn-text">
+            <button
+              type="button"
+              className="btn-text"
+              onClick={isDeclinee ? onCreate : undefined}
+            >
               {isDeclinee ? 'Créer une réclamation' : 'Ignorer'}
             </button>
             {!isDeclinee && (
-              <button type="button" className="btn-outlined">
+              <button type="button" className="btn-outlined" onClick={onCreate}>
                 Créer une réclamation
               </button>
             )}
