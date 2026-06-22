@@ -130,27 +130,71 @@
   transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Tabs sliding content */
-.tabs-viewport {
+/* Tabs content transition */
+.tabs-content {
   width: 100%;
-  overflow: hidden;
 }
 
-.tabs-track {
-  display: flex;
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tab-panel {
-  flex-shrink: 0;
-  box-sizing: border-box;
-  transition: opacity 0.35s ease;
+@keyframes panel-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .panel-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.panel-body > * {
+  animation: panel-fade-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.panel-body > *:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.panel-body > *:nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.panel-body > *:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.card-list > * {
+  animation: panel-fade-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.card-list > *:nth-child(1) {
+  animation-delay: 0.14s;
+}
+.card-list > *:nth-child(2) {
+  animation-delay: 0.19s;
+}
+.card-list > *:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.card-list > *:nth-child(4) {
+  animation-delay: 0.29s;
+}
+.card-list > *:nth-child(5) {
+  animation-delay: 0.34s;
+}
+.card-list > *:nth-child(6) {
+  animation-delay: 0.39s;
+}
+.card-list > *:nth-child(7) {
+  animation-delay: 0.44s;
+}
+.card-list > *:nth-child(n + 8) {
+  animation-delay: 0.48s;
 }
 
 .panel-empty {
@@ -228,6 +272,29 @@
   width: 100%;
 }
 
+.scroll-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 24px 0;
+}
+
+.scroll-sentinel-loader {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-chip-border);
+  border-top-color: var(--color-primary-blue);
+  border-radius: 50%;
+  animation: scroll-sentinel-spin 0.7s linear infinite;
+}
+
+@keyframes scroll-sentinel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .card {
   background: var(--color-white);
   border: 1px solid var(--color-grey-200);
@@ -291,6 +358,11 @@
 .chip-declinee {
   background: var(--color-chip-selected-bg);
   color: var(--color-text-primary);
+}
+
+.chip-mes-reclamations {
+  background: var(--color-primary-blue);
+  color: var(--color-white);
 }
 
 .chip-new {

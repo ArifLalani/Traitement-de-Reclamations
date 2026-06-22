@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import bellIcon from '../../assets/figma/bell-icon.svg';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
@@ -8,7 +8,7 @@ import ReclamationCard from './ReclamationCard';
 import { reclamations, type ReclamationState } from './data';
 import './ReclamationsPage.css';
 
-type Filter = 'toutes' | ReclamationState | 'mes-reclamations';
+type Filter = 'toutes' | ReclamationState;
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'toutes', label: 'Toutes' },
@@ -25,15 +25,20 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+const PAGE_SIZE = 20;
+
 export default function ReclamationsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('mentions');
   const [activeFilter, setActiveFilter] = useState<Filter>('toutes');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevTops = useRef<Map<string, number>>(new Map());
+  const filteredLength = useRef(0);
+  const sentinelObserver = useRef<IntersectionObserver | null>(null);
 
   const measureTops = () => {
     const tops = new Map<string, number>();
@@ -47,9 +52,23 @@ export default function ReclamationsPage() {
     if (id === activeFilter) return;
     prevTops.current = measureTops();
     setActiveFilter(id);
+    setVisibleCount(PAGE_SIZE);
   };
 
-  const activeIndex = TABS.findIndex((tab) => tab.id === activeTab);
+  const sentinelRef = useCallback((el: HTMLDivElement | null) => {
+    sentinelObserver.current?.disconnect();
+    sentinelObserver.current = null;
+    if (!el) return;
+    sentinelObserver.current = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredLength.current));
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    sentinelObserver.current.observe(el);
+  }, []);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -81,16 +100,17 @@ export default function ReclamationsPage() {
   }, [activeFilter]);
 
   const counts: Record<Filter, number> = {
-    toutes: 63,
-    possible: 7,
-    'a-traiter': 35,
-    'mes-reclamations': 14,
-    declinee: 7,
+    toutes: reclamations.length,
+    possible: reclamations.filter((r) => r.state === 'possible').length,
+    'a-traiter': reclamations.filter((r) => r.state === 'a-traiter').length,
+    'mes-reclamations': reclamations.filter((r) => r.state === 'mes-reclamations').length,
+    declinee: reclamations.filter((r) => r.state === 'declinee').length,
   };
 
-  const filtered = reclamations.filter((r) =>
-    activeFilter === 'toutes' || activeFilter === 'mes-reclamations' ? true : r.state === activeFilter,
-  );
+  const filtered = reclamations.filter((r) => (activeFilter === 'toutes' ? true : r.state === activeFilter));
+  filteredLength.current = filtered.length;
+  const visibleItems = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   return (
     <div className="page">
@@ -135,64 +155,54 @@ export default function ReclamationsPage() {
             />
           </div>
 
-          <div className="tabs-viewport">
-            <div
-              className="tabs-track"
-              style={{
-                width: `${TABS.length * 100}%`,
-                transform: `translateX(-${activeIndex * (100 / TABS.length)}%)`,
-              }}
-            >
-              <div
-                className="tab-panel"
-                style={{ width: `${100 / TABS.length}%`, opacity: activeTab === 'mentions' ? 1 : 0 }}
-              >
-                <div className="panel-body">
-                  <div className="appbar">
-                    <div className="search-field">
-                      <img src={searchIcon} alt="" width={24} height={24} />
-                      <input type="text" placeholder="Recherches" />
+          <div className="tabs-content" key={activeTab}>
+            {activeTab === 'mentions' ? (
+              <div className="panel-body">
+                <div className="appbar">
+                  <div className="search-field">
+                    <img src={searchIcon} alt="" width={24} height={24} />
+                    <input type="text" placeholder="Recherches" />
+                  </div>
+                </div>
+
+                <div className="filters">
+                  {FILTERS.map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      className={`filter-chip ${activeFilter === filter.id ? 'filter-chip-active' : ''}`}
+                      onClick={() => selectFilter(filter.id)}
+                    >
+                      {filter.label} ({counts[filter.id]})
+                    </button>
+                  ))}
+                </div>
+
+                <div className="card-list">
+                  {visibleItems.map((reclamation) => (
+                    <div
+                      key={reclamation.id}
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(reclamation.id, el);
+                        else cardRefs.current.delete(reclamation.id);
+                      }}
+                    >
+                      <ReclamationCard reclamation={reclamation} />
                     </div>
-                  </div>
-
-                  <div className="filters">
-                    {FILTERS.map((filter) => (
-                      <button
-                        key={filter.id}
-                        type="button"
-                        className={`filter-chip ${activeFilter === filter.id ? 'filter-chip-active' : ''}`}
-                        onClick={() => selectFilter(filter.id)}
-                      >
-                        {filter.label} ({counts[filter.id]})
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="card-list">
-                    {filtered.map((reclamation) => (
-                      <div
-                        key={reclamation.id}
-                        ref={(el) => {
-                          if (el) cardRefs.current.set(reclamation.id, el);
-                          else cardRefs.current.delete(reclamation.id);
-                        }}
-                      >
-                        <ReclamationCard reclamation={reclamation} />
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              </div>
 
-              <div
-                className="tab-panel"
-                style={{ width: `${100 / TABS.length}%`, opacity: activeTab === 'reclamations' ? 1 : 0 }}
-              >
-                <div className="panel-body panel-empty">
-                  <p>Aucune réclamation pour le moment.</p>
-                </div>
+                {hasMore && (
+                  <div className="scroll-sentinel" ref={sentinelRef}>
+                    <span className="scroll-sentinel-loader" />
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="panel-body panel-empty">
+                <p>Aucune réclamation pour le moment.</p>
+              </div>
+            )}
           </div>
         </div>
       </main>

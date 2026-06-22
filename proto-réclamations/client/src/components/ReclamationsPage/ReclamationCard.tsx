@@ -9,6 +9,7 @@ const STATE_LABEL: Record<Reclamation['state'], string> = {
   possible: 'Possible réclamation',
   'a-traiter': 'À traiter',
   declinee: 'Déclinée',
+  'mes-reclamations': 'Réclamation créée',
 };
 
 function toHref(url: string) {
@@ -23,6 +24,7 @@ type ReclamationCardProps = {
 export default function ReclamationCard({ reclamation }: ReclamationCardProps) {
   const { state, isNew, source, date, url, author, rating, text } = reclamation;
   const isDeclinee = state === 'declinee';
+  const isMesReclamations = state === 'mes-reclamations';
 
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -137,13 +139,21 @@ export default function ReclamationCard({ reclamation }: ReclamationCardProps) {
       </div>
 
       <div className="card-actions">
-        <button type="button" className="btn-text">
-          {isDeclinee ? 'Créer une réclamation' : 'Ignorer'}
-        </button>
-        {!isDeclinee && (
+        {isMesReclamations ? (
           <button type="button" className="btn-outlined">
-            Créer une réclamation
+            Suivre la réclamation
           </button>
+        ) : (
+          <>
+            <button type="button" className="btn-text">
+              {isDeclinee ? 'Créer une réclamation' : 'Ignorer'}
+            </button>
+            {!isDeclinee && (
+              <button type="button" className="btn-outlined">
+                Créer une réclamation
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
