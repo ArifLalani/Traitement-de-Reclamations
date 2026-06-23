@@ -151,6 +151,10 @@ export default function ReclamationsPage() {
     setComplaintsList((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
   };
 
+  const handleDeleteComplaint = (id: string) => {
+    setComplaintsList((prev) => prev.filter((c) => c.id !== id));
+  };
+
   const handleConfirmCreate = (formData: ReclamationFormData) => {
     if (!createTarget) return;
     const id = createTarget.id;
@@ -428,6 +432,7 @@ export default function ReclamationsPage() {
                   focusId={focusComplaintId}
                   onFocusHandled={() => setFocusComplaintId(null)}
                   onUpdateComplaint={handleUpdateComplaint}
+                  onDeleteComplaint={handleDeleteComplaint}
                 />
               </div>
             )}

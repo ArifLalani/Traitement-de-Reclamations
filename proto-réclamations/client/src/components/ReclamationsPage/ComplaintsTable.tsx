@@ -140,6 +140,7 @@ type ComplaintsTableProps = {
   focusId?: string | null;
   onFocusHandled?: () => void;
   onUpdateComplaint?: (id: string, updates: ComplaintInformationsUpdate) => void;
+  onDeleteComplaint?: (id: string) => void;
 };
 
 export default function ComplaintsTable({
@@ -148,6 +149,7 @@ export default function ComplaintsTable({
   focusId,
   onFocusHandled,
   onUpdateComplaint,
+  onDeleteComplaint,
 }: ComplaintsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
@@ -266,6 +268,10 @@ export default function ComplaintsTable({
           complaint={selected}
           onClose={() => setSelected(null)}
           onUpdate={onUpdateComplaint}
+          onDelete={(id) => {
+            onDeleteComplaint?.(id);
+            setSelected(null);
+          }}
         />
       )}
     </div>

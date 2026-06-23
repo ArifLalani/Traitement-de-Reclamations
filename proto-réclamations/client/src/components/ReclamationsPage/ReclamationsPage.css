@@ -430,6 +430,8 @@
 .arrow-up-right-line {
   position: absolute;
   inset: 21.88%;
+  width: 9px;
+  height: 9px;
 }
 
 .arrow-up-right-head {
@@ -438,6 +440,8 @@
   right: 21.88%;
   bottom: 31.25%;
   left: 31.25%;
+  width: 7.5px;
+  height: 7.5px;
 }
 
 .card-body {
@@ -584,6 +588,8 @@
   bottom: 12.5%;
   left: 46.88%;
   right: 46.88%;
+  width: 1.5px;
+  height: 18px;
 }
 
 .scroll-top-fab-chevron {
@@ -592,6 +598,8 @@
   left: 18.75%;
   right: 18.75%;
   bottom: 53.13%;
+  width: 15px;
+  height: 8.25px;
 }
 
 /* Alert snackbar */
@@ -1187,7 +1195,7 @@
 
 .drawer-panel {
   background: var(--color-white);
-  width: 695px;
+  width: 700px;
   max-width: 100%;
   height: 100%;
   overflow-y: auto;
@@ -1260,6 +1268,21 @@
   justify-content: flex-end;
   gap: 16px;
   width: 100%;
+}
+
+.drawer-delete-button {
+  cursor: pointer;
+  font: var(--font-button-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #c62828;
+  padding: 6px 8px;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.drawer-delete-button:hover {
+  background: rgba(198, 40, 40, 0.08);
 }
 
 .drawer-edit-transition-content {

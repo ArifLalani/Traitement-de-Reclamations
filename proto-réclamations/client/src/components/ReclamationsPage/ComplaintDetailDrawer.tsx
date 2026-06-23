@@ -138,9 +138,15 @@ type ComplaintDetailDrawerProps = {
   complaint: Complaint;
   onClose: () => void;
   onUpdate?: (id: string, updates: ComplaintInformationsUpdate) => void;
+  onDelete?: (id: string) => void;
 };
 
-export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: ComplaintDetailDrawerProps) {
+export default function ComplaintDetailDrawer({
+  complaint,
+  onClose,
+  onUpdate,
+  onDelete,
+}: ComplaintDetailDrawerProps) {
   const [closing, setClosing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [formRequerant, setFormRequerant] = useState(complaint.requerant);
@@ -348,7 +354,8 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                   <img src={caretRight} alt="" width={12} height={22} />
                 </div>
                 <p className="drawer-action-card-text">
-                  Une réponse définitive devra suivre pour clôturer le dossier.
+                  Vous avez envoyé un message au requérant confirmant que vous avez bien pris en
+                  compte sa demande.
                 </p>
               </button>
               <button type="button" className="drawer-action-card">
@@ -357,10 +364,20 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                   <img src={caretRight} alt="" width={12} height={22} />
                 </div>
                 <p className="drawer-action-card-text">
-                  Aucune autre action ne sera nécessaire pour clôturer le dossier.
+                  Vous avez envoyé une réponse définitive au requérant concernant sa demande. La
+                  réclamation sera automatiquement clôturée.
                 </p>
               </button>
             </div>
+            {onDelete && (
+              <button
+                type="button"
+                className="drawer-delete-button"
+                onClick={() => onDelete(complaint.id)}
+              >
+                Supprimer la réclamation
+              </button>
+            )}
           </section>
         </div>
       </div>
