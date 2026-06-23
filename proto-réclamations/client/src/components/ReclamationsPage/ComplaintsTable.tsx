@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import warningIcon from '../../assets/figma/warning-icon.svg';
-import ComplaintDetailDrawer from './ComplaintDetailDrawer';
+import ComplaintDetailDrawer, { type ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
 import {
   AVANCEMENT_LABEL,
   CONFORMITE_LABEL,
@@ -90,17 +90,20 @@ function ComplaintRow({
   onClick,
   rowRef,
   highlighted,
+  enterDelay,
 }: {
   complaint: Complaint;
   onClick: () => void;
   rowRef?: (el: HTMLDivElement | null) => void;
   highlighted?: boolean;
+  enterDelay?: number;
 }) {
   return (
     <div
-      className={`complaints-row complaints-row-clickable ${highlighted ? 'complaints-row-highlighted' : ''}`}
+      className={`complaints-row complaints-row-clickable complaints-row-enter ${highlighted ? 'complaints-row-highlighted' : ''}`}
       onClick={onClick}
       ref={rowRef}
+      style={enterDelay !== undefined ? { animationDelay: `${enterDelay}s` } : undefined}
     >
       <div className="complaints-cell" style={{ width: 89 }}>
         <span className="complaints-text">{complaint.ticket}</span>
@@ -136,14 +139,28 @@ type ComplaintsTableProps = {
   query?: string;
   focusId?: string | null;
   onFocusHandled?: () => void;
+  onUpdateComplaint?: (id: string, updates: ComplaintInformationsUpdate) => void;
 };
 
-export default function ComplaintsTable({ complaints, query = '', focusId, onFocusHandled }: ComplaintsTableProps) {
+export default function ComplaintsTable({
+  complaints,
+  query = '',
+  focusId,
+  onFocusHandled,
+  onUpdateComplaint,
+}: ComplaintsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
   const [selected, setSelected] = useState<Complaint | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
+
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = complaints.find((c) => c.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complaints]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -238,12 +255,19 @@ export default function ComplaintsTable({ complaints, query = '', focusId, onFoc
               else rowRefs.current.delete(complaint.id);
             }}
             highlighted={highlightedId === complaint.id}
+            enterDelay={Math.min(index * 0.05, 0.4)}
           />
           {index < sorted.length - 1 && <div className="complaints-divider" />}
         </Fragment>
       ))}
 
-      {selected && <ComplaintDetailDrawer complaint={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ComplaintDetailDrawer
+          complaint={selected}
+          onClose={() => setSelected(null)}
+          onUpdate={onUpdateComplaint}
+        />
+      )}
     </div>
   );
 }

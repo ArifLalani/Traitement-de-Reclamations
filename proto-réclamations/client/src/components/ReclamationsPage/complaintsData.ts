@@ -95,12 +95,22 @@ const AVANCEMENT_CYCLE: Avancement[] = [
 ];
 const REMAINING_DAYS = [59, 8, 3, 46, 8, 12, 0, 0, 27, 6, 15, 0, 2, 34];
 
+// A handful of longer descriptions so the drawer's "Voir plus" can actually
+// be exercised — most mention texts are short and fit within 4 lines.
+const LONG_DESCRIPTIONS: Record<number, string> = {
+  0: "Le client conteste le refus de remboursement suite à un sinistre survenu le 12 mars 2024. Il joint un constat amiable et demande un réexamen complet de son dossier. Il souligne également l'importance de ce remboursement pour couvrir les frais déjà engagés auprès du garagiste, et précise qu'il a transmis l'ensemble des pièces justificatives demandées dès la première relance. De plus, il espère une réponse rapide afin de résoudre cette situation au plus vite, faute de quoi il envisagera de saisir le médiateur des assurances.",
+  2: "Sinistre déclaré il y a un mois, toujours aucune indemnisation reçue à ce jour. Le suivi en ligne n'est jamais mis à jour, ce qui oblige le client à appeler le service client à chaque fois pour obtenir une information, souvent contradictoire selon l'interlocuteur. Il demande qu'un point précis et écrit lui soit communiqué sur l'état réel de son dossier, ainsi qu'un engagement clair sur un délai de traitement, car la situation lui cause un préjudice financier non négligeable depuis plusieurs semaines.",
+  5: "Le remboursement reçu ne correspond pas du tout au montant indiqué dans le devis qui avait pourtant été validé initialement par l'assureur. Le client a recontacté plusieurs fois le service client sans obtenir d'explication satisfaisante sur l'écart constaté, et demande qu'une vérification approfondie soit menée sur le calcul de l'indemnisation. Il souhaite également savoir si un complément de versement est prévu et dans quel délai, faute de quoi il se réserve le droit de contester formellement la décision.",
+  9: "Dossier transmis depuis plus de trois semaines pour un dégât des eaux important, toujours en attente du passage de l'expert malgré plusieurs relances par téléphone et par email restées sans réponse claire. Le délai annoncé initialement par l'agence n'a clairement pas été respecté, et les dégâts continuent de s'aggraver en l'absence d'intervention. Le client demande qu'un expert soit dépêché en urgence et qu'un geste commercial soit envisagé pour compenser ce retard significatif.",
+};
+
 export const complaints: Complaint[] = reclamations
   .filter((r) => r.state === 'mes-reclamations')
   .map((r, index) => {
     const avancement = AVANCEMENT_CYCLE[index % AVANCEMENT_CYCLE.length];
     const remainingDays = REMAINING_DAYS[index % REMAINING_DAYS.length];
     const isClosed = avancement === 'cloture';
+    const description = LONG_DESCRIPTIONS[index] ?? r.text;
 
     return {
       id: `complaint-${r.id}`,
@@ -117,7 +127,7 @@ export const complaints: Complaint[] = reclamations
       denominateurSocial: 'Non renseigné',
       assureur: 'Non renseigné',
       email: guessEmail(r.author),
-      objet: suggestObjet(r.text),
-      description: r.text,
+      objet: suggestObjet(description),
+      description,
     };
   });

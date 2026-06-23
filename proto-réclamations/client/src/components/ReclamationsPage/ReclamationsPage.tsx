@@ -6,6 +6,7 @@ import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
 import AlertSnackbar from './AlertSnackbar';
 import ComplaintsTable from './ComplaintsTable';
+import type { ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
 import CreateReclamationModal, { type ReclamationFormData } from './CreateReclamationModal';
 import ReclamationCard from './ReclamationCard';
 import ScrollTopButton from './ScrollTopButton';
@@ -144,6 +145,10 @@ export default function ReclamationsPage() {
 
   const handleRequestCreate = (r: (typeof reclamations)[number]) => {
     setCreateTarget(r);
+  };
+
+  const handleUpdateComplaint = (id: string, updates: ComplaintInformationsUpdate) => {
+    setComplaintsList((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
   };
 
   const handleConfirmCreate = (formData: ReclamationFormData) => {
@@ -422,6 +427,7 @@ export default function ReclamationsPage() {
                   query={complaintsSearch}
                   focusId={focusComplaintId}
                   onFocusHandled={() => setFocusComplaintId(null)}
+                  onUpdateComplaint={handleUpdateComplaint}
                 />
               </div>
             )}
