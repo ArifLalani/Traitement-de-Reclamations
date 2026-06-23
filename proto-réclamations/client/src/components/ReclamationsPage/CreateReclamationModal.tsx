@@ -1,11 +1,14 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import FieldDropdown from './FieldDropdown';
-import { sources, type Reclamation } from './data';
+import ArrowUpRight from './ArrowUpRight';
+import type { Reclamation } from './data';
+
+function toHref(url: string) {
+  const cleaned = url.replace(/\.{3}$/, '');
+  return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
+}
 
 const TEXTAREA_MIN_HEIGHT = 120;
 const TEXTAREA_MAX_HEIGHT = 152;
-
-const INTERLOCUTEURS = ['Marion HOUWI (vous)', 'Karim B.', 'Sophie L.', 'Thomas Perrin'];
 
 function formatDateFR(dateLabel: string) {
   const match = dateLabel.match(/(\d{2}\/\d{2}\/\d{4})/);
@@ -28,6 +31,15 @@ function suggestObjet(text: string): string {
   if (match) return match[1];
   const firstSentence = text.split(/[.!?]/)[0].trim();
   return firstSentence.length > 60 ? `${firstSentence.slice(0, 60)}…` : firstSentence;
+}
+
+function ReadOnlyField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="field-readonly">
+      <span className="field-readonly-label">{label}</span>
+      <div className="field-readonly-value">{children}</div>
+    </div>
+  );
 }
 
 type FormFieldProps = {
@@ -113,7 +125,6 @@ export type ReclamationFormData = {
   email: string;
   objet: string;
   description: string;
-  interlocuteur: string;
 };
 
 type CreateReclamationModalProps = {
@@ -126,12 +137,11 @@ const CLOSE_ANIMATION_DURATION = 200;
 
 export default function CreateReclamationModal({ reclamation, onClose, onSubmit }: CreateReclamationModalProps) {
   const [requerant, setRequerant] = useState(reclamation.author || 'Requérant inconnu');
-  const [canal, setCanal] = useState<string>(reclamation.source);
-  const [dateReception, setDateReception] = useState(formatDateFR(reclamation.date));
+  const canal = reclamation.source;
+  const dateReception = formatDateFR(reclamation.date);
   const [email, setEmail] = useState('');
   const [objet, setObjet] = useState(() => suggestObjet(reclamation.text));
   const [description, setDescription] = useState(reclamation.text);
-  const [interlocuteur, setInterlocuteur] = useState(INTERLOCUTEURS[0]);
   const [closing, setClosing] = useState(false);
 
   const canSubmit = canal.trim().length > 0 && dateReception.trim().length > 0 && description.trim().length > 0;
@@ -145,9 +155,7 @@ export default function CreateReclamationModal({ reclamation, onClose, onSubmit 
   const handleClose = () => requestClose(onClose);
   const handleSubmit = () => {
     if (!canSubmit) return;
-    requestClose(() =>
-      onSubmit({ requerant, canal, dateReception, email, objet, description, interlocuteur }),
-    );
+    requestClose(() => onSubmit({ requerant, canal, dateReception, email, objet, description }));
   };
 
   return (
@@ -156,21 +164,27 @@ export default function CreateReclamationModal({ reclamation, onClose, onSubmit 
         <div className="modal-title">Créer une réclamation</div>
         <div className="modal-body">
           <div className="modal-row">
-            <FormField label="Nom complet du requérant" value={requerant} onChange={setRequerant} />
-            <FieldDropdown label="Canal de réception" required value={canal} onChange={setCanal} options={sources} />
+            <ReadOnlyField label="Date de réception">
+              <span className="drawer-text">{dateReception}</span>
+            </ReadOnlyField>
+            <ReadOnlyField label="Canal de réception">
+              <a
+                className="drawer-canal"
+                href={toHref(reclamation.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="drawer-text">{canal}</span>
+                <ArrowUpRight />
+              </a>
+            </ReadOnlyField>
           </div>
           <div className="modal-row">
-            <FormField
-              label="Date de réception de la réclamation"
-              required
-              value={dateReception}
-              onChange={setDateReception}
-            />
+            <FormField label="Nom complet du requérant" value={requerant} onChange={setRequerant} />
             <FormField label="Email" value={email} onChange={setEmail} />
           </div>
           <FormField label="Objet de la réclamation" value={objet} onChange={setObjet} />
           <FormTextarea label="Description" required value={description} onChange={setDescription} />
-          <FieldDropdown label="Interlocuteur en charge" value={interlocuteur} onChange={setInterlocuteur} options={INTERLOCUTEURS} />
         </div>
         <div className="modal-actions">
           <button type="button" className="btn-text" onClick={handleClose}>

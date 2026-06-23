@@ -800,6 +800,23 @@
   position: relative;
 }
 
+.field-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-readonly-label {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.field-readonly-value {
+  display: flex;
+  align-items: center;
+}
+
 .field-border {
   border: 1px solid rgba(0, 0, 0, 0.23);
   border-radius: 4px;
@@ -1105,7 +1122,7 @@
 }
 
 .complaints-row-clickable:hover {
-  background: var(--color-action-hover);
+  background: rgba(33, 150, 243, 0.05);
 }
 
 .complaints-row-highlighted {
@@ -1289,6 +1306,14 @@
   align-items: center;
   gap: 8px;
   text-decoration: none;
+}
+
+a.drawer-canal:hover .drawer-text {
+  color: var(--color-primary-blue);
+}
+
+a.drawer-canal:hover .arrow-up-right {
+  transform: translate(1px, -1px);
 }
 
 .drawer-description-clamped {

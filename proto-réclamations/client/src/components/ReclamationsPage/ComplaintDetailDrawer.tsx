@@ -9,6 +9,11 @@ import { AVANCEMENT_LABEL, CONFORMITE_LABEL, type Complaint } from './complaints
 
 const CLOSE_ANIMATION_DURATION = 200;
 
+function toHref(url: string) {
+  const cleaned = url.replace(/\.{3}$/, '');
+  return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
+}
+
 type FieldProps = {
   label: string;
   children: React.ReactNode;
@@ -125,15 +130,35 @@ export default function ComplaintDetailDrawer({ complaint, onClose }: ComplaintD
               </button>
             </div>
             <div className="drawer-row">
-              <Field label="Canal de réception">
-                <a className="drawer-canal" href="#" onClick={(e) => e.preventDefault()}>
-                  <SourceIcon source={complaint.canal} />
-                  <span className="drawer-text">{complaint.canal}</span>
-                  <ArrowUpRight />
-                </a>
-              </Field>
               <Field label="Date de réception">
                 <span className="drawer-text">{complaint.dateReception}</span>
+              </Field>
+              <Field label="Canal de réception">
+                {complaint.sourceUrl ? (
+                  <a
+                    className="drawer-canal"
+                    href={toHref(complaint.sourceUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <SourceIcon source={complaint.canal} />
+                    <span className="drawer-text">{complaint.canal}</span>
+                    <ArrowUpRight />
+                  </a>
+                ) : (
+                  <span className="drawer-canal">
+                    <SourceIcon source={complaint.canal} />
+                    <span className="drawer-text">{complaint.canal}</span>
+                  </span>
+                )}
+              </Field>
+            </div>
+            <div className="drawer-row">
+              <Field label="Nom complet du requérant">
+                <span className="drawer-text">{complaint.requerant}</span>
+              </Field>
+              <Field label="Email">
+                <span className="drawer-text">{complaint.email || 'Non renseigné'}</span>
               </Field>
             </div>
             <div className="drawer-row">
@@ -142,14 +167,6 @@ export default function ComplaintDetailDrawer({ complaint, onClose }: ComplaintD
               </Field>
               <Field label="Assureur / Porteur du risque">
                 <span className="drawer-text">{complaint.assureur}</span>
-              </Field>
-            </div>
-            <div className="drawer-row">
-              <Field label="Nom complet du requérant">
-                <span className="drawer-text">{complaint.requerant}</span>
-              </Field>
-              <Field label="Email">
-                <span className="drawer-text">{complaint.email}</span>
               </Field>
             </div>
             <Field label="Objet de la réclamation">
