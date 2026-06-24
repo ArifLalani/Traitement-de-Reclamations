@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import warningIcon from '../../assets/figma/warning-icon.svg';
 import ComplaintDetailDrawer, { type ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
 import {
@@ -90,20 +90,22 @@ function ComplaintRow({
   onClick,
   rowRef,
   highlighted,
+  isNew,
   enterDelay,
 }: {
   complaint: Complaint;
   onClick: () => void;
   rowRef?: (el: HTMLDivElement | null) => void;
   highlighted?: boolean;
+  isNew?: boolean;
   enterDelay?: number;
 }) {
   return (
     <div
-      className={`complaints-row complaints-row-clickable complaints-row-enter ${highlighted ? 'complaints-row-highlighted' : ''}`}
+      className={`complaints-row complaints-row-clickable ${isNew ? 'complaints-row-enter' : ''} ${highlighted ? 'complaints-row-highlighted' : ''}`}
       onClick={onClick}
       ref={rowRef}
-      style={enterDelay !== undefined ? { animationDelay: `${enterDelay}s` } : undefined}
+      style={isNew && enterDelay !== undefined ? { animationDelay: `${enterDelay}s` } : undefined}
     >
       <div className="complaints-cell" style={{ width: 89 }}>
         <span className="complaints-text">{complaint.ticket}</span>
@@ -156,12 +158,18 @@ export default function ComplaintsTable({
   const [selected, setSelected] = useState<Complaint | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const prevRowTops = useRef<Map<string, number>>(new Map());
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!selected) return;
     const fresh = complaints.find((c) => c.id === selected.id);
     if (fresh && fresh !== selected) setSelected(fresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complaints]);
+
+  useEffect(() => {
+    complaints.forEach((c) => seenIdsRef.current.add(c.id));
   }, [complaints]);
 
   const handleSort = (key: SortKey) => {
@@ -224,6 +232,36 @@ export default function ComplaintsTable({
       })
     : filtered;
 
+  // eslint-disable-next-line react-hooks/refs -- seenIdsRef only gates the one-time entrance animation, not functional rendering.
+  const rows = sorted.map((complaint, index) => {
+    const isNew = !seenIdsRef.current.has(complaint.id);
+    return { complaint, isNew, enterDelay: isNew ? Math.min(index * 0.05, 0.4) : undefined };
+  });
+
+  useLayoutEffect(() => {
+    const newTops = new Map<string, number>();
+    rowRefs.current.forEach((el, id) => {
+      newTops.set(id, el.getBoundingClientRect().top);
+    });
+
+    newTops.forEach((newTop, id) => {
+      const oldTop = prevRowTops.current.get(id);
+      const el = rowRefs.current.get(id);
+      if (oldTop === undefined || !el) return;
+      const delta = oldTop - newTop;
+      if (Math.abs(delta) < 1) return;
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+        el.style.transform = '';
+      });
+    });
+
+    prevRowTops.current = newTops;
+  });
+
   return (
     <div className="complaints-table">
       <div className="complaints-header">
@@ -247,7 +285,7 @@ export default function ComplaintsTable({
         })}
       </div>
       <div className="complaints-divider" />
-      {sorted.map((complaint, index) => (
+      {rows.map(({ complaint, isNew, enterDelay }, index) => (
         <Fragment key={complaint.id}>
           <ComplaintRow
             complaint={complaint}
@@ -257,9 +295,10 @@ export default function ComplaintsTable({
               else rowRefs.current.delete(complaint.id);
             }}
             highlighted={highlightedId === complaint.id}
-            enterDelay={Math.min(index * 0.05, 0.4)}
+            isNew={isNew}
+            enterDelay={enterDelay}
           />
-          {index < sorted.length - 1 && <div className="complaints-divider" />}
+          {index < rows.length - 1 && <div className="complaints-divider" />}
         </Fragment>
       ))}
 
