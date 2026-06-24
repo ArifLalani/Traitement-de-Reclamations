@@ -291,54 +291,30 @@
   transform: translateY(-16px) !important;
 }
 
-.view-toggle {
-  display: flex;
-  align-items: center;
-  position: relative;
-  border: 1px solid var(--color-grey-200);
-  border-radius: 4px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.view-toggle-slider {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 0;
-  background: var(--color-primary-blue);
-  border-radius: 3px;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 0;
-}
-
-.view-toggle-slider-no-transition {
-  transition: none;
-}
-
-.view-toggle-btn {
-  position: relative;
-  z-index: 1;
+.archives-link {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 16px;
+  border-radius: 4px;
   font: var(--font-button-medium);
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--color-text-secondary);
   background: transparent;
   cursor: pointer;
-  transition: color 0.2s ease;
+  flex-shrink: 0;
+  transform: translateY(0);
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s ease;
 }
 
-.view-toggle-btn:not(.view-toggle-btn-active):hover {
+.archives-link:hover {
   background: var(--color-action-hover);
 }
 
-.view-toggle-btn-active {
-  color: var(--color-white);
+.filter-chip-static {
+  cursor: default;
 }
 
 .filter-chip {

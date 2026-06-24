@@ -18,39 +18,10 @@ import './ReclamationsPage.css';
 type Filter = 'toutes' | 'nouveau' | 'possible' | 'mes-reclamations';
 type View = 'a-traiter' | 'archives';
 
-function AssignmentIcon() {
+function ArrowBackIcon() {
   return (
-    <svg viewBox="0 0 20 20" width={18} height={18} fill="none">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M6.25 5C6.25 4.65482 6.52982 4.375 6.875 4.375H16.875C17.2202 4.375 17.5 4.65482 17.5 5C17.5 5.34518 17.2202 5.625 16.875 5.625H6.875C6.52982 5.625 6.25 5.34518 6.25 5Z"
-        fill="currentColor"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M6.25 10C6.25 9.65482 6.52982 9.375 6.875 9.375H16.875C17.2202 9.375 17.5 9.65482 17.5 10C17.5 10.3452 17.2202 10.625 16.875 10.625H6.875C6.52982 10.625 6.25 10.3452 6.25 10Z"
-        fill="currentColor"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M6.25 15C6.25 14.6548 6.52982 14.375 6.875 14.375H16.875C17.2202 14.375 17.5 14.6548 17.5 15C17.5 15.3452 17.2202 15.625 16.875 15.625H6.875C6.52982 15.625 6.25 15.3452 6.25 15Z"
-        fill="currentColor"
-      />
-      <path
-        d="M3.4375 5.9375C3.95527 5.9375 4.375 5.51777 4.375 5C4.375 4.48223 3.95527 4.0625 3.4375 4.0625C2.91973 4.0625 2.5 4.48223 2.5 5C2.5 5.51777 2.91973 5.9375 3.4375 5.9375Z"
-        fill="currentColor"
-      />
-      <path
-        d="M3.4375 10.9375C3.95527 10.9375 4.375 10.5178 4.375 10C4.375 9.48223 3.95527 9.0625 3.4375 9.0625C2.91973 9.0625 2.5 9.48223 2.5 10C2.5 10.5178 2.91973 10.9375 3.4375 10.9375Z"
-        fill="currentColor"
-      />
-      <path
-        d="M3.4375 15.9375C3.95527 15.9375 4.375 15.5178 4.375 15C4.375 14.4822 3.95527 14.0625 3.4375 14.0625C2.91973 14.0625 2.5 14.4822 2.5 15C2.5 15.5178 2.91973 15.9375 3.4375 15.9375Z"
-        fill="currentColor"
-      />
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
+      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
     </svg>
   );
 }
@@ -98,8 +69,6 @@ export default function ReclamationsPage() {
   const [complaintsSearch, setComplaintsSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
-  const [viewIndicator, setViewIndicator] = useState({ left: 0, width: 0 });
-  const [viewToggleReady, setViewToggleReady] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
@@ -125,7 +94,6 @@ export default function ReclamationsPage() {
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  const viewToggleRefs = useRef<Partial<Record<View, HTMLButtonElement | null>>>({});
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevTops = useRef<Map<string, number>>(new Map());
   const filteredLength = useRef(0);
@@ -291,43 +259,6 @@ export default function ReclamationsPage() {
     return () => window.removeEventListener('resize', measure);
   }, [activeTab]);
 
-  useLayoutEffect(() => {
-    const measure = () => {
-      const activeButton = viewToggleRefs.current[activeView];
-      if (!activeButton) return;
-      setViewIndicator({ left: activeButton.offsetLeft, width: activeButton.offsetWidth });
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [activeView, activeTab]);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Wait for the webfont to finish loading/swapping so the slider's first
-    // measurement matches final button widths, then only enable the
-    // transition once positioned correctly (avoids an animated jump on load).
-    const enable = () => {
-      if (cancelled) return;
-      const activeButton = viewToggleRefs.current[activeView];
-      if (activeButton) {
-        setViewIndicator({ left: activeButton.offsetLeft, width: activeButton.offsetWidth });
-      }
-      requestAnimationFrame(() => {
-        if (!cancelled) setViewToggleReady(true);
-      });
-    };
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(enable);
-    } else {
-      enable();
-    }
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     if (activeView === displayedView && activeFilter === displayedFilter) return;
     const timeout = setTimeout(() => {
@@ -371,6 +302,7 @@ export default function ReclamationsPage() {
 
   const searched = effectiveReclamations.filter(matchesQuery);
   const actifs = searched.filter((r) => r.state !== 'declinee');
+  const archivedCount = searched.filter((r) => r.state === 'declinee').length;
 
   const counts: Record<Filter, number> = {
     toutes: actifs.length,
@@ -474,50 +406,45 @@ export default function ReclamationsPage() {
               <div className="panel-body">
                 <div className="filters-row">
                   {displayedView === 'a-traiter' ? (
-                    <div className={`filters ${chipsLeaving ? 'view-fade-leaving' : ''}`}>
-                      {FILTERS.map((filter) => (
-                        <button
-                          key={filter.id}
-                          type="button"
-                          className={`filter-chip ${activeFilter === filter.id ? 'filter-chip-active' : ''}`}
-                          onClick={() => selectFilter(filter.id)}
-                        >
-                          {filter.label} ({counts[filter.id]})
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      <div className={`filters ${chipsLeaving ? 'view-fade-leaving' : ''}`}>
+                        {FILTERS.map((filter) => (
+                          <button
+                            key={filter.id}
+                            type="button"
+                            className={`filter-chip ${activeFilter === filter.id ? 'filter-chip-active' : ''}`}
+                            onClick={() => selectFilter(filter.id)}
+                          >
+                            {filter.label} ({counts[filter.id]})
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className={`archives-link ${chipsLeaving ? 'view-fade-leaving' : ''}`}
+                        onClick={() => selectView('archives')}
+                      >
+                        <ArchiveIcon />
+                        Archives
+                      </button>
+                    </>
                   ) : (
-                    <span />
+                    <>
+                      <div className={`filters ${chipsLeaving ? 'view-fade-leaving' : ''}`}>
+                        <span className="filter-chip filter-chip-active filter-chip-static">
+                          Archives ({archivedCount})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`archives-link ${chipsLeaving ? 'view-fade-leaving' : ''}`}
+                        onClick={() => selectView('a-traiter')}
+                      >
+                        <ArrowBackIcon />
+                        Retour aux mentions
+                      </button>
+                    </>
                   )}
-
-                  <div className="view-toggle">
-                    <span
-                      className={`view-toggle-slider ${viewToggleReady ? '' : 'view-toggle-slider-no-transition'}`}
-                      style={{ left: viewIndicator.left, width: viewIndicator.width }}
-                    />
-                    <button
-                      ref={(el) => {
-                        viewToggleRefs.current['a-traiter'] = el;
-                      }}
-                      type="button"
-                      className={`view-toggle-btn ${activeView === 'a-traiter' ? 'view-toggle-btn-active' : ''}`}
-                      onClick={() => selectView('a-traiter')}
-                    >
-                      <AssignmentIcon />
-                      À traiter
-                    </button>
-                    <button
-                      ref={(el) => {
-                        viewToggleRefs.current['archives'] = el;
-                      }}
-                      type="button"
-                      className={`view-toggle-btn ${activeView === 'archives' ? 'view-toggle-btn-active' : ''}`}
-                      onClick={() => selectView('archives')}
-                    >
-                      <ArchiveIcon />
-                      Archives
-                    </button>
-                  </div>
                 </div>
 
                 <div
