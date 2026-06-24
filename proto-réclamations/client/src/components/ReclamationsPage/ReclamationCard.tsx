@@ -5,11 +5,10 @@ import SourceIcon from './SourceIcon';
 import Star from './Star';
 import type { Reclamation } from './data';
 
-const STATE_LABEL: Record<Reclamation['state'], string> = {
-  possible: 'Possible réclamation',
-  'a-traiter': 'À traiter',
-  declinee: 'Non qualifiée',
-  'mes-reclamations': 'Réclamation en cours',
+const STATE_LABEL: Partial<Record<Reclamation['state'], string>> = {
+  possible: 'Réclamation détectée',
+  'mes-reclamations': 'Réclamation ouverte',
+  declinee: 'Archivé',
 };
 
 function toHref(url: string) {
@@ -103,7 +102,7 @@ export default function ReclamationCard({
             <span className="card-date">{date}</span>
           </div>
           <div className="card-chips">
-            <span className={`chip chip-${state}`}>{STATE_LABEL[state]}</span>
+            {STATE_LABEL[state] && <span className={`chip chip-${state}`}>{STATE_LABEL[state]}</span>}
             {isNew && <span className="chip chip-new">Nouveau</span>}
           </div>
         </div>
@@ -160,7 +159,7 @@ export default function ReclamationCard({
               className="btn-text"
               onClick={isDeclinee ? onCreate : onDisqualify}
             >
-              {isDeclinee ? 'Créer une réclamation' : 'Disqualifier'}
+              {isDeclinee ? 'Créer une réclamation' : 'Archiver'}
             </button>
             {!isDeclinee && (
               <button type="button" className="btn-outlined" onClick={onCreate}>

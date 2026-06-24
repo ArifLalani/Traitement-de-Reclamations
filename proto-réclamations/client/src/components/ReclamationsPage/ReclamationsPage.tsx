@@ -15,15 +15,64 @@ import { complaints as initialComplaints, type Complaint } from './complaintsDat
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
 
-type Filter = 'toutes' | ReclamationState | 'nouveau';
+type Filter = 'toutes' | 'nouveau' | 'possible' | 'mes-reclamations';
+type View = 'a-traiter' | 'archives';
+
+function AssignmentIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width={18} height={18} fill="none">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.25 5C6.25 4.65482 6.52982 4.375 6.875 4.375H16.875C17.2202 4.375 17.5 4.65482 17.5 5C17.5 5.34518 17.2202 5.625 16.875 5.625H6.875C6.52982 5.625 6.25 5.34518 6.25 5Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.25 10C6.25 9.65482 6.52982 9.375 6.875 9.375H16.875C17.2202 9.375 17.5 9.65482 17.5 10C17.5 10.3452 17.2202 10.625 16.875 10.625H6.875C6.52982 10.625 6.25 10.3452 6.25 10Z"
+        fill="currentColor"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.25 15C6.25 14.6548 6.52982 14.375 6.875 14.375H16.875C17.2202 14.375 17.5 14.6548 17.5 15C17.5 15.3452 17.2202 15.625 16.875 15.625H6.875C6.52982 15.625 6.25 15.3452 6.25 15Z"
+        fill="currentColor"
+      />
+      <path
+        d="M3.4375 5.9375C3.95527 5.9375 4.375 5.51777 4.375 5C4.375 4.48223 3.95527 4.0625 3.4375 4.0625C2.91973 4.0625 2.5 4.48223 2.5 5C2.5 5.51777 2.91973 5.9375 3.4375 5.9375Z"
+        fill="currentColor"
+      />
+      <path
+        d="M3.4375 10.9375C3.95527 10.9375 4.375 10.5178 4.375 10C4.375 9.48223 3.95527 9.0625 3.4375 9.0625C2.91973 9.0625 2.5 9.48223 2.5 10C2.5 10.5178 2.91973 10.9375 3.4375 10.9375Z"
+        fill="currentColor"
+      />
+      <path
+        d="M3.4375 15.9375C3.95527 15.9375 4.375 15.5178 4.375 15C4.375 14.4822 3.95527 14.0625 3.4375 14.0625C2.91973 14.0625 2.5 14.4822 2.5 15C2.5 15.5178 2.91973 15.9375 3.4375 15.9375Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width={18} height={18} fill="none">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M1.25 5C1.25 4.30964 1.80964 3.75 2.5 3.75H17.5C18.1904 3.75 18.75 4.30964 18.75 5V6.875C18.75 7.56536 18.1904 8.125 17.5 8.125V15C17.5 15.3315 17.3683 15.6495 17.1339 15.8839C16.8995 16.1183 16.5815 16.25 16.25 16.25H3.75C3.41848 16.25 3.10054 16.1183 2.86612 15.8839C2.6317 15.6495 2.5 15.3315 2.5 15V8.125C1.80964 8.125 1.25 7.56536 1.25 6.875V5ZM3.75 8.125V15H16.25V8.125H3.75ZM2.5 6.875V5H17.5V6.875H2.5ZM7.5 10.625C7.5 10.2798 7.77982 10 8.125 10H11.875C12.2202 10 12.5 10.2798 12.5 10.625C12.5 10.9702 12.2202 11.25 11.875 11.25H8.125C7.77982 11.25 7.5 10.9702 7.5 10.625Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'toutes', label: 'Toutes' },
   { id: 'nouveau', label: 'Nouveau' },
-  { id: 'possible', label: 'Possible réclamation' },
-  { id: 'a-traiter', label: 'À traiter' },
-  { id: 'mes-reclamations', label: 'Mes réclamations' },
-  { id: 'declinee', label: 'Non qualifiées' },
+  { id: 'possible', label: 'Réclamation détectée' },
+  { id: 'mes-reclamations', label: 'Réclamations ouvertes' },
 ];
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids';
@@ -40,10 +89,17 @@ const PAGE_SIZE = 20;
 export default function ReclamationsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('mentions');
   const [activeFilter, setActiveFilter] = useState<Filter>('toutes');
+  const [displayedFilter, setDisplayedFilter] = useState<Filter>('toutes');
+  const [activeView, setActiveView] = useState<View>('a-traiter');
+  const [displayedView, setDisplayedView] = useState<View>('a-traiter');
+  const chipsLeaving = activeView !== displayedView;
+  const cardsLeaving = chipsLeaving || activeFilter !== displayedFilter;
   const [search, setSearch] = useState('');
   const [complaintsSearch, setComplaintsSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+  const [viewIndicator, setViewIndicator] = useState({ left: 0, width: 0 });
+  const [viewToggleReady, setViewToggleReady] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
@@ -69,6 +125,7 @@ export default function ReclamationsPage() {
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+  const viewToggleRefs = useRef<Partial<Record<View, HTMLButtonElement | null>>>({});
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevTops = useRef<Map<string, number>>(new Map());
   const filteredLength = useRef(0);
@@ -84,9 +141,12 @@ export default function ReclamationsPage() {
 
   const selectFilter = (id: Filter) => {
     if (id === activeFilter) return;
-    prevTops.current = measureTops();
     setActiveFilter(id);
-    setVisibleCount(PAGE_SIZE);
+  };
+
+  const selectView = (id: View) => {
+    if (id === activeView) return;
+    setActiveView(id);
   };
 
   const handleSearchChange = (value: string) => {
@@ -197,7 +257,7 @@ export default function ReclamationsPage() {
   const handleDisqualify = (id: string) => {
     prevTops.current = measureTops();
     setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
-    setSnackbar({ id, message: 'Mention disqualifiée', variant: 'info' });
+    setSnackbar({ id, message: 'Mention archivée', variant: 'info' });
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
     snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
   };
@@ -232,6 +292,53 @@ export default function ReclamationsPage() {
   }, [activeTab]);
 
   useLayoutEffect(() => {
+    const measure = () => {
+      const activeButton = viewToggleRefs.current[activeView];
+      if (!activeButton) return;
+      setViewIndicator({ left: activeButton.offsetLeft, width: activeButton.offsetWidth });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [activeView, activeTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Wait for the webfont to finish loading/swapping so the slider's first
+    // measurement matches final button widths, then only enable the
+    // transition once positioned correctly (avoids an animated jump on load).
+    const enable = () => {
+      if (cancelled) return;
+      const activeButton = viewToggleRefs.current[activeView];
+      if (activeButton) {
+        setViewIndicator({ left: activeButton.offsetLeft, width: activeButton.offsetWidth });
+      }
+      requestAnimationFrame(() => {
+        if (!cancelled) setViewToggleReady(true);
+      });
+    };
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(enable);
+    } else {
+      enable();
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (activeView === displayedView && activeFilter === displayedFilter) return;
+    const timeout = setTimeout(() => {
+      setDisplayedView(activeView);
+      setDisplayedFilter(activeFilter);
+      setVisibleCount(PAGE_SIZE);
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [activeView, displayedView, activeFilter, displayedFilter]);
+
+  useLayoutEffect(() => {
     const newTops = measureTops();
     newTops.forEach((newTop, id) => {
       const oldTop = prevTops.current.get(id);
@@ -247,7 +354,7 @@ export default function ReclamationsPage() {
         el.style.transform = '';
       });
     });
-  }, [activeFilter, search, stateOverrides]);
+  }, [search, stateOverrides]);
 
   const effectiveReclamations = reclamations.map((r) =>
     stateOverrides[r.id] ? { ...r, state: stateOverrides[r.id] } : r,
@@ -263,21 +370,23 @@ export default function ReclamationsPage() {
     r.url.toLowerCase().includes(query);
 
   const searched = effectiveReclamations.filter(matchesQuery);
+  const actifs = searched.filter((r) => r.state !== 'declinee');
 
   const counts: Record<Filter, number> = {
-    toutes: searched.length,
-    nouveau: searched.filter(isEffectivelyNew).length,
-    possible: searched.filter((r) => r.state === 'possible').length,
-    'a-traiter': searched.filter((r) => r.state === 'a-traiter').length,
-    'mes-reclamations': searched.filter((r) => r.state === 'mes-reclamations').length,
-    declinee: searched.filter((r) => r.state === 'declinee').length,
+    toutes: actifs.length,
+    nouveau: actifs.filter(isEffectivelyNew).length,
+    possible: actifs.filter((r) => r.state === 'possible').length,
+    'mes-reclamations': actifs.filter((r) => r.state === 'mes-reclamations').length,
   };
 
-  const filtered = searched.filter((r) => {
-    if (activeFilter === 'toutes') return true;
-    if (activeFilter === 'nouveau') return isEffectivelyNew(r);
-    return r.state === activeFilter;
-  });
+  const filtered =
+    displayedView === 'archives'
+      ? searched.filter((r) => r.state === 'declinee')
+      : actifs.filter((r) => {
+          if (displayedFilter === 'toutes') return true;
+          if (displayedFilter === 'nouveau') return isEffectivelyNew(r);
+          return r.state === displayedFilter;
+        });
   filteredLength.current = filtered.length;
   const visibleItems = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -325,52 +434,96 @@ export default function ReclamationsPage() {
             />
           </div>
 
+          <div className="appbar">
+            <div className="search-field">
+              <img src={searchIcon} alt="" width={24} height={24} />
+              <input
+                type="text"
+                placeholder="Recherches"
+                value={activeTab === 'mentions' ? search : complaintsSearch}
+                onChange={(e) =>
+                  activeTab === 'mentions'
+                    ? handleSearchChange(e.target.value)
+                    : setComplaintsSearch(e.target.value)
+                }
+              />
+              {(activeTab === 'mentions' ? search : complaintsSearch).length > 0 && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  aria-label="Effacer la recherche"
+                  onClick={() =>
+                    activeTab === 'mentions' ? handleSearchChange('') : setComplaintsSearch('')
+                  }
+                >
+                  <svg viewBox="0 0 24 24" width={18} height={18}>
+                    <path
+                      d="M6 6l12 12M18 6 6 18"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="tabs-content" key={activeTab}>
             {activeTab === 'mentions' ? (
               <div className="panel-body">
-                <div className="appbar">
-                  <div className="search-field">
-                    <img src={searchIcon} alt="" width={24} height={24} />
-                    <input
-                      type="text"
-                      placeholder="Recherches"
-                      value={search}
-                      onChange={(e) => handleSearchChange(e.target.value)}
+                <div className="filters-row">
+                  {displayedView === 'a-traiter' ? (
+                    <div className={`filters ${chipsLeaving ? 'view-fade-leaving' : ''}`}>
+                      {FILTERS.map((filter) => (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          className={`filter-chip ${activeFilter === filter.id ? 'filter-chip-active' : ''}`}
+                          onClick={() => selectFilter(filter.id)}
+                        >
+                          {filter.label} ({counts[filter.id]})
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span />
+                  )}
+
+                  <div className="view-toggle">
+                    <span
+                      className={`view-toggle-slider ${viewToggleReady ? '' : 'view-toggle-slider-no-transition'}`}
+                      style={{ left: viewIndicator.left, width: viewIndicator.width }}
                     />
-                    {search.length > 0 && (
-                      <button
-                        type="button"
-                        className="search-clear"
-                        aria-label="Effacer la recherche"
-                        onClick={() => handleSearchChange('')}
-                      >
-                        <svg viewBox="0 0 24 24" width={18} height={18}>
-                          <path
-                            d="M6 6l12 12M18 6 6 18"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </button>
-                    )}
+                    <button
+                      ref={(el) => {
+                        viewToggleRefs.current['a-traiter'] = el;
+                      }}
+                      type="button"
+                      className={`view-toggle-btn ${activeView === 'a-traiter' ? 'view-toggle-btn-active' : ''}`}
+                      onClick={() => selectView('a-traiter')}
+                    >
+                      <AssignmentIcon />
+                      À traiter
+                    </button>
+                    <button
+                      ref={(el) => {
+                        viewToggleRefs.current['archives'] = el;
+                      }}
+                      type="button"
+                      className={`view-toggle-btn ${activeView === 'archives' ? 'view-toggle-btn-active' : ''}`}
+                      onClick={() => selectView('archives')}
+                    >
+                      <ArchiveIcon />
+                      Archives
+                    </button>
                   </div>
                 </div>
 
-                <div className="filters">
-                  {FILTERS.map((filter) => (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      className={`filter-chip ${activeFilter === filter.id ? 'filter-chip-active' : ''}`}
-                      onClick={() => selectFilter(filter.id)}
-                    >
-                      {filter.label} ({counts[filter.id]})
-                    </button>
-                  ))}
-                </div>
-
-                <div className="card-list">
+                <div
+                  className={`card-list ${cardsLeaving ? 'view-fade-leaving' : ''}`}
+                  key={`${displayedView}-${displayedFilter}`}
+                >
                   {visibleItems.map((reclamation) => (
                     <div
                       key={reclamation.id}
@@ -398,34 +551,6 @@ export default function ReclamationsPage() {
               </div>
             ) : (
               <div className="panel-body">
-                <div className="appbar">
-                  <div className="search-field">
-                    <img src={searchIcon} alt="" width={24} height={24} />
-                    <input
-                      type="text"
-                      placeholder="Recherches"
-                      value={complaintsSearch}
-                      onChange={(e) => setComplaintsSearch(e.target.value)}
-                    />
-                    {complaintsSearch.length > 0 && (
-                      <button
-                        type="button"
-                        className="search-clear"
-                        aria-label="Effacer la recherche"
-                        onClick={() => setComplaintsSearch('')}
-                      >
-                        <svg viewBox="0 0 24 24" width={18} height={18}>
-                          <path
-                            d="M6 6l12 12M18 6 6 18"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
                 <ComplaintsTable
                   complaints={complaintsList}
                   query={complaintsSearch}
