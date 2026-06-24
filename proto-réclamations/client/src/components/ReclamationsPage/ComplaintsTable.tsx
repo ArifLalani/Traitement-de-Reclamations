@@ -238,6 +238,8 @@ export default function ComplaintsTable({
     return { complaint, isNew, enterDelay: isNew ? Math.min(index * 0.05, 0.4) : undefined };
   });
 
+  const rowOrderKey = rows.map((r) => r.complaint.id).join('|');
+
   useLayoutEffect(() => {
     const newTops = new Map<string, number>();
     rowRefs.current.forEach((el, id) => {
@@ -260,7 +262,11 @@ export default function ComplaintsTable({
     });
 
     prevRowTops.current = newTops;
-  });
+    // Only re-measure when the actual row order/membership changes (sort or
+    // filter) — not on every render, otherwise a re-render that happens
+    // mid-scroll (e.g. the focus/highlight effect) would read scroll-shifted
+    // positions and snap rows back, causing a visible glitch while scrolling.
+  }, [rowOrderKey]);
 
   return (
     <div className="complaints-table">
