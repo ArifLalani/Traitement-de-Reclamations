@@ -159,7 +159,13 @@ export default function ComplaintsTable({
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
   const prevRowTops = useRef<Map<string, number>>(new Map());
-  const seenIdsRef = useRef<Set<string>>(new Set());
+  // Ids currently allowed to play the one-time entrance animation. Kept as
+  // state (not a ref) and held for the animation's full duration via a
+  // timeout, so unrelated re-renders elsewhere in the app (sliders, scroll
+  // listeners, etc.) can't race the ref update and strip the class before
+  // the animation has had a chance to play.
+  const [newIds, setNewIds] = useState<Set<string>>(() => new Set(complaints.map((c) => c.id)));
+  const claimedIdsRef = useRef<Set<string>>(new Set(complaints.map((c) => c.id)));
 
   useEffect(() => {
     if (!selected) return;
@@ -169,8 +175,26 @@ export default function ComplaintsTable({
   }, [complaints]);
 
   useEffect(() => {
-    complaints.forEach((c) => seenIdsRef.current.add(c.id));
+    const freshIds = complaints.map((c) => c.id).filter((id) => !claimedIdsRef.current.has(id));
+    if (freshIds.length === 0) return;
+    freshIds.forEach((id) => claimedIdsRef.current.add(id));
+    setNewIds((prev) => new Set([...prev, ...freshIds]));
+    const timeout = setTimeout(() => {
+      setNewIds((prev) => {
+        const next = new Set(prev);
+        freshIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 1100);
+    return () => clearTimeout(timeout);
   }, [complaints]);
+
+  useEffect(() => {
+    // Clear the initial batch's entrance flag once its animation has had
+    // time to finish playing.
+    const timeout = setTimeout(() => setNewIds(new Set()), 1100);
+    return () => clearTimeout(timeout);
+  }, []);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -232,9 +256,8 @@ export default function ComplaintsTable({
       })
     : filtered;
 
-  // eslint-disable-next-line react-hooks/refs -- seenIdsRef only gates the one-time entrance animation, not functional rendering.
   const rows = sorted.map((complaint, index) => {
-    const isNew = !seenIdsRef.current.has(complaint.id);
+    const isNew = newIds.has(complaint.id);
     return { complaint, isNew, enterDelay: isNew ? Math.min(index * 0.05, 0.4) : undefined };
   });
 
