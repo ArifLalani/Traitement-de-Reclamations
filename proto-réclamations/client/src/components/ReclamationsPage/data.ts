@@ -31,7 +31,7 @@ const curated: Reclamation[] = [
     state: 'a-traiter',
     isNew: true,
     source: 'Google',
-    date: "Aujourd'hui à 09:14",
+    date: 'Il y a 5 minutes',
     url: 'www.google.com/maps/reviews/avis/389021...',
     author: 'Marc D.',
     rating: 2,
@@ -114,6 +114,8 @@ const authors = [
 ];
 
 const dates = [
+  'Il y a 8 minutes',
+  'Il y a 35 minutes',
   'Il y a 1h',
   'Il y a 4h',
   'Hier à 10:18',
@@ -161,10 +163,46 @@ function generate(state: ReclamationState, count: number, startId: number): Recl
   });
 }
 
+function parseDateValue(date: string): number {
+  const now = new Date();
+
+  if (date.startsWith("Aujourd'hui")) {
+    const m = date.match(/(\d{2}):(\d{2})/);
+    const d = new Date(now);
+    if (m) d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    return d.getTime();
+  }
+
+  if (date.startsWith('Hier')) {
+    const m = date.match(/(\d{2}):(\d{2})/);
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    if (m) d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    return d.getTime();
+  }
+
+  const minutesMatch = date.match(/Il y a (\d+) minutes?/);
+  if (minutesMatch) return now.getTime() - Number(minutesMatch[1]) * 60_000;
+
+  const hoursMatch = date.match(/Il y a (\d+)h/);
+  if (hoursMatch) return now.getTime() - Number(hoursMatch[1]) * 3_600_000;
+
+  const daysMatch = date.match(/Il y a (\d+) jours?/);
+  if (daysMatch) return now.getTime() - Number(daysMatch[1]) * 86_400_000;
+
+  const absoluteMatch = date.match(/(\d{2})\/(\d{2})\/(\d{4}) à (\d{2}):(\d{2})/);
+  if (absoluteMatch) {
+    const [, day, month, year, hh, mm] = absoluteMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day), Number(hh), Number(mm)).getTime();
+  }
+
+  return 0;
+}
+
 export const reclamations: Reclamation[] = [
   ...curated,
   ...generate('possible', 4, 100),
   ...generate('a-traiter', 33, 200),
   ...generate('declinee', 5, 300),
   ...generate('mes-reclamations', 14, 400),
-];
+].sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date));

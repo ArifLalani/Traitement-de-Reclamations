@@ -306,6 +306,7 @@
   flex-shrink: 0;
   transform: translateY(0);
   opacity: 1;
+  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s ease;
 }
 
@@ -829,6 +830,59 @@
   padding: 16px;
 }
 
+/* Unsaved changes confirm dialog */
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 40;
+  animation: modal-backdrop-fade-in 0.2s ease;
+}
+
+.confirm-dialog-paper {
+  background: var(--color-white);
+  border-radius: 4px;
+  width: 420px;
+  max-width: 100%;
+  box-shadow:
+    0 9px 46px 8px rgba(0, 0, 0, 0.12),
+    0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 11px 15px -7px rgba(0, 0, 0, 0.2);
+  animation: modal-paper-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.confirm-dialog-paper-wide {
+  width: 600px;
+}
+
+.confirm-dialog-title {
+  padding: 20px 24px 0;
+  margin: 0;
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.confirm-dialog-body {
+  padding: 16px 24px 24px;
+  margin: 0;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
 .btn-filled {
   background: var(--color-primary-blue);
   color: var(--color-white);
@@ -1317,21 +1371,6 @@
   width: 100%;
 }
 
-.drawer-delete-button {
-  cursor: pointer;
-  font: var(--font-button-medium);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: #c62828;
-  padding: 6px 8px;
-  border-radius: 4px;
-  align-self: flex-start;
-}
-
-.drawer-delete-button:hover {
-  background: rgba(198, 40, 40, 0.08);
-}
-
 .drawer-edit-transition-content {
   display: flex;
   flex-direction: column;
@@ -1404,10 +1443,6 @@
   gap: 4px;
 }
 
-.drawer-description-toggle {
-  align-self: center;
-}
-
 .drawer-field-label {
   font: var(--font-subtitle1);
   letter-spacing: 0.15px;
@@ -1440,10 +1475,6 @@ a.drawer-canal:hover .arrow-up-right {
   transform: translate(1px, -1px);
 }
 
-.drawer-description-wrapper {
-  width: 100%;
-}
-
 .drawer-description-text {
   font: var(--font-input-text);
   letter-spacing: 0.15px;
@@ -1451,53 +1482,57 @@ a.drawer-canal:hover .arrow-up-right {
   margin: 0;
 }
 
-.drawer-description-clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.drawer-section-title-row-spread {
+  width: 100%;
+  justify-content: space-between;
 }
 
-.drawer-description-fade {
-  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%);
-  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%);
+.drawer-actions-menu {
+  position: relative;
 }
 
-.drawer-action-card {
-  background: #fafafa;
-  border: 1px solid var(--color-grey-200);
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.drawer-action-card:hover {
-  background: var(--color-chip-selected-bg);
-}
-
-.drawer-action-card-header {
+.drawer-actions-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
   gap: 8px;
 }
 
-.drawer-action-card-title {
-  font: var(--font-subtitle1);
+.drawer-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 260px;
+  background: var(--color-white);
+  border-radius: 4px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+  animation: panel-fade-slide-up 0.15s ease backwards;
+}
+
+.drawer-actions-item {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 8px 16px;
+  font: var(--font-body1);
   letter-spacing: 0.15px;
   color: var(--color-text-primary);
 }
 
-.drawer-action-card-text {
-  font: var(--font-body2);
-  letter-spacing: 0.17px;
-  color: var(--color-text-secondary);
-  margin: 0;
+.drawer-actions-item:hover {
+  background: var(--color-action-hover);
+}
+
+.drawer-actions-divider {
+  height: 1px;
+  background: var(--color-grey-200);
+  margin: 8px 0;
 }

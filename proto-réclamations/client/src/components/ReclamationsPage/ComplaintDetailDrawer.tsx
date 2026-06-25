@@ -1,8 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import drawerClose from '../../assets/figma/drawer-close.svg';
 import editPencil from '../../assets/figma/edit-pencil.svg';
-import caretRight from '../../assets/figma/caret-right.svg';
-import expandMore from '../../assets/figma/expand-more.svg';
 import ArrowUpRight from './ArrowUpRight';
 import SourceIcon from './SourceIcon';
 import { FormField, FormTextarea } from './FormFields';
@@ -30,97 +28,10 @@ function Field({ label, children }: FieldProps) {
 }
 
 function DescriptionField({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const [overflowing, setOverflowing] = useState(false);
-  const [maskVisible, setMaskVisible] = useState(true);
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const fromHeight = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-    setOverflowing(el.scrollHeight - el.clientHeight > 1);
-  }, [text]);
-
-  useLayoutEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper || fromHeight.current === null) return;
-    const from = fromHeight.current;
-    fromHeight.current = null;
-
-    wrapper.style.transition = 'none';
-    wrapper.style.height = 'auto';
-    const to = wrapper.getBoundingClientRect().height;
-
-    if (Math.abs(to - from) < 1) {
-      wrapper.style.height = '';
-      if (expanded) setMaskVisible(false);
-      return;
-    }
-
-    wrapper.style.height = `${from}px`;
-    wrapper.style.overflow = 'hidden';
-    wrapper.getBoundingClientRect();
-
-    const raf = requestAnimationFrame(() => {
-      wrapper.style.transition = 'height 0.5s cubic-bezier(0.16, 1, 0.3, 1)';
-      wrapper.style.height = `${to}px`;
-    });
-
-    const handleEnd = (e: TransitionEvent) => {
-      if (e.propertyName !== 'height') return;
-      wrapper.style.height = '';
-      wrapper.style.overflow = '';
-      wrapper.style.transition = '';
-      // Only drop the fade mask once the expand transition has fully
-      // settled, so it stays visible (and moves with the content) through
-      // the whole animation instead of popping off instantly.
-      if (expanded) setMaskVisible(false);
-    };
-    wrapper.addEventListener('transitionend', handleEnd);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      wrapper.removeEventListener('transitionend', handleEnd);
-    };
-  }, [expanded]);
-
-  const toggleExpanded = () => {
-    const wrapper = wrapperRef.current;
-    if (wrapper) fromHeight.current = wrapper.getBoundingClientRect().height;
-    setExpanded((v) => {
-      const next = !v;
-      // Collapsing: bring the mask back immediately so it's already there
-      // for the whole shrink animation rather than popping in afterwards.
-      if (!next) setMaskVisible(true);
-      return next;
-    });
-  };
-
   return (
     <div className="drawer-field">
       <span className="drawer-field-label">Description</span>
-      <div
-        ref={wrapperRef}
-        className={`drawer-description-wrapper ${maskVisible && overflowing ? 'drawer-description-fade' : ''}`}
-      >
-        <p ref={textRef} className={`drawer-description-text ${expanded ? '' : 'drawer-description-clamped'}`}>
-          {text}
-        </p>
-      </div>
-      {overflowing && (
-        <button type="button" className="btn-link drawer-description-toggle" onClick={toggleExpanded}>
-          {expanded ? 'Voir moins' : 'Voir plus'}
-          <img
-            src={expandMore}
-            alt=""
-            width={12}
-            height={7.4}
-            className={expanded ? 'btn-link-icon btn-link-icon-flipped' : 'btn-link-icon'}
-          />
-        </button>
-      )}
+      <p className="drawer-description-text">{text}</p>
     </div>
   );
 }
@@ -149,6 +60,10 @@ export default function ComplaintDetailDrawer({
 }: ComplaintDetailDrawerProps) {
   const [closing, setClosing] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [formRequerant, setFormRequerant] = useState(complaint.requerant);
   const [formEmail, setFormEmail] = useState(complaint.email);
   const [formDenominateur, setFormDenominateur] = useState(complaint.denominateurSocial);
@@ -185,10 +100,45 @@ export default function ComplaintDetailDrawer({
     setEditing(false);
   };
 
-  const handleClose = () => {
+  const isDirty =
+    editing &&
+    (formRequerant !== complaint.requerant ||
+      formEmail !== complaint.email ||
+      formDenominateur !== complaint.denominateurSocial ||
+      formAssureur !== complaint.assureur ||
+      formObjet !== complaint.objet ||
+      formDescription !== complaint.description);
+
+  const performClose = () => {
     if (closing) return;
     setClosing(true);
     setTimeout(onClose, CLOSE_ANIMATION_DURATION);
+  };
+
+  const handleClose = () => {
+    if (closing) return;
+    if (isDirty) {
+      setShowUnsavedPrompt(true);
+      return;
+    }
+    performClose();
+  };
+
+  const discardAndClose = () => {
+    setShowUnsavedPrompt(false);
+    setEditing(false);
+    performClose();
+  };
+
+  const saveAndClose = () => {
+    saveEditing();
+    setShowUnsavedPrompt(false);
+    performClose();
+  };
+
+  const confirmArchive = () => {
+    setArchiveConfirmOpen(false);
+    onDelete?.(complaint.id);
   };
 
   useEffect(() => {
@@ -201,14 +151,37 @@ export default function ComplaintDetailDrawer({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
+      if (e.key !== 'Escape') return;
+      if (archiveConfirmOpen) {
+        setArchiveConfirmOpen(false);
+        return;
+      }
+      if (showUnsavedPrompt) {
+        setShowUnsavedPrompt(false);
+        return;
+      }
+      if (actionsOpen) {
+        setActionsOpen(false);
+        return;
+      }
+      handleClose();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [actionsOpen, showUnsavedPrompt, archiveConfirmOpen]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!actionsMenuRef.current?.contains(e.target as Node)) setActionsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [actionsOpen]);
 
   return (
+    <>
     <div className={`drawer-backdrop ${closing ? 'drawer-closing' : ''}`} onClick={handleClose}>
       <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-appbar">
@@ -220,7 +193,60 @@ export default function ComplaintDetailDrawer({
 
         <div className="drawer-content">
           <section className="drawer-section drawer-section-tight">
-            <h3 className="drawer-section-title-h6">Statut du dossier</h3>
+            <div className="drawer-section-title-row drawer-section-title-row-spread">
+              <h3 className="drawer-section-title-h6">Statut du dossier</h3>
+              <div className="drawer-actions-menu" ref={actionsMenuRef}>
+                <button
+                  type="button"
+                  className="btn-filled drawer-actions-trigger"
+                  onClick={() => setActionsOpen((v) => !v)}
+                >
+                  Actions
+                  <svg
+                    viewBox="0 0 9 5.5575"
+                    width={12}
+                    height={7.4}
+                    fill="currentColor"
+                    className={`btn-link-icon ${actionsOpen ? 'btn-link-icon-flipped' : ''}`}
+                  >
+                    <path d="M7.9425 0L4.5 3.435L1.0575 0L0 1.0575L4.5 5.5575L9 1.0575L7.9425 0Z" />
+                  </svg>
+                </button>
+                {actionsOpen && (
+                  <div className="drawer-actions-dropdown">
+                    <button
+                      type="button"
+                      className="drawer-actions-item"
+                      onClick={() => setActionsOpen(false)}
+                    >
+                      Accusé de Réception envoyé
+                    </button>
+                    <button
+                      type="button"
+                      className="drawer-actions-item"
+                      onClick={() => setActionsOpen(false)}
+                    >
+                      Réponse définitive envoyée
+                    </button>
+                    {onDelete && (
+                      <>
+                        <div className="drawer-actions-divider" />
+                        <button
+                          type="button"
+                          className="drawer-actions-item"
+                          onClick={() => {
+                            setActionsOpen(false);
+                            setArchiveConfirmOpen(true);
+                          }}
+                        >
+                          Archiver
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="drawer-section-content">
               <div className="drawer-row">
                 <Field label="État d'avancement">
@@ -345,42 +371,53 @@ export default function ComplaintDetailDrawer({
             </div>
           </section>
 
-          <section className="drawer-section drawer-section-tight">
-            <h3 className="drawer-section-title-h6">Actions</h3>
-            <div className="drawer-row">
-              <button type="button" className="drawer-action-card">
-                <div className="drawer-action-card-header">
-                  <span className="drawer-action-card-title">Accusé de réception envoyé</span>
-                  <img src={caretRight} alt="" width={12} height={22} />
-                </div>
-                <p className="drawer-action-card-text">
-                  Vous avez envoyé un message au requérant confirmant que vous avez bien pris en
-                  compte sa demande.
-                </p>
-              </button>
-              <button type="button" className="drawer-action-card">
-                <div className="drawer-action-card-header">
-                  <span className="drawer-action-card-title">Réponse définitive envoyée</span>
-                  <img src={caretRight} alt="" width={12} height={22} />
-                </div>
-                <p className="drawer-action-card-text">
-                  Vous avez envoyé une réponse définitive au requérant concernant sa demande. La
-                  réclamation sera automatiquement clôturée.
-                </p>
-              </button>
-            </div>
-            {onDelete && (
-              <button
-                type="button"
-                className="drawer-delete-button"
-                onClick={() => onDelete(complaint.id)}
-              >
-                Supprimer la réclamation
-              </button>
-            )}
-          </section>
         </div>
       </div>
     </div>
+
+    {showUnsavedPrompt && (
+      <div className="confirm-dialog-backdrop" onClick={() => setShowUnsavedPrompt(false)}>
+        <div className="confirm-dialog-paper" onClick={(e) => e.stopPropagation()}>
+          <h3 className="confirm-dialog-title">Continuer sans sauvegarder ?</h3>
+          <p className="confirm-dialog-body">
+            Vous avez des modifications non sauvegardées. Voulez-vous les conserver avant de
+            continuer ?
+          </p>
+          <div className="confirm-dialog-actions">
+            <button type="button" className="btn-text" onClick={discardAndClose}>
+              Ignorer les modifications
+            </button>
+            <button type="button" className="btn-filled" onClick={saveAndClose}>
+              Sauvegarder
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {archiveConfirmOpen && (
+      <div className="confirm-dialog-backdrop" onClick={() => setArchiveConfirmOpen(false)}>
+        <div
+          className="confirm-dialog-paper confirm-dialog-paper-wide"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="confirm-dialog-title">Archiver cette réclamation ?</h3>
+          <p className="confirm-dialog-body">
+            La réclamation et la mention web associée seront archivées. Vos données sont
+            conservées, vous pourrez recréer une réclamation à partir de ces informations à tout
+            moment.
+          </p>
+          <div className="confirm-dialog-actions">
+            <button type="button" className="btn-text" onClick={() => setArchiveConfirmOpen(false)}>
+              Annuler
+            </button>
+            <button type="button" className="btn-filled" onClick={confirmArchive}>
+              Archiver la réclamation
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

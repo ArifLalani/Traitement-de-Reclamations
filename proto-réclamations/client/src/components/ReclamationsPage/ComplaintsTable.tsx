@@ -153,7 +153,7 @@ export default function ComplaintsTable({
   onUpdateComplaint,
   onDeleteComplaint,
 }: ComplaintsTableProps) {
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>('echeance');
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
   const [selected, setSelected] = useState<Complaint | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);

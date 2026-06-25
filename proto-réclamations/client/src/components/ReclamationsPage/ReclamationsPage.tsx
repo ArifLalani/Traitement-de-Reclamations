@@ -420,6 +420,7 @@ export default function ReclamationsPage() {
                         ))}
                       </div>
                       <button
+                        key="archives"
                         type="button"
                         className={`archives-link ${chipsLeaving ? 'view-fade-leaving' : ''}`}
                         onClick={() => selectView('archives')}
@@ -436,6 +437,7 @@ export default function ReclamationsPage() {
                         </span>
                       </div>
                       <button
+                        key="retour"
                         type="button"
                         className={`archives-link ${chipsLeaving ? 'view-fade-leaving' : ''}`}
                         onClick={() => selectView('a-traiter')}
