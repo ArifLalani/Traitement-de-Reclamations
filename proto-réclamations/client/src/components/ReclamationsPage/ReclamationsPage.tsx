@@ -12,6 +12,7 @@ import ReclamationCard from './ReclamationCard';
 import ScrollTopButton from './ScrollTopButton';
 import { reclamations, type Reclamation, type ReclamationState } from './data';
 import { complaints as initialComplaints, type Complaint } from './complaintsData';
+import { exportComplaintsToXls } from './exportComplaints';
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
 
@@ -59,6 +60,13 @@ const PAGE_SIZE = 20;
 
 export default function ReclamationsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('mentions');
+  const [displayedTab, setDisplayedTab] = useState<TabId>('mentions');
+  const tabLeaving = activeTab !== displayedTab;
+  // Show the export button immediately on entering "reclamations" (fresh
+  // mount → entrance animation plays), but keep it mounted with a fading
+  // class while leaving, instead of snapping away instantly.
+  const exportButtonLeaving = tabLeaving && displayedTab === 'reclamations';
+  const showExportButton = activeTab === 'reclamations' || exportButtonLeaving;
   const [activeFilter, setActiveFilter] = useState<Filter>('toutes');
   const [displayedFilter, setDisplayedFilter] = useState<Filter>('toutes');
   const [activeView, setActiveView] = useState<View>('a-traiter');
@@ -294,6 +302,12 @@ export default function ReclamationsPage() {
     return () => clearTimeout(timeout);
   }, [activeView, displayedView, activeFilter, displayedFilter]);
 
+  useEffect(() => {
+    if (activeTab === displayedTab) return;
+    const timeout = setTimeout(() => setDisplayedTab(activeTab), 250);
+    return () => clearTimeout(timeout);
+  }, [activeTab, displayedTab]);
+
   useLayoutEffect(() => {
     const newTops = measureTops();
     newTops.forEach((newTop, id) => {
@@ -371,24 +385,39 @@ export default function ReclamationsPage() {
         </div>
 
         <div className="content">
-          <div className="tabs" ref={tabsRef}>
-            {TABS.map((tab) => (
+          <div className="tabs-row">
+            <div className="tabs" ref={tabsRef}>
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  ref={(el) => {
+                    tabRefs.current[tab.id] = el;
+                  }}
+                  type="button"
+                  className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+              <span
+                className="tabs-indicator"
+                style={{ left: indicator.left, width: indicator.width }}
+              />
+            </div>
+
+            {showExportButton && (
               <button
-                key={tab.id}
-                ref={(el) => {
-                  tabRefs.current[tab.id] = el;
-                }}
                 type="button"
-                className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
+                className={`btn-filled export-button ${exportButtonLeaving ? 'view-fade-leaving' : ''}`}
+                onClick={() => exportComplaintsToXls(complaintsList)}
               >
-                {tab.label}
+                Exporter
+                <svg viewBox="0 0 9 5.5575" width={12} height={7.4} fill="currentColor">
+                  <path d="M7.9425 0L4.5 3.435L1.0575 0L0 1.0575L4.5 5.5575L9 1.0575L7.9425 0Z" />
+                </svg>
               </button>
-            ))}
-            <span
-              className="tabs-indicator"
-              style={{ left: indicator.left, width: indicator.width }}
-            />
+            )}
           </div>
 
           <div className="appbar">

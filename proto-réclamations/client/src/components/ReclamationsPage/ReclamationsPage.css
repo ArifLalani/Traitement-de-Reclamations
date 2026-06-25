@@ -110,9 +110,26 @@
 }
 
 /* Tabs */
+.tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .tabs {
   display: flex;
   position: relative;
+}
+
+.export-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateY(0);
+  opacity: 1;
+  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .tab {
