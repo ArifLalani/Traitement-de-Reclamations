@@ -239,7 +239,7 @@ export default function ComplaintDetailDrawer({
                             setArchiveConfirmOpen(true);
                           }}
                         >
-                          Archiver
+                          Archiver la réclamation
                         </button>
                       </>
                     )}

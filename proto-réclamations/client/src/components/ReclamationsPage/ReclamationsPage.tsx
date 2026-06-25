@@ -77,6 +77,7 @@ export default function ReclamationsPage() {
     id: string;
     message: string;
     variant: 'info' | 'success';
+    onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(initialComplaints);
@@ -179,8 +180,25 @@ export default function ReclamationsPage() {
     setComplaintsList((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
   };
 
-  const handleDeleteComplaint = (id: string) => {
+  const handleArchiveComplaint = (id: string) => {
+    const index = complaintsList.findIndex((c) => c.id === id);
+    if (index === -1) return;
+    const complaint = complaintsList[index];
     setComplaintsList((prev) => prev.filter((c) => c.id !== id));
+    setSnackbar({
+      id,
+      message: 'Réclamation archivée.',
+      variant: 'info',
+      onUndo: () => {
+        setComplaintsList((current) => {
+          const next = [...current];
+          next.splice(index, 0, complaint);
+          return next;
+        });
+      },
+    });
+    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
+    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
   };
 
   const handleConfirmCreate = (formData: ReclamationFormData) => {
@@ -225,19 +243,26 @@ export default function ReclamationsPage() {
   const handleDisqualify = (id: string) => {
     prevTops.current = measureTops();
     setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
-    setSnackbar({ id, message: 'Mention archivée', variant: 'info' });
+    setSnackbar({
+      id,
+      message: 'Mention archivée',
+      variant: 'info',
+      onUndo: () => {
+        prevTops.current = measureTops();
+        setStateOverrides((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      },
+    });
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
     snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
   };
 
-  const handleUndoDisqualify = () => {
+  const handleSnackbarUndo = () => {
     if (!snackbar) return;
-    prevTops.current = measureTops();
-    setStateOverrides((prev) => {
-      const next = { ...prev };
-      delete next[snackbar.id];
-      return next;
-    });
+    snackbar.onUndo?.();
     setSnackbar(null);
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
   };
@@ -486,7 +511,7 @@ export default function ReclamationsPage() {
                   focusId={focusComplaintId}
                   onFocusHandled={() => setFocusComplaintId(null)}
                   onUpdateComplaint={handleUpdateComplaint}
-                  onDeleteComplaint={handleDeleteComplaint}
+                  onDeleteComplaint={handleArchiveComplaint}
                 />
               </div>
             )}
@@ -504,7 +529,7 @@ export default function ReclamationsPage() {
         message={snackbar?.message ?? ''}
         variant={snackbar?.variant ?? 'info'}
         actionLabel={snackbar?.variant === 'info' ? 'Annuler' : undefined}
-        onAction={snackbar?.variant === 'info' ? handleUndoDisqualify : undefined}
+        onAction={snackbar?.variant === 'info' ? handleSnackbarUndo : undefined}
       />
 
       {createTarget && (
