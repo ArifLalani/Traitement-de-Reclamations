@@ -353,6 +353,17 @@
   color: var(--color-white);
 }
 
+.complaints-table-animated {
+  animation: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.complaints-table-leaving {
+  animation: none !important;
+  opacity: 0 !important;
+  transform: translateY(-12px) !important;
+}
+
 /* Card list */
 .card-list {
   display: flex;
@@ -1149,6 +1160,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
+  animation: panel-fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: 0.08s;
 }
 
 .complaints-header-cell {
@@ -1231,7 +1244,9 @@
 }
 
 .complaints-chip-avancement-en-attente,
-.complaints-chip-avancement-cloture {
+.complaints-chip-avancement-sans-suite,
+.complaints-chip-avancement-cloture,
+.complaints-chip-avancement-archive {
   background: var(--color-chip-selected-bg);
   color: var(--color-text-primary);
 }
@@ -1257,7 +1272,7 @@
 }
 
 .complaints-row-enter {
-  animation: panel-fade-slide-up 1s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: panel-fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* Complaint detail drawer */

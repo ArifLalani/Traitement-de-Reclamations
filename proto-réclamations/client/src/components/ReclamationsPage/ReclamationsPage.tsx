@@ -11,12 +11,13 @@ import CreateReclamationModal, { type ReclamationFormData } from './CreateReclam
 import ReclamationCard from './ReclamationCard';
 import ScrollTopButton from './ScrollTopButton';
 import { reclamations, type Reclamation, type ReclamationState } from './data';
-import { complaints as initialComplaints, type Complaint } from './complaintsData';
+import { complaints as initialComplaints, archivedComplaints as initialArchivedComplaints, type Avancement, type Complaint } from './complaintsData';
 import { exportComplaintsToXls } from './exportComplaints';
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
 
 type Filter = 'toutes' | 'nouveau' | 'possible' | 'mes-reclamations';
+type ComplaintsFilter = 'toutes' | Avancement;
 type View = 'a-traiter' | 'archives';
 
 function ArrowBackIcon() {
@@ -45,6 +46,15 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'nouveau', label: 'Nouveau' },
   { id: 'possible', label: 'Réclamation détectée' },
   { id: 'mes-reclamations', label: 'Réclamations ouvertes' },
+];
+
+const COMPLAINTS_FILTERS: { id: ComplaintsFilter; label: string }[] = [
+  { id: 'toutes', label: 'Toutes' },
+  { id: 'en-cours', label: 'En cours' },
+  { id: 'a-traiter', label: 'À traiter' },
+  { id: 'en-attente', label: 'En attente' },
+  { id: 'sans-suite', label: 'Sans suite' },
+  { id: 'cloture', label: 'Clôturées' },
 ];
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids';
@@ -89,6 +99,13 @@ export default function ReclamationsPage() {
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(initialComplaints);
+  const [archivedComplaints, setArchivedComplaints] = useState<Complaint[]>(initialArchivedComplaints);
+  const [complaintsFilter, setComplaintsFilter] = useState<ComplaintsFilter>('toutes');
+  const [displayedComplaintsFilter, setDisplayedComplaintsFilter] = useState<ComplaintsFilter>('toutes');
+  const [complaintsView, setComplaintsView] = useState<View>('a-traiter');
+  const [displayedComplaintsView, setDisplayedComplaintsView] = useState<View>('a-traiter');
+  const complaintsChipsLeaving = complaintsView !== displayedComplaintsView;
+  const complaintsTableLeaving = complaintsChipsLeaving || complaintsFilter !== displayedComplaintsFilter;
   const [focusComplaintId, setFocusComplaintId] = useState<string | null>(null);
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -188,11 +205,30 @@ export default function ReclamationsPage() {
     setComplaintsList((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
   };
 
+  const handleRestoreComplaint = (id: string) => {
+    const complaint = archivedComplaints.find((c) => c.id === id);
+    if (!complaint) return;
+    setArchivedComplaints((prev) => prev.filter((c) => c.id !== id));
+    setComplaintsList((prev) => [complaint, ...prev]);
+    setSnackbar({
+      id,
+      message: 'Réclamation restaurée.',
+      variant: 'info',
+      onUndo: () => {
+        setComplaintsList((prev) => prev.filter((c) => c.id !== id));
+        setArchivedComplaints((prev) => [complaint, ...prev]);
+      },
+    });
+    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
+    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
+  };
+
   const handleArchiveComplaint = (id: string) => {
     const index = complaintsList.findIndex((c) => c.id === id);
     if (index === -1) return;
     const complaint = complaintsList[index];
     setComplaintsList((prev) => prev.filter((c) => c.id !== id));
+    setArchivedComplaints((prev) => [complaint, ...prev]);
     setSnackbar({
       id,
       message: 'Réclamation archivée.',
@@ -203,6 +239,7 @@ export default function ReclamationsPage() {
           next.splice(index, 0, complaint);
           return next;
         });
+        setArchivedComplaints((prev) => prev.filter((c) => c.id !== id));
       },
     });
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
@@ -303,6 +340,15 @@ export default function ReclamationsPage() {
   }, [activeView, displayedView, activeFilter, displayedFilter]);
 
   useEffect(() => {
+    if (complaintsView === displayedComplaintsView && complaintsFilter === displayedComplaintsFilter) return;
+    const timeout = setTimeout(() => {
+      setDisplayedComplaintsView(complaintsView);
+      setDisplayedComplaintsFilter(complaintsFilter);
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [complaintsView, displayedComplaintsView, complaintsFilter, displayedComplaintsFilter]);
+
+  useEffect(() => {
     if (activeTab === displayedTab) return;
     const timeout = setTimeout(() => setDisplayedTab(activeTab), 250);
     return () => clearTimeout(timeout);
@@ -325,6 +371,22 @@ export default function ReclamationsPage() {
       });
     });
   }, [search, stateOverrides]);
+
+  const complaintsCounts: Record<ComplaintsFilter, number> = {
+    toutes: complaintsList.length,
+    'en-cours': complaintsList.filter((c) => c.avancement === 'en-cours').length,
+    'a-traiter': complaintsList.filter((c) => c.avancement === 'a-traiter').length,
+    'en-attente': complaintsList.filter((c) => c.avancement === 'en-attente').length,
+    'sans-suite': complaintsList.filter((c) => c.avancement === 'sans-suite').length,
+    cloture: complaintsList.filter((c) => c.avancement === 'cloture').length,
+  };
+
+  const filteredComplaints =
+    displayedComplaintsView === 'archives'
+      ? archivedComplaints
+      : displayedComplaintsFilter === 'toutes'
+        ? complaintsList
+        : complaintsList.filter((c) => c.avancement === displayedComplaintsFilter);
 
   const effectiveReclamations = reclamations.map((r) =>
     stateOverrides[r.id] ? { ...r, state: stateOverrides[r.id] } : r,
@@ -534,14 +596,66 @@ export default function ReclamationsPage() {
               </div>
             ) : (
               <div className="panel-body">
-                <ComplaintsTable
-                  complaints={complaintsList}
-                  query={complaintsSearch}
-                  focusId={focusComplaintId}
-                  onFocusHandled={() => setFocusComplaintId(null)}
-                  onUpdateComplaint={handleUpdateComplaint}
-                  onDeleteComplaint={handleArchiveComplaint}
-                />
+                <div className="filters-row">
+                  {displayedComplaintsView === 'a-traiter' ? (
+                    <>
+                      <div className={`filters ${complaintsChipsLeaving ? 'view-fade-leaving' : ''}`}>
+                        {COMPLAINTS_FILTERS.map((filter) => (
+                          <button
+                            key={filter.id}
+                            type="button"
+                            className={`filter-chip ${complaintsFilter === filter.id ? 'filter-chip-active' : ''}`}
+                            onClick={() => setComplaintsFilter(filter.id)}
+                          >
+                            {filter.label} ({complaintsCounts[filter.id]})
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className={`archives-link ${complaintsChipsLeaving ? 'view-fade-leaving' : ''}`}
+                        onClick={() => {
+                          setComplaintsView('archives');
+                          setComplaintsFilter('toutes');
+                        }}
+                      >
+                        <ArchiveIcon />
+                        Archives
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className={`filters ${complaintsChipsLeaving ? 'view-fade-leaving' : ''}`}>
+                        <span className="filter-chip filter-chip-active filter-chip-static">
+                          Archives ({archivedComplaints.length})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`archives-link ${complaintsChipsLeaving ? 'view-fade-leaving' : ''}`}
+                        onClick={() => setComplaintsView('a-traiter')}
+                      >
+                        <ArrowBackIcon />
+                        Retour aux réclamations
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div
+                  className={`complaints-table-animated ${complaintsTableLeaving ? 'complaints-table-leaving' : ''}`}
+                  key={`${displayedComplaintsView}-${displayedComplaintsFilter}`}
+                >
+                  <ComplaintsTable
+                    complaints={filteredComplaints}
+                    query={complaintsSearch}
+                    focusId={focusComplaintId}
+                    onFocusHandled={() => setFocusComplaintId(null)}
+                    onUpdateComplaint={handleUpdateComplaint}
+                    onDeleteComplaint={handleArchiveComplaint}
+                    isArchived={displayedComplaintsView === 'archives'}
+                    onRestoreComplaint={handleRestoreComplaint}
+                  />
+                </div>
               </div>
             )}
           </div>

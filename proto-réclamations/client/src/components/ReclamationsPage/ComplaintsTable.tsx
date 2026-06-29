@@ -27,7 +27,8 @@ const AVANCEMENT_ORDER: Record<Avancement, number> = {
   'a-traiter': 0,
   'en-cours': 1,
   'en-attente': 2,
-  cloture: 3,
+  'sans-suite': 3,
+  cloture: 4,
 };
 
 const CONFORMITE_ORDER: Record<Conformite, number> = {
@@ -91,6 +92,7 @@ function ComplaintRow({
   rowRef,
   highlighted,
   isNew,
+  isArchived,
   enterDelay,
 }: {
   complaint: Complaint;
@@ -98,6 +100,7 @@ function ComplaintRow({
   rowRef?: (el: HTMLDivElement | null) => void;
   highlighted?: boolean;
   isNew?: boolean;
+  isArchived?: boolean;
   enterDelay?: number;
 }) {
   return (
@@ -123,9 +126,13 @@ function ComplaintRow({
         </span>
       </div>
       <div className="complaints-cell" style={{ width: 152 }}>
-        <span className={`chip complaints-chip-avancement-${complaint.avancement}`}>
-          {AVANCEMENT_LABEL[complaint.avancement]}
-        </span>
+        {isArchived ? (
+          <span className="chip complaints-chip-avancement-archive">Archivé</span>
+        ) : (
+          <span className={`chip complaints-chip-avancement-${complaint.avancement}`}>
+            {AVANCEMENT_LABEL[complaint.avancement]}
+          </span>
+        )}
       </div>
       <div className="complaints-cell" style={{ width: 166 }}>
         <span className={`chip complaints-chip-conformite-${complaint.conformite}`}>
@@ -143,6 +150,8 @@ type ComplaintsTableProps = {
   onFocusHandled?: () => void;
   onUpdateComplaint?: (id: string, updates: ComplaintInformationsUpdate) => void;
   onDeleteComplaint?: (id: string) => void;
+  onRestoreComplaint?: (id: string) => void;
+  isArchived?: boolean;
 };
 
 export default function ComplaintsTable({
@@ -152,6 +161,8 @@ export default function ComplaintsTable({
   onFocusHandled,
   onUpdateComplaint,
   onDeleteComplaint,
+  onRestoreComplaint,
+  isArchived = false,
 }: ComplaintsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey | null>('echeance');
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
@@ -175,6 +186,11 @@ export default function ComplaintsTable({
   }, [complaints]);
 
   useEffect(() => {
+    const timeout = setTimeout(() => setNewIds(new Set()), 1200);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
     const freshIds = complaints.map((c) => c.id).filter((id) => !claimedIdsRef.current.has(id));
     if (freshIds.length === 0) return;
     freshIds.forEach((id) => claimedIdsRef.current.add(id));
@@ -188,13 +204,6 @@ export default function ComplaintsTable({
     }, 1100);
     return () => clearTimeout(timeout);
   }, [complaints]);
-
-  useEffect(() => {
-    // Clear the initial batch's entrance flag once its animation has had
-    // time to finish playing.
-    const timeout = setTimeout(() => setNewIds(new Set()), 1100);
-    return () => clearTimeout(timeout);
-  }, []);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -258,7 +267,7 @@ export default function ComplaintsTable({
 
   const rows = sorted.map((complaint, index) => {
     const isNew = newIds.has(complaint.id);
-    return { complaint, isNew, enterDelay: isNew ? Math.min(index * 0.05, 0.4) : undefined };
+    return { complaint, isNew, enterDelay: isNew ? 0.14 + Math.min(index * 0.06, 0.42) : undefined };
   });
 
   const rowOrderKey = rows.map((r) => r.complaint.id).join('|');
@@ -325,6 +334,7 @@ export default function ComplaintsTable({
             }}
             highlighted={highlightedId === complaint.id}
             isNew={isNew}
+            isArchived={isArchived}
             enterDelay={enterDelay}
           />
           {index < rows.length - 1 && <div className="complaints-divider" />}
@@ -336,10 +346,15 @@ export default function ComplaintsTable({
           complaint={selected}
           onClose={() => setSelected(null)}
           onUpdate={onUpdateComplaint}
-          onDelete={(id) => {
+          onDelete={isArchived ? undefined : (id) => {
             onDeleteComplaint?.(id);
             setSelected(null);
           }}
+          onRestore={isArchived ? (id) => {
+            onRestoreComplaint?.(id);
+            setSelected(null);
+          } : undefined}
+          isArchived={isArchived}
         />
       )}
     </div>

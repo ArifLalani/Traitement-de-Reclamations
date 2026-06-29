@@ -51,10 +51,19 @@ export default function SourceIcon({ source }: SourceIconProps) {
     case 'Instagram':
       return (
         <svg {...common}>
-          <rect x="0.5" y="0.5" width="23" height="23" rx="6" fill="#E1306C" />
-          <rect x="6.5" y="6.5" width="11" height="11" rx="3.5" fill="none" stroke="#fff" strokeWidth="1.4" />
-          <circle cx="12" cy="12" r="3" fill="none" stroke="#fff" strokeWidth="1.4" />
-          <circle cx="16" cy="8" r="0.9" fill="#fff" />
+          <defs>
+            <linearGradient id="ig-bg" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0%" stopColor="#FEDA75" />
+              <stop offset="30%" stopColor="#FA7E1E" />
+              <stop offset="55%" stopColor="#D62976" />
+              <stop offset="80%" stopColor="#962FBF" />
+              <stop offset="100%" stopColor="#4F5BD5" />
+            </linearGradient>
+          </defs>
+          <rect width="24" height="24" rx="6" fill="url(#ig-bg)" />
+          <rect x="6.5" y="6.5" width="11" height="11" rx="3.5" fill="none" stroke="#fff" strokeWidth="1.5" />
+          <circle cx="12" cy="12" r="3" fill="none" stroke="#fff" strokeWidth="1.5" />
+          <circle cx="16.2" cy="7.8" r="1" fill="#fff" />
         </svg>
       );
     case 'Trustpilot':
@@ -67,12 +76,12 @@ export default function SourceIcon({ source }: SourceIconProps) {
     case 'LinkedIn':
       return (
         <svg {...common}>
-          <rect x="0.5" y="0.5" width="23" height="23" rx="4" fill="#0A66C2" />
-          <circle cx="8" cy="8.2" r="1.4" fill="#fff" />
-          <rect x="6.8" y="10.5" width="2.4" height="7" fill="#fff" />
+          <rect width="24" height="24" rx="4" fill="#0A66C2" />
+          <circle cx="5.5" cy="6" r="1.6" fill="#fff" />
+          <rect x="4.3" y="9" width="2.4" height="9" fill="#fff" />
           <path
             fill="#fff"
-            d="M11.8 10.5h2.3v1c.5-.75 1.3-1.2 2.4-1.2 1.9 0 3 1.25 3 3.6v3.6h-2.4v-3.2c0-1.05-.4-1.7-1.3-1.7-.85 0-1.4.6-1.6 1.2-.07.2-.1.45-.1.75v2.95h-2.3v-7Z"
+            d="M9.5 9h2.4v1.2c.6-.9 1.7-1.4 2.9-1.4 2.3 0 3.7 1.5 3.7 4.1v5.1h-2.5v-4.5c0-1.3-.5-2.1-1.6-2.1-1 0-1.7.7-2 1.5-.07.2-.1.5-.1.9V18H9.5V9Z"
           />
         </svg>
       );

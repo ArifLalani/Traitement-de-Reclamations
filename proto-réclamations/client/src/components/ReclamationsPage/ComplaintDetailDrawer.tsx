@@ -50,6 +50,8 @@ type ComplaintDetailDrawerProps = {
   onClose: () => void;
   onUpdate?: (id: string, updates: ComplaintInformationsUpdate) => void;
   onDelete?: (id: string) => void;
+  onRestore?: (id: string) => void;
+  isArchived?: boolean;
 };
 
 export default function ComplaintDetailDrawer({
@@ -57,6 +59,8 @@ export default function ComplaintDetailDrawer({
   onClose,
   onUpdate,
   onDelete,
+  onRestore,
+  isArchived = false,
 }: ComplaintDetailDrawerProps) {
   const [closing, setClosing] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -214,33 +218,49 @@ export default function ComplaintDetailDrawer({
                 </button>
                 {actionsOpen && (
                   <div className="drawer-actions-dropdown">
-                    <button
-                      type="button"
-                      className="drawer-actions-item"
-                      onClick={() => setActionsOpen(false)}
-                    >
-                      Accusé de Réception envoyé
-                    </button>
-                    <button
-                      type="button"
-                      className="drawer-actions-item"
-                      onClick={() => setActionsOpen(false)}
-                    >
-                      Réponse définitive envoyée
-                    </button>
-                    {onDelete && (
+                    {isArchived ? (
+                      <button
+                        type="button"
+                        className="drawer-actions-item"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          onRestore?.(complaint.id);
+                          handleClose();
+                        }}
+                      >
+                        Restaurer la réclamation
+                      </button>
+                    ) : (
                       <>
-                        <div className="drawer-actions-divider" />
                         <button
                           type="button"
                           className="drawer-actions-item"
-                          onClick={() => {
-                            setActionsOpen(false);
-                            setArchiveConfirmOpen(true);
-                          }}
+                          onClick={() => setActionsOpen(false)}
                         >
-                          Archiver la réclamation
+                          Accusé de Réception envoyé
                         </button>
+                        <button
+                          type="button"
+                          className="drawer-actions-item"
+                          onClick={() => setActionsOpen(false)}
+                        >
+                          Réponse définitive envoyée
+                        </button>
+                        {onDelete && (
+                          <>
+                            <div className="drawer-actions-divider" />
+                            <button
+                              type="button"
+                              className="drawer-actions-item"
+                              onClick={() => {
+                                setActionsOpen(false);
+                                setArchiveConfirmOpen(true);
+                              }}
+                            >
+                              Archiver la réclamation
+                            </button>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
