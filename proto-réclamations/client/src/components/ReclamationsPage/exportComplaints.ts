@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { AVANCEMENT_LABEL, type Complaint } from './complaintsData';
 
 type Column = { label: string; width: number; value: (c: Complaint) => string };
