@@ -27,7 +27,7 @@ const COLUMNS: Column[] = [
   { label: 'Revue annuelle / enseignements', width: 30, value: () => '' },
 ];
 
-const HEADER_STYLE: XLSX.CellStyle = {
+const HEADER_STYLE = {
   fill: { fgColor: { rgb: '102D69' }, patternType: 'solid' },
   font: { bold: true, color: { rgb: 'FFFFFF' }, name: 'Calibri', sz: 11 },
   alignment: { vertical: 'center', wrapText: false },
@@ -39,7 +39,7 @@ const HEADER_STYLE: XLSX.CellStyle = {
   },
 };
 
-const DATA_STYLE: XLSX.CellStyle = {
+const DATA_STYLE = {
   font: { name: 'Calibri', sz: 11 },
   alignment: { vertical: 'center', wrapText: false },
   border: {
