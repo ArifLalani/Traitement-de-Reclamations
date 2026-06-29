@@ -1,78 +1,98 @@
+import * as XLSX from 'xlsx';
 import { AVANCEMENT_LABEL, type Complaint } from './complaintsData';
 
-const COLUMNS: { label: string; value: (c: Complaint) => string }[] = [
-  { label: 'N° / Référence réclamation', value: (c) => c.ticket },
-  { label: 'Nom client / Réclamant', value: (c) => c.requerant },
-  { label: 'Dénomination sociale', value: (c) => c.denominateurSocial },
-  { label: 'Assureur / Porteur du risque', value: (c) => c.assureur },
-  { label: 'objet de la réclamation', value: (c) => c.objet },
-  { label: 'Canal de réception', value: (c) => c.canal },
-  { label: "Date d'envoi / réception de la réclamation", value: (c) => c.dateReception },
-  { label: "Date d'AR / réponse intermédiaire", value: () => '' },
-  { label: 'Délai AR ouvrables', value: () => '' },
-  { label: 'Respect AR 10 jours ouvrables', value: () => '' },
-  { label: 'Interlocuteur en charge', value: () => '' },
-  { label: 'Action immédiate - date', value: () => '' },
-  { label: 'Action corrective - date', value: () => '' },
-  { label: 'Action réalisée', value: () => '' },
-  { label: 'Vérification efficacité', value: () => '' },
-  { label: 'Date de la réponse / clôture', value: () => '' },
-  { label: 'Année de réponse', value: () => '' },
-  { label: 'Respect réponse 2 mois', value: () => '' },
-  { label: 'Statut', value: (c) => AVANCEMENT_LABEL[c.avancement] },
-  { label: 'Réponse apportée', value: () => '' },
-  { label: 'Revue annuelle / enseignements', value: () => '' },
+type Column = { label: string; width: number; value: (c: Complaint) => string };
+
+const COLUMNS: Column[] = [
+  { label: 'N° / Référence réclamation', width: 22, value: (c) => c.ticket },
+  { label: 'Nom client / Réclamant', width: 24, value: (c) => c.requerant },
+  { label: 'Dénomination sociale', width: 22, value: (c) => c.denominateurSocial },
+  { label: 'Assureur / Porteur du risque', width: 26, value: (c) => c.assureur },
+  { label: 'Objet de la réclamation', width: 36, value: (c) => c.objet },
+  { label: 'Canal de réception', width: 18, value: (c) => c.canal },
+  { label: "Date d'envoi / réception de la réclamation", width: 20, value: (c) => c.dateReception },
+  { label: "Date d'AR / réponse intermédiaire", width: 20, value: () => '' },
+  { label: 'Délai AR 10 jours ouvrables', width: 16, value: () => '' },
+  { label: 'Respect AR 10 jours ouvrables', width: 18, value: () => '' },
+  { label: 'Interlocuteur en charge', width: 22, value: () => '' },
+  { label: 'Action immédiate - date', width: 20, value: () => '' },
+  { label: 'Action corrective - date', width: 20, value: () => '' },
+  { label: 'Action réalisée', width: 16, value: () => '' },
+  { label: 'Vérification efficacité', width: 20, value: () => '' },
+  { label: 'Date de la réponse / clôture', width: 20, value: () => '' },
+  { label: 'Année de réponse', width: 14, value: () => '' },
+  { label: 'Respect réponse 2 mois', width: 18, value: () => '' },
+  { label: 'Statut', width: 14, value: (c) => AVANCEMENT_LABEL[c.avancement] },
+  { label: 'Réponse apportée', width: 30, value: () => '' },
+  { label: 'Revue annuelle / enseignements', width: 30, value: () => '' },
 ];
 
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
+const HEADER_STYLE: XLSX.CellStyle = {
+  fill: { fgColor: { rgb: '102D69' }, patternType: 'solid' },
+  font: { bold: true, color: { rgb: 'FFFFFF' }, name: 'Calibri', sz: 11 },
+  alignment: { vertical: 'center', wrapText: false },
+  border: {
+    top: { style: 'thin', color: { rgb: '7A9CC8' } },
+    bottom: { style: 'thin', color: { rgb: '7A9CC8' } },
+    left: { style: 'thin', color: { rgb: '7A9CC8' } },
+    right: { style: 'thin', color: { rgb: '7A9CC8' } },
+  },
+};
 
-function cell(value: string, styleId?: string): string {
-  const style = styleId ? ` ss:StyleID="${styleId}"` : '';
-  return `<Cell${style}><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
-}
+const DATA_STYLE: XLSX.CellStyle = {
+  font: { name: 'Calibri', sz: 11 },
+  alignment: { vertical: 'center', wrapText: false },
+  border: {
+    top: { style: 'thin', color: { rgb: 'D0D9EC' } },
+    bottom: { style: 'thin', color: { rgb: 'D0D9EC' } },
+    left: { style: 'thin', color: { rgb: 'D0D9EC' } },
+    right: { style: 'thin', color: { rgb: 'D0D9EC' } },
+  },
+};
 
-function row(cells: string[]): string {
-  return `<Row>${cells.join('')}</Row>`;
+function normalizeValue(value: string): string {
+  return value.trim().toLowerCase() === 'non renseigné' ? '-' : value;
 }
 
 export function exportComplaintsToXls(complaints: Complaint[]): void {
-  const headerRow = row(COLUMNS.map((col) => cell(col.label, 'Header')));
-  const dataRows = complaints
-    .map((complaint) => row(COLUMNS.map((col) => cell(col.value(complaint)))))
-    .join('');
+  const wb = XLSX.utils.book_new();
 
-  const xml = `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles>
-  <Style ss:ID="Header">
-   <Font ss:Bold="1" ss:Color="#FFFFFF"/>
-   <Interior ss:Color="#102D69" ss:Pattern="Solid"/>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Réclamations">
-  <Table>
-   ${headerRow}
-   ${dataRows}
-  </Table>
- </Worksheet>
-</Workbook>`;
+  const sorted = [...complaints].sort(
+    (a, b) => Number(a.ticket.replace('#', '')) - Number(b.ticket.replace('#', '')),
+  );
 
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  // Build rows: header + data
+  const headerRow = COLUMNS.map((col) => col.label);
+  const dataRows = sorted.map((c) => COLUMNS.map((col) => normalizeValue(col.value(c))));
+  const aoa = [headerRow, ...dataRows];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Column widths
+  ws['!cols'] = COLUMNS.map((col) => ({ wch: col.width }));
+
+  // Apply header styles (row 0 → Excel row 1)
+  COLUMNS.forEach((_, colIdx) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: colIdx });
+    if (ws[cellRef]) ws[cellRef].s = HEADER_STYLE;
+  });
+
+  // Apply data styles
+  sorted.forEach((_, rowIdx) => {
+    COLUMNS.forEach((_, colIdx) => {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
+      if (ws[cellRef]) ws[cellRef].s = DATA_STYLE;
+    });
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Réclamations');
+
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
+  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `reclamations-${new Date().toISOString().slice(0, 10)}.xls`;
+  link.download = `reclamations-${new Date().toISOString().slice(0, 10)}.xlsx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
