@@ -39,14 +39,26 @@ const HEADER_STYLE = {
   },
 };
 
-const DATA_STYLE = {
+const DATA_STYLE_ODD = {
   font: { name: 'Calibri', sz: 11 },
   alignment: { vertical: 'center', wrapText: false },
   border: {
-    top: { style: 'thin', color: { rgb: 'D0D9EC' } },
-    bottom: { style: 'thin', color: { rgb: 'D0D9EC' } },
-    left: { style: 'thin', color: { rgb: 'D0D9EC' } },
-    right: { style: 'thin', color: { rgb: 'D0D9EC' } },
+    top: { style: 'thin', color: { rgb: 'C5CEE6' } },
+    bottom: { style: 'thin', color: { rgb: 'C5CEE6' } },
+    left: { style: 'thin', color: { rgb: 'C5CEE6' } },
+    right: { style: 'thin', color: { rgb: 'C5CEE6' } },
+  },
+};
+
+const DATA_STYLE_EVEN = {
+  fill: { fgColor: { rgb: 'D9E1F2' }, patternType: 'solid' },
+  font: { name: 'Calibri', sz: 11 },
+  alignment: { vertical: 'center', wrapText: false },
+  border: {
+    top: { style: 'thin', color: { rgb: 'B0BCE0' } },
+    bottom: { style: 'thin', color: { rgb: 'B0BCE0' } },
+    left: { style: 'thin', color: { rgb: 'B0BCE0' } },
+    right: { style: 'thin', color: { rgb: 'B0BCE0' } },
   },
 };
 
@@ -77,11 +89,12 @@ export function exportComplaintsToXls(complaints: Complaint[]): void {
     if (ws[cellRef]) ws[cellRef].s = HEADER_STYLE;
   });
 
-  // Apply data styles
+  // Apply data styles (alternating rows)
   sorted.forEach((_, rowIdx) => {
+    const style = rowIdx % 2 === 0 ? DATA_STYLE_ODD : DATA_STYLE_EVEN;
     COLUMNS.forEach((_, colIdx) => {
       const cellRef = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
-      if (ws[cellRef]) ws[cellRef].s = DATA_STYLE;
+      if (ws[cellRef]) ws[cellRef].s = style;
     });
   });
 
