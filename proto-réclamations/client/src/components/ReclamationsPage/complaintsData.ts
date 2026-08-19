@@ -3,6 +3,34 @@ import { reclamations } from './data';
 
 export type Avancement = 'a-traiter' | 'en-cours' | 'en-attente' | 'sans-suite' | 'cloture';
 export type Conformite = 'conforme' | 'non-conforme';
+export type Relation = 'assure-principal' | 'beneficiaire' | 'mandataire' | 'tiers';
+export type Priorite = 'basse' | 'normale' | 'haute';
+
+export type Reclamant = {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  relation: Relation | '';
+};
+
+export type Classification = {
+  porteurDuRisque: string;
+  typeSinistre: string;
+};
+
+export type Traitement = {
+  statut: string;
+  interlocuteur: string;
+  priorite: Priorite | '';
+};
+
+export type HistoriqueEntry = {
+  title: string;
+  description: string;
+  date: string;
+  author: string;
+};
 
 export type Complaint = {
   id: string;
@@ -21,6 +49,11 @@ export type Complaint = {
   email: string;
   objet: string;
   description: string;
+  reclamant: Reclamant;
+  classification: Classification;
+  traitement: Traitement;
+  notesInternes: string;
+  historique: HistoriqueEntry[];
 };
 
 export const AVANCEMENT_LABEL: Record<Avancement, string> = {
@@ -35,6 +68,131 @@ export const CONFORMITE_LABEL: Record<Conformite, string> = {
   conforme: 'Conforme',
   'non-conforme': 'Non conforme',
 };
+
+export const RELATION_LABEL: Record<Relation, string> = {
+  'assure-principal': 'Assuré principal',
+  beneficiaire: 'Bénéficiaire',
+  mandataire: 'Mandataire',
+  tiers: 'Tiers',
+};
+
+export const PRIORITE_LABEL: Record<Priorite, string> = {
+  basse: 'Basse',
+  normale: 'Normale',
+  haute: 'Haute',
+};
+
+type DossierStepStatus = 'done' | 'current' | 'upcoming';
+
+export type DossierStep = {
+  label: string;
+  status: DossierStepStatus;
+  badgeLabel?: string;
+  badgeWarning?: boolean;
+};
+
+// Where a complaint's file currently sits in its 5-stage lifecycle. Steps 0-1
+// (mention received, complaint created) are implicit — a Complaint record
+// existing at all means both already happened.
+export function getDossierSteps(complaint: Pick<Complaint, 'avancement' | 'echeanceLabel' | 'echeanceWarning'>): DossierStep[] {
+  const { avancement, echeanceLabel, echeanceWarning } = complaint;
+  const arDone = avancement !== 'a-traiter';
+  const reponseDone = avancement === 'sans-suite' || avancement === 'cloture';
+  const clotureDone = avancement === 'cloture';
+
+  return [
+    { label: 'Réception de la mention', status: 'done', badgeLabel: 'Complété' },
+    { label: 'Création de la réclamation', status: 'done', badgeLabel: 'Complété' },
+    {
+      label: "Confirmation de l'envoi de l'Accusé de Réception",
+      status: arDone ? 'done' : 'current',
+      badgeLabel: arDone ? 'Complété' : echeanceLabel,
+      badgeWarning: !arDone && echeanceWarning,
+    },
+    {
+      label: 'Confirmation de l’envoi de la Réponse Définitive',
+      status: reponseDone ? 'done' : arDone ? 'current' : 'upcoming',
+      badgeLabel: reponseDone ? 'Complété' : arDone ? echeanceLabel : undefined,
+      badgeWarning: arDone && !reponseDone && echeanceWarning,
+    },
+    {
+      label: 'Clôture du dossier de réclamation',
+      status: clotureDone ? 'done' : reponseDone ? 'current' : 'upcoming',
+      badgeLabel: clotureDone ? 'Complété' : undefined,
+    },
+  ];
+}
+
+function splitName(fullName: string): [string, string] {
+  const cleaned = fullName.replace(/^@/, '').trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return [parts[0] ?? '', ''];
+  return [parts[0], parts.slice(1).join(' ')];
+}
+
+export const TYPES_SINISTRE = [
+  'Sinistre auto',
+  'Sinistre habitation',
+  'Sinistre santé',
+  'Sinistre responsabilité civile',
+  'Litige contractuel',
+];
+
+export const INTERLOCUTEURS = ['Julien Fontaine', 'Claire Martin', 'Marc Dubois', 'Sophie Leroy'];
+
+type ComplaintCore = Omit<Complaint, 'reclamant' | 'classification' | 'traitement' | 'notesInternes' | 'historique'>;
+
+function attachDetails(c: ComplaintCore): Complaint {
+  const [prenom, nom] = splitName(c.requerant);
+  const porteurDuRisque = c.assureur && c.assureur !== 'Non renseigné' ? c.assureur : '';
+
+  const historique: HistoriqueEntry[] = [
+    {
+      title: 'Création de la réclamation',
+      description: `Créée depuis une mention ${c.canal} — « ${c.objet} »`,
+      date: c.dateReception,
+      author: 'Système',
+    },
+  ];
+  if (c.avancement !== 'a-traiter') {
+    historique.push({
+      title: "Confirmation de l'envoi de l'Accusé de Réception",
+      description: 'Accusé de réception envoyé au réclamant.',
+      date: c.dateReception,
+      author: 'Julien Fontaine',
+    });
+  }
+  if (c.avancement === 'sans-suite' || c.avancement === 'cloture') {
+    historique.push({
+      title: 'Confirmation de l’envoi de la Réponse Définitive',
+      description: 'Réponse définitive envoyée au réclamant.',
+      date: c.dateReception,
+      author: 'Julien Fontaine',
+    });
+  }
+
+  return {
+    ...c,
+    reclamant: {
+      prenom,
+      nom,
+      email: c.email,
+      telephone: '',
+      relation: '',
+    },
+    classification: {
+      porteurDuRisque,
+      typeSinistre: '',
+    },
+    traitement: {
+      statut: AVANCEMENT_LABEL[c.avancement],
+      interlocuteur: '',
+      priorite: '',
+    },
+    notesInternes: '',
+    historique,
+  };
+}
 
 const OBJET_KEYWORDS: [RegExp, string][] = [
   [/remboursement/i, 'Retard de remboursement'],
@@ -105,7 +263,7 @@ const LONG_DESCRIPTIONS: Record<number, string> = {
   9: "Dossier transmis depuis plus de trois semaines pour un dégât des eaux important, toujours en attente du passage de l'expert malgré plusieurs relances par téléphone et par email restées sans réponse claire. Le délai annoncé initialement par l'agence n'a clairement pas été respecté, et les dégâts continuent de s'aggraver en l'absence d'intervention. Le client demande qu'un expert soit dépêché en urgence et qu'un geste commercial soit envisagé pour compenser ce retard significatif.",
 };
 
-export const archivedComplaints: Complaint[] = [
+const archivedComplaintsCore: ComplaintCore[] = [
   {
     id: 'archived-001',
     ticket: '#0044',
@@ -316,7 +474,9 @@ export const archivedComplaints: Complaint[] = [
   },
 ];
 
-export const complaints: Complaint[] = reclamations
+export const archivedComplaints: Complaint[] = archivedComplaintsCore.map(attachDetails);
+
+const complaintsCore: ComplaintCore[] = reclamations
   .filter((r) => r.state === 'mes-reclamations')
   .map((r, index) => {
     const avancement = AVANCEMENT_CYCLE[index % AVANCEMENT_CYCLE.length];
@@ -343,3 +503,5 @@ export const complaints: Complaint[] = reclamations
       description,
     };
   });
+
+export const complaints: Complaint[] = complaintsCore.map(attachDetails);

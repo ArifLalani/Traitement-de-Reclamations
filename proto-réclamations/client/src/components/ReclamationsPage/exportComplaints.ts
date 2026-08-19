@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx-js-style';
 import { AVANCEMENT_LABEL, type Complaint } from './complaintsData';
+import type { ExportPeriod } from './ExportMenu';
 
 type Column = { label: string; width: number; value: (c: Complaint) => string };
 
@@ -66,6 +67,78 @@ function normalizeValue(value: string): string {
   return value.trim().toLowerCase() === 'non renseigné' ? '-' : value;
 }
 
+const MONTH_NAMES_FR = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'aout',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+];
+
+function monthIndexFromName(name: string): number {
+  const normalized = name.toLowerCase();
+  const index = MONTH_NAMES_FR.indexOf(normalized);
+  // "aout"/"août" both map to month 7 — the list above has both spellings
+  // adjacent, "août" duplicating index 7, so anything from index 8 onward
+  // needs to be shifted back by one.
+  if (index === -1) return -1;
+  return index >= 8 ? index - 1 : index;
+}
+
+function parseDateReception(value: string): Date | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+}
+
+function parseRangeBound(value: string, period: ExportPeriod, isEnd: boolean): Date | null {
+  const trimmed = value.trim();
+  if (period === 'jours') {
+    const date = parseDateReception(trimmed);
+    if (!date) return null;
+    if (isEnd) date.setHours(23, 59, 59, 999);
+    return date;
+  }
+  if (period === 'mois') {
+    const match = trimmed.match(/^([a-zà-ÿ]+)\s+(\d{4})$/i);
+    if (!match) return null;
+    const monthIndex = monthIndexFromName(match[1]);
+    if (monthIndex === -1) return null;
+    const year = Number(match[2]);
+    return isEnd ? new Date(year, monthIndex + 1, 0, 23, 59, 59, 999) : new Date(year, monthIndex, 1);
+  }
+  // 'annees'
+  const year = Number(trimmed);
+  if (!year) return null;
+  return isEnd ? new Date(year, 11, 31, 23, 59, 59, 999) : new Date(year, 0, 1);
+}
+
+export function filterComplaintsByRange(
+  complaints: Complaint[],
+  range: { period: ExportPeriod; from: string; to: string },
+): Complaint[] {
+  const from = parseRangeBound(range.from, range.period, false);
+  const to = parseRangeBound(range.to, range.period, true);
+  if (!from && !to) return complaints;
+
+  return complaints.filter((c) => {
+    const date = parseDateReception(c.dateReception);
+    // Don't silently drop a record just because its date couldn't be parsed.
+    if (!date) return true;
+    if (from && date < from) return false;
+    if (to && date > to) return false;
+    return true;
+  });
+}
+
 export function exportComplaintsToXls(complaints: Complaint[]): void {
   const wb = XLSX.utils.book_new();
 
@@ -110,4 +183,79 @@ export function exportComplaintsToXls(complaints: Complaint[]): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+function toCsvCell(value: string): string {
+  return /[",;\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+export function exportComplaintsToCsv(complaints: Complaint[]): void {
+  const sorted = [...complaints].sort(
+    (a, b) => Number(a.ticket.replace('#', '')) - Number(b.ticket.replace('#', '')),
+  );
+
+  const headerRow = COLUMNS.map((col) => col.label);
+  const dataRows = sorted.map((c) => COLUMNS.map((col) => normalizeValue(col.value(c))));
+  const csv = [headerRow, ...dataRows].map((row) => row.map(toCsvCell).join(';')).join('\r\n');
+
+  // Prefix with a BOM so Excel opens accented characters correctly.
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `reclamations-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+export function exportComplaintsToPdf(complaints: Complaint[]): void {
+  const sorted = [...complaints].sort(
+    (a, b) => Number(a.ticket.replace('#', '')) - Number(b.ticket.replace('#', '')),
+  );
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  const headerCells = COLUMNS.map((col) => `<th>${escapeHtml(col.label)}</th>`).join('');
+  const bodyRows = sorted
+    .map(
+      (c) =>
+        `<tr>${COLUMNS.map((col) => `<td>${escapeHtml(normalizeValue(col.value(c)))}</td>`).join('')}</tr>`,
+    )
+    .join('');
+
+  printWindow.document.write(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Réclamations</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; padding: 16px; }
+      h1 { font-size: 16px; color: #102D69; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; white-space: nowrap; }
+      th { background: #102D69; color: #fff; }
+      tr:nth-child(even) td { background: #f4f6fb; }
+    </style>
+  </head>
+  <body>
+    <h1>Réclamations</h1>
+    <table>
+      <thead><tr>${headerCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </body>
+</html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
 }

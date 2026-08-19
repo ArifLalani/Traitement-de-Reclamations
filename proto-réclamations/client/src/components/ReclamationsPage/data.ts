@@ -14,6 +14,70 @@ export type Reclamation = {
   text: string;
 };
 
+export type Sentiment = 'negative' | 'neutral' | 'positive';
+
+const NEGATIVE_KEYWORDS = [
+  'déçu',
+  'décu',
+  'insatisfait',
+  'frustrant',
+  'inadmissible',
+  'aucune réponse',
+  'aucune nouvelle',
+  'aucune indemnisation',
+  'aucun retour',
+  'sans succès',
+  'sans succes',
+  'sans suite',
+  'ne recommande pas',
+  'ne fonctionne pas',
+  'incorrecte',
+  'ne correspond pas',
+  'résilié',
+  'resilie',
+  'non résolus',
+  'non resolus',
+  'bloqué',
+  'bloque',
+  'mécontent',
+  'mecontent',
+  'trop long',
+  'pas du tout',
+  'jamais',
+  'toujours en attente',
+  'retard',
+  'préoccupante',
+  'preoccupante',
+  'complique',
+  'compliqué',
+];
+
+const POSITIVE_KEYWORDS = [
+  'globalement satisfait',
+  'très satisfait',
+  'satisfait',
+  'très professionnel',
+  'professionnel',
+  'bonne prise en charge',
+  'rapide',
+  'résolu',
+  'resolu',
+  'merci',
+  'sympathique',
+  'recommande',
+];
+
+// Derives a smiley sentiment directly from the mention's text — the star
+// rating alone doesn't reflect tone for sources that never carry one.
+export function getSentiment(text: string): Sentiment {
+  const normalized = text.toLowerCase();
+  const negativeScore = NEGATIVE_KEYWORDS.filter((word) => normalized.includes(word)).length;
+  const positiveScore = POSITIVE_KEYWORDS.filter((word) => normalized.includes(word)).length;
+  if (negativeScore > positiveScore) return 'negative';
+  if (positiveScore > negativeScore) return 'positive';
+  return 'neutral';
+}
+
 const curated: Reclamation[] = [
   {
     id: '1',
@@ -199,10 +263,24 @@ function parseDateValue(date: string): number {
   return 0;
 }
 
-export const reclamations: Reclamation[] = [
+const sorted: Reclamation[] = [
   ...curated,
   ...generate('possible', 4, 100),
   ...generate('a-traiter', 33, 200),
   ...generate('declinee', 5, 300),
   ...generate('mes-reclamations', 14, 400),
 ].sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date));
+
+// A mention only just posted hasn't been seen by anyone yet, so it defaults
+// to unread — this must scale with recency, not with a fixed headcount,
+// otherwise a mention from "il y a 5 minutes" could wrongly land outside an
+// arbitrary top-N cut and show up already "read".
+const UNREAD_WINDOW_MS = 3 * 60 * 60 * 1000;
+
+export const reclamations: Reclamation[] = sorted.map((r) => {
+  // "mes-reclamations" mentions were already converted into a complaint and
+  // never show the unread indicator.
+  if (r.state === 'mes-reclamations') return { ...r, isNew: false };
+  const isRecent = Date.now() - parseDateValue(r.date) <= UNREAD_WINDOW_MS;
+  return { ...r, isNew: isRecent };
+});
