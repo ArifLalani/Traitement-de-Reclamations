@@ -140,9 +140,9 @@ export const TYPES_SINISTRE = [
 
 export const INTERLOCUTEURS = ['Julien Fontaine', 'Claire Martin', 'Marc Dubois', 'Sophie Leroy'];
 
-type ComplaintCore = Omit<Complaint, 'reclamant' | 'classification' | 'traitement' | 'notesInternes' | 'historique'>;
+export type ComplaintCore = Omit<Complaint, 'reclamant' | 'classification' | 'traitement' | 'notesInternes' | 'historique'>;
 
-function attachDetails(c: ComplaintCore): Complaint {
+export function attachDetails(c: ComplaintCore): Complaint {
   const [prenom, nom] = splitName(c.requerant);
   const porteurDuRisque = c.assureur && c.assureur !== 'Non renseigné' ? c.assureur : '';
 

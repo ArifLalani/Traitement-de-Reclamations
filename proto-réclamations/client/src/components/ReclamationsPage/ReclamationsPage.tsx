@@ -23,7 +23,12 @@ import ReclamationCard from './ReclamationCard';
 import ScrollTopButton from './ScrollTopButton';
 import Sidebar, { type SidebarSection } from './Sidebar';
 import { getSentiment, reclamations, type Reclamation, type ReclamationState } from './data';
-import { complaints as initialComplaints, archivedComplaints as initialArchivedComplaints, type Complaint } from './complaintsData';
+import {
+  attachDetails,
+  complaints as initialComplaints,
+  archivedComplaints as initialArchivedComplaints,
+  type Complaint,
+} from './complaintsData';
 import { exportComplaintsToCsv, exportComplaintsToPdf, filterComplaintsByRange } from './exportComplaints';
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
@@ -447,7 +452,7 @@ export default function ReclamationsPage() {
 
     const nextTicketNumber =
       Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1;
-    const newComplaint: Complaint = {
+    const newComplaint: Complaint = attachDetails({
       id: `created-${id}`,
       sourceReclamationId: id,
       ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
@@ -463,7 +468,7 @@ export default function ReclamationsPage() {
       email: formData.email,
       objet: formData.objet,
       description: formData.description,
-    };
+    });
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     setCreateTarget(null);
