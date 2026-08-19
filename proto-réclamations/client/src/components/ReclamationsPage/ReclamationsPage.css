@@ -588,13 +588,20 @@
 }
 
 .mentions-selection-toolbar {
-  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 8px;
+  padding: 8px;
 }
 
 .mentions-selection-heading {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
 }
 
 .mentions-selection-count {
@@ -606,7 +613,7 @@
 .mentions-selection-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
 }
 
 .mark-all-read-btn:disabled {
@@ -624,7 +631,7 @@
   gap: 6px;
   background: var(--color-chip-selected-bg);
   border-radius: 100px;
-  padding: 4px 12px;
+  padding: 8px 12px;
   font: var(--font-chip-label);
   letter-spacing: 0.16px;
   color: var(--color-text-primary);
@@ -2000,6 +2007,39 @@
   flex-direction: column;
   gap: 32px;
   padding: 24px;
+}
+
+/* Create-claim slider */
+.create-claim-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.create-claim-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.create-claim-heading {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.create-claim-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.create-claim-actions {
+  padding: 20px 16px;
 }
 
 .drawer-section {

@@ -11,6 +11,7 @@ export type Reclamant = {
   nom: string;
   email: string;
   telephone: string;
+  adresse: string;
   relation: Relation | '';
 };
 
@@ -178,6 +179,7 @@ export function attachDetails(c: ComplaintCore): Complaint {
       nom,
       email: c.email,
       telephone: '',
+      adresse: '',
       relation: '',
     },
     classification: {

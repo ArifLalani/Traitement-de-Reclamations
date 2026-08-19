@@ -487,6 +487,12 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
               />
             </div>
+            <SectionTextField
+              label="Adresse (optionnel)"
+              placeholder="Entrez l'adresse du réclamant"
+              value={reclamantDraft.adresse}
+              onChange={(v) => setReclamantDraft((d) => ({ ...d, adresse: v }))}
+            />
             <SectionSelectField<Relation>
               label="Relation client/réclamant"
               value={reclamantDraft.relation}

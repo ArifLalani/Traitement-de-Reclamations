@@ -212,25 +212,53 @@ export default function ReclamationCard({
               {badge.label}
             </span>
           )}
-          {!selectionMode && hasActions && (
+          {hasActions && (
             <div className="card-actions">
               {isMesReclamations ? (
-                <button type="button" className="btn-outlined" onClick={onFollow}>
+                <button
+                  type="button"
+                  className="btn-outlined"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFollow();
+                  }}
+                >
                   Suivre la réclamation
                 </button>
               ) : isDeclinee ? (
-                <button type="button" className="btn-text" onClick={onCreate}>
+                <button
+                  type="button"
+                  className="btn-text"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreate();
+                  }}
+                >
                   Créer une réclamation
                 </button>
               ) : (
                 <>
                   {isFlagged && (
-                    <button type="button" className="btn-text" onClick={onDisqualify}>
+                    <button
+                      type="button"
+                      className="btn-text"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDisqualify();
+                      }}
+                    >
                       Écarter
                     </button>
                   )}
                   {canCreate && (
-                    <button type="button" className={isFlagged ? 'btn-filled' : 'btn-text'} onClick={onCreate}>
+                    <button
+                      type="button"
+                      className={isFlagged ? 'btn-filled' : 'btn-text'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreate();
+                      }}
+                    >
                       Créer une réclamation
                     </button>
                   )}

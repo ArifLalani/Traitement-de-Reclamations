@@ -12,7 +12,7 @@ import ComplaintsFiltersPanel, {
   type ConformiteFilter,
   type ProgressionFilter,
 } from './ComplaintsFiltersPanel';
-import CreateReclamationModal, { type ReclamationFormData } from './CreateReclamationModal';
+import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
@@ -63,8 +63,11 @@ function MoreIcon() {
 
 function ListIcon() {
   return (
-    <svg viewBox="0 0 20 20" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M4 5h12M4 10h12M4 15h12" strokeLinecap="round" />
+    <svg viewBox="0 0 20 20" width={20} height={20} fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="3" cy="5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="3" cy="10" r="1" fill="currentColor" stroke="none" />
+      <circle cx="3" cy="15" r="1" fill="currentColor" stroke="none" />
+      <path d="M7 5h10M7 10h10M7 15h10" strokeLinecap="round" />
     </svg>
   );
 }
@@ -452,11 +455,12 @@ export default function ReclamationsPage() {
 
     const nextTicketNumber =
       Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1;
+    const requerant = `${formData.prenom} ${formData.nom}`.trim() || 'Requérant inconnu';
     const newComplaint: Complaint = attachDetails({
       id: `created-${id}`,
       sourceReclamationId: id,
       ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
-      requerant: formData.requerant,
+      requerant,
       dateReception: formData.dateReception,
       echeanceLabel: '-',
       avancement: 'a-traiter',
@@ -469,6 +473,9 @@ export default function ReclamationsPage() {
       objet: formData.objet,
       description: formData.description,
     });
+    newComplaint.reclamant.telephone = formData.telephone;
+    newComplaint.reclamant.adresse = formData.adresse;
+    newComplaint.notesInternes = formData.notesInternes;
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     setCreateTarget(null);
@@ -775,11 +782,8 @@ export default function ReclamationsPage() {
             {activeTab === 'mentions' ? (
               <div className="panel-body">
                 {selectionMode ? (
-                  <div className="mentions-toolbar mentions-selection-toolbar">
+                  <div className="mentions-selection-toolbar">
                     <div className="mentions-selection-heading">
-                      <span className="mentions-selection-count">
-                        {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
-                      </span>
                       <button
                         type="button"
                         className="icon-button"
@@ -788,16 +792,11 @@ export default function ReclamationsPage() {
                       >
                         <CloseIcon />
                       </button>
+                      <span className="mentions-selection-count">
+                        {selectedIds.size} Sélectionnée{selectedIds.size > 1 ? 's' : ''}
+                      </span>
                     </div>
                     <div className="mentions-selection-actions">
-                      <button
-                        type="button"
-                        className="mark-all-read-btn"
-                        disabled={selectedIds.size === 0}
-                        onClick={handleBulkMarkRead}
-                      >
-                        Marquer comme lu
-                      </button>
                       <button
                         type="button"
                         className="mark-all-read-btn"
@@ -805,6 +804,14 @@ export default function ReclamationsPage() {
                         onClick={handleBulkArchive}
                       >
                         Écarter
+                      </button>
+                      <button
+                        type="button"
+                        className="mark-all-read-btn"
+                        disabled={selectedIds.size === 0}
+                        onClick={handleBulkMarkRead}
+                      >
+                        Marquer comme lu
                       </button>
                     </div>
                   </div>
@@ -862,11 +869,8 @@ export default function ReclamationsPage() {
             ) : (
               <div className="panel-body">
                 {complaintsSelectionMode ? (
-                  <div className="mentions-toolbar mentions-selection-toolbar">
+                  <div className="mentions-selection-toolbar">
                     <div className="mentions-selection-heading">
-                      <span className="mentions-selection-count">
-                        {selectedComplaintIds.size} sélectionné{selectedComplaintIds.size > 1 ? 's' : ''}
-                      </span>
                       <button
                         type="button"
                         className="icon-button"
@@ -875,6 +879,9 @@ export default function ReclamationsPage() {
                       >
                         <CloseIcon />
                       </button>
+                      <span className="mentions-selection-count">
+                        {selectedComplaintIds.size} Sélectionnée{selectedComplaintIds.size > 1 ? 's' : ''}
+                      </span>
                     </div>
                     <div className="mentions-selection-actions">
                       <div className="export-menu-wrap" ref={exportMenuRef}>
@@ -1000,7 +1007,7 @@ export default function ReclamationsPage() {
       />
 
       {createTarget && (
-        <CreateReclamationModal
+        <CreateReclamationSlider
           reclamation={createTarget}
           onClose={() => setCreateTarget(null)}
           onSubmit={handleConfirmCreate}

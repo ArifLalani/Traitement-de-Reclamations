@@ -169,11 +169,16 @@ export default function ComplaintCard({
               </span>
             </div>
           </div>
-          {!selectionMode && (
-            <button type="button" className="btn-text complaint-cta-cta" onClick={onOpen}>
-              Voir le dossier
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-text complaint-cta-cta"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+          >
+            Voir le dossier
+          </button>
         </div>
       </div>
     </div>
