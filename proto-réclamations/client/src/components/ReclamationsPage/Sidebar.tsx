@@ -91,56 +91,58 @@ function ChevronIcon({ direction = 'down' }: { direction?: 'up' | 'down' }) {
 export default function Sidebar({ active, onSelect, open = true }: SidebarProps) {
   return (
     <aside className={`sidebar ${open ? '' : 'sidebar-collapsed'}`}>
-      <div className="sidebar-profile">
-        <div className="sidebar-avatar">JB</div>
-        <div className="sidebar-profile-text">
-          <span className="sidebar-profile-name">Joe Bleau</span>
-          <span className="sidebar-profile-role">Entreprise</span>
-        </div>
-        <ChevronIcon direction="down" />
-      </div>
-
-      <nav className="sidebar-nav">
-        <div className="sidebar-section">
-          <div className="sidebar-section-header">
-            <ThumbsUpIcon />
-            <span>Ma Réputation en ligne</span>
-            <ChevronIcon direction="up" />
+      <div className="sidebar-inner">
+        <div className="sidebar-profile">
+          <div className="sidebar-avatar">JB</div>
+          <div className="sidebar-profile-text">
+            <span className="sidebar-profile-name">Joe Bleau</span>
+            <span className="sidebar-profile-role">Entreprise</span>
           </div>
-          <button
-            type="button"
-            className={`sidebar-subitem ${active === 'mentions' ? 'sidebar-subitem-active' : ''}`}
-            onClick={() => onSelect('mentions')}
-          >
-            <ChatIcon />
-            <span>Mes Mentions</span>
+          <ChevronIcon direction="down" />
+        </div>
+
+        <nav className="sidebar-nav">
+          <div className="sidebar-section">
+            <div className="sidebar-section-header">
+              <ThumbsUpIcon />
+              <span>Ma Réputation en ligne</span>
+              <ChevronIcon direction="up" />
+            </div>
+            <button
+              type="button"
+              className={`sidebar-subitem ${active === 'mentions' ? 'sidebar-subitem-active' : ''}`}
+              onClick={() => onSelect('mentions')}
+            >
+              <ChatIcon />
+              <span>Mes Mentions</span>
+            </button>
+            <button
+              type="button"
+              className={`sidebar-subitem ${active === 'reclamations' ? 'sidebar-subitem-active' : ''}`}
+              onClick={() => onSelect('reclamations')}
+            >
+              <SmileySadIcon />
+              <span>Réclamations</span>
+            </button>
+          </div>
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="sidebar-divider" />
+          <button type="button" className="sidebar-item">
+            <UserIcon />
+            <span>Mon compte</span>
+            <ChevronIcon direction="down" />
           </button>
-          <button
-            type="button"
-            className={`sidebar-subitem ${active === 'reclamations' ? 'sidebar-subitem-active' : ''}`}
-            onClick={() => onSelect('reclamations')}
-          >
-            <SmileySadIcon />
-            <span>Réclamations</span>
+          <button type="button" className="sidebar-item">
+            <QuestionIcon />
+            <span>Aide</span>
+          </button>
+          <button type="button" className="sidebar-item">
+            <PowerIcon />
+            <span>Déconnexion</span>
           </button>
         </div>
-      </nav>
-
-      <div className="sidebar-bottom">
-        <div className="sidebar-divider" />
-        <button type="button" className="sidebar-item">
-          <UserIcon />
-          <span>Mon compte</span>
-          <ChevronIcon direction="down" />
-        </button>
-        <button type="button" className="sidebar-item">
-          <QuestionIcon />
-          <span>Aide</span>
-        </button>
-        <button type="button" className="sidebar-item">
-          <PowerIcon />
-          <span>Déconnexion</span>
-        </button>
       </div>
     </aside>
   );

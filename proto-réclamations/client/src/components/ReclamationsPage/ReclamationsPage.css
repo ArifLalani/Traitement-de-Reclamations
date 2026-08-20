@@ -25,7 +25,6 @@
   top: 0;
   z-index: 10;
   display: flex;
-  justify-content: center;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0);
   transition: box-shadow 0.25s ease;
 }
@@ -40,6 +39,23 @@
   top: 50%;
   transform: translateY(-50%);
   color: var(--color-white);
+}
+
+.header-sidebar-spacer {
+  width: 300px;
+  flex-shrink: 0;
+  transition: width 0.25s ease;
+}
+
+.header-sidebar-spacer-collapsed {
+  width: 0;
+}
+
+.header-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .header-top {
@@ -116,16 +132,22 @@
   position: sticky;
   top: 73px;
   height: calc(100vh - 73px);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   transition: width 0.25s ease, box-shadow 0.25s ease;
 }
 
 .sidebar-collapsed {
   width: 0;
-  overflow: hidden;
   box-shadow: none;
+}
+
+.sidebar-inner {
+  width: 300px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .sidebar-profile {
@@ -380,10 +402,55 @@
   font: var(--font-body1);
 }
 
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 80px 24px;
+  animation: panel-fade-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.empty-state-title {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.empty-state-description {
+  margin: 0;
+  max-width: 480px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+/* Temporary dev-only toggle, deliberately outside the app's visual language */
+.debug-empty-toggle {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  background: #fff000;
+  color: #000;
+  border: 2px dashed #000;
+  border-radius: 0;
+  padding: 6px 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.debug-empty-toggle:hover {
+  background: #000;
+  color: #fff000;
+}
+
 /* Appbar / search */
 .appbar {
-  background: var(--color-primary-blue);
-  border-radius: 8px;
   height: 88px;
   display: flex;
   align-items: center;
@@ -392,10 +459,25 @@
   position: sticky;
   top: 73px;
   z-index: 5;
-  transition: box-shadow 0.25s ease;
 }
 
-.appbar-stuck {
+.appbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100%;
+  transform: translateX(-50%);
+  background: var(--color-primary-blue);
+  border-radius: 8px;
+  z-index: -1;
+  transition: width 0.3s ease, border-radius 0.3s ease, box-shadow 0.25s ease;
+}
+
+.appbar-stuck::before {
+  width: 100vw;
+  border-radius: 0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 

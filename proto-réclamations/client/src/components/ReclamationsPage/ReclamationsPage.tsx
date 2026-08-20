@@ -13,6 +13,7 @@ import ComplaintsFiltersPanel, {
   type ProgressionFilter,
 } from './ComplaintsFiltersPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
+import EmptyState from './EmptyState';
 import MentionsAlertBanner from './MentionsAlertBanner';
 import ReclamationCreatedAlert from './ReclamationCreatedAlert';
 import MentionsFiltersPanel, {
@@ -106,6 +107,7 @@ function MenuIcon() {
   );
 }
 
+
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
 
 type TabId = SidebarSection;
@@ -128,6 +130,7 @@ export default function ReclamationsPage() {
   const [appbarStuck, setAppbarStuck] = useState(false);
   const appbarRef = useRef<HTMLDivElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [forceEmpty, setForceEmpty] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
@@ -660,6 +663,14 @@ export default function ReclamationsPage() {
 
   return (
     <div className="page">
+      <button
+        type="button"
+        className="debug-empty-toggle"
+        onClick={() => setForceEmpty((v) => !v)}
+      >
+        DEBUG: empty state {forceEmpty ? 'ON' : 'OFF'}
+      </button>
+
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <button
           type="button"
@@ -669,17 +680,20 @@ export default function ReclamationsPage() {
         >
           <MenuIcon />
         </button>
-        <div className="header-top">
-          <div className="logo">
-            <img src={logoText} alt="Opinion System" className="logo-text" />
-            <div className="logo-sub">
-              <img src={logoStarsRow} alt="" className="logo-stars" />
-              <img src={logoSystemText} alt="" className="logo-system" />
+        <div className={`header-sidebar-spacer ${sidebarOpen ? '' : 'header-sidebar-spacer-collapsed'}`} />
+        <div className="header-center">
+          <div className="header-top">
+            <div className="logo">
+              <img src={logoText} alt="Opinion System" className="logo-text" />
+              <div className="logo-sub">
+                <img src={logoStarsRow} alt="" className="logo-stars" />
+                <img src={logoSystemText} alt="" className="logo-system" />
+              </div>
             </div>
+            <button type="button" className="icon-button">
+              <img src={bellIcon} alt="Notifications" width={18} height={20.4} />
+            </button>
           </div>
-          <button type="button" className="icon-button">
-            <img src={bellIcon} alt="Notifications" width={18} height={20.4} />
-          </button>
         </div>
       </header>
 
@@ -810,7 +824,12 @@ export default function ReclamationsPage() {
 
             {activeTab === 'mentions' ? (
               <div className="panel-body">
-                {selectionMode ? (
+                {forceEmpty ? (
+                  <EmptyState
+                    title="Aucune mention pour le moment"
+                    description="Les mentions de votre entreprise sur les réseaux sociaux et plateformes d'avis apparaîtront ici dès qu'elles seront détectées."
+                  />
+                ) : selectionMode ? (
                   <div className="mentions-selection-toolbar">
                     <div className="mentions-selection-heading">
                       <button
@@ -856,48 +875,57 @@ export default function ReclamationsPage() {
                   </div>
                 )}
 
-                <MentionsAlertBanner
-                  count={etatFilter === 'non-lu' ? 0 : newCount}
-                  negativeCount={negativeNewCount}
-                  onShow={handleShowNewMentions}
-                />
+                {!forceEmpty && (
+                  <>
+                    <MentionsAlertBanner
+                      count={etatFilter === 'non-lu' ? 0 : newCount}
+                      negativeCount={negativeNewCount}
+                      onShow={handleShowNewMentions}
+                    />
 
-                <div className="card-list">
-                  {visibleItems.map((reclamation) => (
-                    <div
-                      key={reclamation.id}
-                      ref={(el) => {
-                        if (el) cardRefs.current.set(reclamation.id, el);
-                        else cardRefs.current.delete(reclamation.id);
-                      }}
-                    >
-                      <ReclamationCard
-                        reclamation={reclamation}
-                        isNew={isEffectivelyNew(reclamation)}
-                        selectionMode={selectionMode}
-                        selected={selectedIds.has(reclamation.id)}
-                        onToggleSelect={() => toggleSelectId(reclamation.id)}
-                        onCreate={() => handleRequestCreate(reclamation)}
-                        onDisqualify={() => handleDisqualify(reclamation.id)}
-                        onFollow={() => handleFollowReclamation(reclamation.id)}
-                      />
+                    <div className="card-list">
+                      {visibleItems.map((reclamation) => (
+                        <div
+                          key={reclamation.id}
+                          ref={(el) => {
+                            if (el) cardRefs.current.set(reclamation.id, el);
+                            else cardRefs.current.delete(reclamation.id);
+                          }}
+                        >
+                          <ReclamationCard
+                            reclamation={reclamation}
+                            isNew={isEffectivelyNew(reclamation)}
+                            selectionMode={selectionMode}
+                            selected={selectedIds.has(reclamation.id)}
+                            onToggleSelect={() => toggleSelectId(reclamation.id)}
+                            onCreate={() => handleRequestCreate(reclamation)}
+                            onDisqualify={() => handleDisqualify(reclamation.id)}
+                            onFollow={() => handleFollowReclamation(reclamation.id)}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                {filtered.length === 0 && (
-                  <div className="panel-empty">Aucune mention ne correspond à ces filtres.</div>
-                )}
+                    {filtered.length === 0 && (
+                      <div className="panel-empty">Aucune mention ne correspond à ces filtres.</div>
+                    )}
 
-                {hasMore && (
-                  <div className="scroll-sentinel" ref={sentinelRef}>
-                    <span className="scroll-sentinel-loader" />
-                  </div>
+                    {hasMore && (
+                      <div className="scroll-sentinel" ref={sentinelRef}>
+                        <span className="scroll-sentinel-loader" />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
               <div className="panel-body">
-                {complaintsSelectionMode ? (
+                {forceEmpty ? (
+                  <EmptyState
+                    title="Aucune réclamation pour le moment"
+                    description="Les réclamations confirmées à partir de vos mentions apparaîtront ici, avec leur statut de progression et de conformité."
+                  />
+                ) : complaintsSelectionMode ? (
                   <div className="mentions-selection-toolbar">
                     <div className="mentions-selection-heading">
                       <button
@@ -965,34 +993,38 @@ export default function ReclamationsPage() {
                   </div>
                 )}
 
-                <div className="card-list">
-                  {visibleComplaints.map((complaint) => (
-                    <div
-                      key={complaint.id}
-                      ref={(el) => {
-                        if (el) cardRefs.current.set(complaint.id, el);
-                        else cardRefs.current.delete(complaint.id);
-                      }}
-                    >
-                      <ComplaintCard
-                        complaint={complaint}
-                        onOpen={() => setSelectedComplaint(complaint)}
-                        selectionMode={complaintsSelectionMode}
-                        selected={selectedComplaintIds.has(complaint.id)}
-                        onToggleSelect={() => toggleSelectComplaintId(complaint.id)}
-                      />
+                {!forceEmpty && (
+                  <>
+                    <div className="card-list">
+                      {visibleComplaints.map((complaint) => (
+                        <div
+                          key={complaint.id}
+                          ref={(el) => {
+                            if (el) cardRefs.current.set(complaint.id, el);
+                            else cardRefs.current.delete(complaint.id);
+                          }}
+                        >
+                          <ComplaintCard
+                            complaint={complaint}
+                            onOpen={() => setSelectedComplaint(complaint)}
+                            selectionMode={complaintsSelectionMode}
+                            selected={selectedComplaintIds.has(complaint.id)}
+                            onToggleSelect={() => toggleSelectComplaintId(complaint.id)}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                {filteredComplaints.length === 0 && (
-                  <div className="panel-empty">Aucune réclamation ne correspond à ces filtres.</div>
-                )}
+                    {filteredComplaints.length === 0 && (
+                      <div className="panel-empty">Aucune réclamation ne correspond à ces filtres.</div>
+                    )}
 
-                {hasMoreComplaints && (
-                  <div className="scroll-sentinel" ref={sentinelRef}>
-                    <span className="scroll-sentinel-loader" />
-                  </div>
+                    {hasMoreComplaints && (
+                      <div className="scroll-sentinel" ref={sentinelRef}>
+                        <span className="scroll-sentinel-loader" />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
