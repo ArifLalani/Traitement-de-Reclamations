@@ -81,9 +81,10 @@ export default function ReclamationCard({
   const isDeclinee = state === 'declinee';
   const isMesReclamations = state === 'mes-reclamations';
   const isFlagged = state === 'possible';
-  // A mention that has already been read cannot have a complaint created from
-  // it anymore — only dismissing a flagged one is still possible.
-  const canCreate = isNew;
+  // Read/unread only affects the unread indicator (card-wrapper-unread) — it
+  // never hides the create-complaint action, only an already-open or
+  // already-declined mention has no "Créer une réclamation" action left.
+  const canCreate = !isMesReclamations && !isDeclinee;
 
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);

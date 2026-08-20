@@ -16,13 +16,22 @@ function CloseIcon() {
 
 type ReclamationCreatedAlertProps = {
   visible: boolean;
+  sidebarOpen?: boolean;
   onView: () => void;
   onClose: () => void;
 };
 
-export default function ReclamationCreatedAlert({ visible, onView, onClose }: ReclamationCreatedAlertProps) {
+export default function ReclamationCreatedAlert({
+  visible,
+  sidebarOpen = true,
+  onView,
+  onClose,
+}: ReclamationCreatedAlertProps) {
   return (
-    <div className={`created-alert ${visible ? 'created-alert-visible' : ''}`} role="status">
+    <div
+      className={`created-alert ${visible ? 'created-alert-visible' : ''} ${sidebarOpen ? 'created-alert-shifted' : ''}`}
+      role="status"
+    >
       <button type="button" className="created-alert-close" aria-label="Fermer" onClick={onClose}>
         <CloseIcon />
       </button>

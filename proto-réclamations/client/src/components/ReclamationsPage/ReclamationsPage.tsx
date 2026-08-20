@@ -161,6 +161,7 @@ export default function ReclamationsPage() {
     to: 'Aout 2026',
   });
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const createdAlertTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [seenIds, setSeenIds] = useState<Set<string>>(() => {
     try {
@@ -497,6 +498,13 @@ export default function ReclamationsPage() {
 
     setCreateTarget(null);
     setCreatedAlert({ complaint: newComplaint });
+    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
+    createdAlertTimeout.current = setTimeout(() => setCreatedAlert(null), 8000);
+  };
+
+  const dismissCreatedAlert = () => {
+    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
+    setCreatedAlert(null);
   };
 
   const openComplaintDetail = (complaint: Complaint) => {
@@ -1069,11 +1077,12 @@ export default function ReclamationsPage() {
 
       <ReclamationCreatedAlert
         visible={!!createdAlert}
+        sidebarOpen={sidebarOpen}
         onView={() => {
           if (createdAlert) openComplaintDetail(createdAlert.complaint);
-          setCreatedAlert(null);
+          dismissCreatedAlert();
         }}
-        onClose={() => setCreatedAlert(null)}
+        onClose={dismissCreatedAlert}
       />
 
       {createTarget && (

@@ -3,6 +3,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 .icon-button {
@@ -1460,7 +1461,11 @@
   opacity: 0;
   transform: translate(-50%, 16px);
   pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease, left 0.25s ease;
+}
+
+.created-alert-shifted {
+  left: calc(50% + 150px);
 }
 
 .created-alert-visible {
