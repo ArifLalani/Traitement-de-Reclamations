@@ -87,8 +87,8 @@ export default function ComplaintCard({
   return (
     <div className="card-wrapper">
       <div
-        className={`card ${selected ? 'card-selected' : ''} ${selectionMode ? 'card-selectable' : ''}`}
-        onClick={selectionMode ? onToggleSelect : undefined}
+        className={`card card-selectable ${selected ? 'card-selected' : ''}`}
+        onClick={onToggleSelect}
       >
         <div className="card-info">
           <div className="card-top">

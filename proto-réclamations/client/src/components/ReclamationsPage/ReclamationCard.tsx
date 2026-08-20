@@ -155,8 +155,8 @@ export default function ReclamationCard({
   return (
     <div className={`card-wrapper ${isNew ? 'card-wrapper-unread' : ''}`}>
       <div
-        className={`card ${selected ? 'card-selected' : ''} ${selectionMode ? 'card-selectable' : ''}`}
-        onClick={selectionMode ? onToggleSelect : undefined}
+        className={`card card-selectable ${selected ? 'card-selected' : ''}`}
+        onClick={onToggleSelect}
       >
         <div className="card-info">
           <div className="card-top">

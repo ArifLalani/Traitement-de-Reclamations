@@ -64,7 +64,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0;
+  padding: 16px 24px;
 }
 
 .logo {
@@ -403,59 +403,6 @@
   font: var(--font-body1);
 }
 
-/* Empty state */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 8px;
-  padding: 80px 24px;
-  animation: panel-fade-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-.empty-state-title {
-  font: var(--font-h6);
-  letter-spacing: 0.15px;
-  color: var(--color-text-primary);
-}
-
-.empty-state-description {
-  margin: 0;
-  max-width: 480px;
-  font: var(--font-body1);
-  letter-spacing: 0.15px;
-  color: var(--color-text-secondary);
-}
-
-/* Temporary dev-only toggles, deliberately outside the app's visual language */
-.debug-toolbar {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.debug-toolbar-btn {
-  background: #fff000;
-  color: #000;
-  border: 2px dashed #000;
-  border-radius: 0;
-  padding: 6px 10px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.debug-toolbar-btn:hover {
-  background: #000;
-  color: #fff000;
-}
 
 /* Appbar / search */
 .appbar-bar {
@@ -895,21 +842,6 @@
 }
 
 /* Filters side panel */
-.filters-panel-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-  z-index: 20;
-}
-
-.filters-panel-backdrop-open {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 .filters-panel {
   position: fixed;
   top: 0;

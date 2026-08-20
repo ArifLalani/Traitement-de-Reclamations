@@ -13,7 +13,6 @@ import ComplaintsFiltersPanel, {
   type ProgressionFilter,
 } from './ComplaintsFiltersPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
-import EmptyState from './EmptyState';
 import MentionsAlertBanner from './MentionsAlertBanner';
 import ReclamationCreatedAlert from './ReclamationCreatedAlert';
 import MentionsFiltersPanel, {
@@ -41,14 +40,6 @@ function FunnelIcon() {
       <g transform="translate(1.5 6.75)">
         <path d="M12.75 9C13.1642 9 13.5 9.33579 13.5 9.75C13.5 10.1642 13.1642 10.5 12.75 10.5H8.25C7.83579 10.5 7.5 10.1642 7.5 9.75C7.5 9.33579 7.83579 9 8.25 9H12.75ZM16.5 4.5C16.9142 4.5 17.25 4.83579 17.25 5.25C17.25 5.66421 16.9142 6 16.5 6H4.5C4.08579 6 3.75 5.66421 3.75 5.25C3.75 4.83579 4.08579 4.5 4.5 4.5H16.5ZM20.25 0C20.6642 0 21 0.335786 21 0.75C21 1.16421 20.6642 1.5 20.25 1.5H0.75C0.335786 1.5 0 1.16421 0 0.75C0 0.335786 0.335786 0 0.75 0H20.25Z" />
       </g>
-    </svg>
-  );
-}
-
-function SortIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M7 5v14M4 8l3-3 3 3M17 19V5M14 16l3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -119,7 +110,7 @@ export default function ReclamationsPage() {
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -129,8 +120,7 @@ export default function ReclamationsPage() {
   const [scrolled, setScrolled] = useState(false);
   const [appbarStuck, setAppbarStuck] = useState(false);
   const appbarRef = useRef<HTMLDivElement>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [forceEmpty, setForceEmpty] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
@@ -148,7 +138,7 @@ export default function ReclamationsPage() {
   ]);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
-  const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(false);
+  const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(true);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
@@ -347,15 +337,6 @@ export default function ReclamationsPage() {
     });
   };
 
-  const handleResetUnread = () => {
-    setSeenIds(new Set());
-    try {
-      localStorage.removeItem(SEEN_IDS_STORAGE_KEY);
-    } catch {
-      // localStorage unavailable, ignore
-    }
-  };
-
   const handleMarkAllRead = () => {
     markIdsAsRead(reclamations.map((r) => r.id));
   };
@@ -395,6 +376,7 @@ export default function ReclamationsPage() {
       else next.add(id);
       return next;
     });
+    setSelectionMode(true);
   };
 
   const handleCancelSelection = () => {
@@ -423,6 +405,7 @@ export default function ReclamationsPage() {
       else next.add(id);
       return next;
     });
+    setComplaintsSelectionMode(true);
   };
 
   const handleCancelComplaintsSelection = () => {
@@ -687,15 +670,6 @@ export default function ReclamationsPage() {
 
   return (
     <div className="page">
-      <div className="debug-toolbar">
-        <button type="button" className="debug-toolbar-btn" onClick={() => setForceEmpty((v) => !v)}>
-          DEBUG: empty state {forceEmpty ? 'ON' : 'OFF'}
-        </button>
-        <button type="button" className="debug-toolbar-btn" onClick={handleResetUnread}>
-          DEBUG: reset mentions to non-lu
-        </button>
-      </div>
-
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <button
           type="button"
@@ -771,9 +745,6 @@ export default function ReclamationsPage() {
                     <FunnelIcon />
                     {mentionsFiltersActive && <span className="appbar-icon-badge" />}
                   </button>
-                  <button type="button" className="icon-button appbar-icon-button" aria-label="Trier">
-                    <SortIcon />
-                  </button>
                   <div className="appbar-more-menu-wrap" ref={moreMenuRef}>
                     <button
                       type="button"
@@ -811,9 +782,6 @@ export default function ReclamationsPage() {
                   >
                     <FunnelIcon />
                     {complaintsFiltersActive && <span className="appbar-icon-badge" />}
-                  </button>
-                  <button type="button" className="icon-button appbar-icon-button" aria-label="Trier">
-                    <SortIcon />
                   </button>
                   <div className="appbar-more-menu-wrap" ref={complaintsMoreMenuRef}>
                     <button
@@ -853,12 +821,7 @@ export default function ReclamationsPage() {
           <div className="content">
             {activeTab === 'mentions' ? (
               <div className="panel-body">
-                {forceEmpty ? (
-                  <EmptyState
-                    title="Aucune mention pour le moment"
-                    description="Les mentions de votre entreprise sur les réseaux sociaux et plateformes d'avis apparaîtront ici dès qu'elles seront détectées."
-                  />
-                ) : selectionMode ? (
+                {selectionMode ? (
                   <div className="mentions-selection-toolbar">
                     <div className="mentions-selection-heading">
                       <button
@@ -904,57 +867,48 @@ export default function ReclamationsPage() {
                   </div>
                 )}
 
-                {!forceEmpty && (
-                  <>
-                    <MentionsAlertBanner
-                      count={etatFilter === 'non-lu' ? 0 : newCount}
-                      negativeCount={negativeNewCount}
-                      onShow={handleShowNewMentions}
-                    />
+                <MentionsAlertBanner
+                  count={etatFilter === 'non-lu' ? 0 : newCount}
+                  negativeCount={negativeNewCount}
+                  onShow={handleShowNewMentions}
+                />
 
-                    <div className="card-list">
-                      {visibleItems.map((reclamation) => (
-                        <div
-                          key={reclamation.id}
-                          ref={(el) => {
-                            if (el) cardRefs.current.set(reclamation.id, el);
-                            else cardRefs.current.delete(reclamation.id);
-                          }}
-                        >
-                          <ReclamationCard
-                            reclamation={reclamation}
-                            isNew={isEffectivelyNew(reclamation)}
-                            selectionMode={selectionMode}
-                            selected={selectedIds.has(reclamation.id)}
-                            onToggleSelect={() => toggleSelectId(reclamation.id)}
-                            onCreate={() => handleRequestCreate(reclamation)}
-                            onDisqualify={() => handleDisqualify(reclamation.id)}
-                            onFollow={() => handleFollowReclamation(reclamation.id)}
-                          />
-                        </div>
-                      ))}
+                <div className="card-list">
+                  {visibleItems.map((reclamation) => (
+                    <div
+                      key={reclamation.id}
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(reclamation.id, el);
+                        else cardRefs.current.delete(reclamation.id);
+                      }}
+                    >
+                      <ReclamationCard
+                        reclamation={reclamation}
+                        isNew={isEffectivelyNew(reclamation)}
+                        selectionMode={selectionMode}
+                        selected={selectedIds.has(reclamation.id)}
+                        onToggleSelect={() => toggleSelectId(reclamation.id)}
+                        onCreate={() => handleRequestCreate(reclamation)}
+                        onDisqualify={() => handleDisqualify(reclamation.id)}
+                        onFollow={() => handleFollowReclamation(reclamation.id)}
+                      />
                     </div>
+                  ))}
+                </div>
 
-                    {filtered.length === 0 && (
-                      <div className="panel-empty">Aucune mention ne correspond à ces filtres.</div>
-                    )}
+                {filtered.length === 0 && (
+                  <div className="panel-empty">Aucune mention ne correspond à ces filtres.</div>
+                )}
 
-                    {hasMore && (
-                      <div className="scroll-sentinel" ref={sentinelRef}>
-                        <span className="scroll-sentinel-loader" />
-                      </div>
-                    )}
-                  </>
+                {hasMore && (
+                  <div className="scroll-sentinel" ref={sentinelRef}>
+                    <span className="scroll-sentinel-loader" />
+                  </div>
                 )}
               </div>
             ) : (
               <div className="panel-body">
-                {forceEmpty ? (
-                  <EmptyState
-                    title="Aucune réclamation pour le moment"
-                    description="Les réclamations confirmées à partir de vos mentions apparaîtront ici, avec leur statut de progression et de conformité."
-                  />
-                ) : complaintsSelectionMode ? (
+                {complaintsSelectionMode ? (
                   <div className="mentions-selection-toolbar">
                     <div className="mentions-selection-heading">
                       <button
@@ -1022,38 +976,34 @@ export default function ReclamationsPage() {
                   </div>
                 )}
 
-                {!forceEmpty && (
-                  <>
-                    <div className="card-list">
-                      {visibleComplaints.map((complaint) => (
-                        <div
-                          key={complaint.id}
-                          ref={(el) => {
-                            if (el) cardRefs.current.set(complaint.id, el);
-                            else cardRefs.current.delete(complaint.id);
-                          }}
-                        >
-                          <ComplaintCard
-                            complaint={complaint}
-                            onOpen={() => setSelectedComplaint(complaint)}
-                            selectionMode={complaintsSelectionMode}
-                            selected={selectedComplaintIds.has(complaint.id)}
-                            onToggleSelect={() => toggleSelectComplaintId(complaint.id)}
-                          />
-                        </div>
-                      ))}
+                <div className="card-list">
+                  {visibleComplaints.map((complaint) => (
+                    <div
+                      key={complaint.id}
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(complaint.id, el);
+                        else cardRefs.current.delete(complaint.id);
+                      }}
+                    >
+                      <ComplaintCard
+                        complaint={complaint}
+                        onOpen={() => setSelectedComplaint(complaint)}
+                        selectionMode={complaintsSelectionMode}
+                        selected={selectedComplaintIds.has(complaint.id)}
+                        onToggleSelect={() => toggleSelectComplaintId(complaint.id)}
+                      />
                     </div>
+                  ))}
+                </div>
 
-                    {filteredComplaints.length === 0 && (
-                      <div className="panel-empty">Aucune réclamation ne correspond à ces filtres.</div>
-                    )}
+                {filteredComplaints.length === 0 && (
+                  <div className="panel-empty">Aucune réclamation ne correspond à ces filtres.</div>
+                )}
 
-                    {hasMoreComplaints && (
-                      <div className="scroll-sentinel" ref={sentinelRef}>
-                        <span className="scroll-sentinel-loader" />
-                      </div>
-                    )}
-                  </>
+                {hasMoreComplaints && (
+                  <div className="scroll-sentinel" ref={sentinelRef}>
+                    <span className="scroll-sentinel-loader" />
+                  </div>
                 )}
               </div>
             )}

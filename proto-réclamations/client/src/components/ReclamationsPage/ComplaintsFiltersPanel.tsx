@@ -82,39 +82,32 @@ export default function ComplaintsFiltersPanel({
   onReset,
 }: ComplaintsFiltersPanelProps) {
   return (
-    <>
-      <div
-        className={`filters-panel-backdrop ${open ? 'filters-panel-backdrop-open' : ''}`}
-        onClick={onClose}
-        aria-hidden={!open}
-      />
-      <div className={`filters-panel ${open ? 'filters-panel-open' : ''}`} role="dialog" aria-label="Filtres">
-        <div className="filters-panel-header">
-          <span className="filters-panel-title">Filtres</span>
-          <div className="filters-panel-header-actions">
-            <button type="button" className="icon-button" onClick={onReset} aria-label="Réinitialiser les filtres">
-              <ResetIcon />
-            </button>
-            <button type="button" className="icon-button" onClick={onClose} aria-label="Fermer les filtres">
-              <CloseIcon />
-            </button>
-          </div>
-        </div>
-        <div className="filters-panel-content">
-          <ChipGroup
-            label="Statut de progression"
-            value={progression}
-            options={PROGRESSION_OPTIONS}
-            onChange={onProgressionChange}
-          />
-          <ChipGroup
-            label="Statut de conformité"
-            value={conformite}
-            options={CONFORMITE_OPTIONS}
-            onChange={onConformiteChange}
-          />
+    <div className={`filters-panel ${open ? 'filters-panel-open' : ''}`} role="dialog" aria-label="Filtres">
+      <div className="filters-panel-header">
+        <span className="filters-panel-title">Filtres</span>
+        <div className="filters-panel-header-actions">
+          <button type="button" className="icon-button" onClick={onReset} aria-label="Réinitialiser les filtres">
+            <ResetIcon />
+          </button>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Fermer les filtres">
+            <CloseIcon />
+          </button>
         </div>
       </div>
-    </>
+      <div className="filters-panel-content">
+        <ChipGroup
+          label="Statut de progression"
+          value={progression}
+          options={PROGRESSION_OPTIONS}
+          onChange={onProgressionChange}
+        />
+        <ChipGroup
+          label="Statut de conformité"
+          value={conformite}
+          options={CONFORMITE_OPTIONS}
+          onChange={onConformiteChange}
+        />
+      </div>
+    </div>
   );
 }
