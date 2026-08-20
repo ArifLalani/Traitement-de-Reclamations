@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import drawerClose from '../../assets/figma/drawer-close.svg';
 import ArrowUpRight from './ArrowUpRight';
+import ExportMenu, { type ExportPreferences } from './ExportMenu';
+import { exportComplaintsToCsv, exportComplaintsToPdf } from './exportComplaints';
 import {
   AVANCEMENT_LABEL,
   getDossierSteps,
@@ -13,6 +15,7 @@ import {
   type Priorite,
   type Reclamant,
   type Relation,
+  type SuiviCloture,
   type Traitement,
 } from './complaintsData';
 
@@ -101,10 +104,12 @@ function ClockIcon() {
   );
 }
 
-function PencilIcon() {
+function CalendarCheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4Z" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="3.5" y="5" width="17" height="16" rx="2" />
+      <path d="M3.5 9.5h17M8 3v3.2M16 3v3.2" strokeLinecap="round" />
+      <path d="M8.5 14.5 11 17l4.5-5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -152,7 +157,7 @@ function SectionTextField({
             onChange={(e) => onChange?.(e.target.value)}
           />
         )}
-        <span className="dossier-field-adornment">{endAdornment ?? (!readOnly && <PencilIcon />)}</span>
+        {endAdornment && <span className="dossier-field-adornment">{endAdornment}</span>}
       </div>
     </div>
   );
@@ -161,17 +166,21 @@ function SectionTextField({
 function SectionSelectField<T extends string>({
   label,
   value,
+  required,
   options,
   onChange,
 }: {
   label: string;
   value: T | '';
+  required?: boolean;
   options: { id: T; label: string }[];
   onChange: (value: T) => void;
 }) {
   return (
     <div className="dossier-field">
-      <span className="dossier-field-label">{label}</span>
+      <span className="dossier-field-label">
+        {label} {required && <span className="dossier-field-required">*</span>}
+      </span>
       <div className="dossier-field-input">
         <select value={value} onChange={(e) => onChange(e.target.value as T)}>
           <option value="" disabled>
@@ -242,8 +251,9 @@ function AccordionSection({ icon, title, badge, meta, open, onToggle, headline, 
 }
 
 function SaveButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  if (disabled) return null;
   return (
-    <button type="button" className="btn-text dossier-save-btn" disabled={disabled} onClick={onClick}>
+    <button type="button" className="btn-text dossier-save-btn" onClick={onClick}>
       Sauvegarder
     </button>
   );
@@ -257,11 +267,49 @@ type ComplaintDetailDrawerProps = {
   onUpdate?: (id: string, updates: ComplaintInformationsUpdate) => void;
 };
 
-type SectionKey = 'avancement' | 'informations' | 'reclamant' | 'classification' | 'traitement' | 'notes' | 'historique';
+type SectionKey =
+  | 'avancement'
+  | 'informations'
+  | 'reclamant'
+  | 'classification'
+  | 'traitement'
+  | 'suivi'
+  | 'notes'
+  | 'historique';
 
 export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: ComplaintDetailDrawerProps) {
   const [closing, setClosing] = useState(false);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(new Set());
+  const [headerStuck, setHeaderStuck] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportPreferences, setExportPreferences] = useState<ExportPreferences>({
+    format: 'csv',
+    period: 'mois',
+    from: '',
+    to: '',
+  });
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [exportMenuOpen]);
+
+  const handleExportComplaint = () => {
+    if (exportPreferences.format === 'csv') {
+      exportComplaintsToCsv([complaint]);
+    } else {
+      exportComplaintsToPdf([complaint]);
+    }
+    setExportMenuOpen(false);
+  };
 
   const toggleSection = (key: SectionKey) => {
     setOpenSections((prev) => {
@@ -272,10 +320,19 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     });
   };
 
-  const performClose = () => {
+  const closeForReal = () => {
     if (closing) return;
     setClosing(true);
     setTimeout(onClose, CLOSE_ANIMATION_DURATION);
+  };
+
+  const performClose = () => {
+    if (closing) return;
+    if (hasUnsavedChanges) {
+      setShowUnsavedConfirm(true);
+      return;
+    }
+    closeForReal();
   };
 
   useEffect(() => {
@@ -325,10 +382,19 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     (v) => !v,
   ).length;
 
+  // --- Suivi et clôture ---
+  const [suiviDraft, setSuiviDraft] = useState<SuiviCloture>(complaint.suiviCloture);
+  const suiviDirty = JSON.stringify(suiviDraft) !== JSON.stringify(complaint.suiviCloture);
+  const saveSuivi = () => onUpdate?.(complaint.id, { suiviCloture: suiviDraft });
+  const suiviMissing = Object.values(suiviDraft).filter((v) => !v).length;
+
   // --- Notes internes ---
   const [notesDraft, setNotesDraft] = useState(complaint.notesInternes);
   const notesDirty = notesDraft !== complaint.notesInternes;
   const saveNotes = () => onUpdate?.(complaint.id, { notesInternes: notesDraft });
+
+  const hasUnsavedChanges =
+    infoDirty || reclamantDirty || classificationDirty || traitementDirty || suiviDirty || notesDirty;
 
   const steps = getDossierSteps(complaint);
   const completedCount = steps.filter((s) => s.status === 'done').length;
@@ -342,21 +408,45 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     }
   };
 
-  const nextStepBlocked =
-    complaint.avancement === 'a-traiter' && reclamantMissing > 0;
+  // Gated on the saved complaint, not the in-progress draft — the CTA must
+  // only unlock once the required réclamant info has actually been saved.
+  const savedReclamantMissing = [
+    complaint.reclamant.prenom,
+    complaint.reclamant.nom,
+    complaint.reclamant.email,
+    complaint.reclamant.relation,
+  ].filter((v) => !v).length;
+  const nextStepBlocked = complaint.avancement === 'a-traiter' && savedReclamantMissing > 0;
 
   const showNextStepBanner = complaint.avancement !== 'cloture' && complaint.avancement !== 'sans-suite';
 
   return (
     <div className={`drawer-backdrop ${closing ? 'drawer-closing' : ''}`} onClick={performClose}>
-      <div className="drawer-panel dossier-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="dossier-header">
+      <div
+        className="drawer-panel dossier-panel"
+        onClick={(e) => e.stopPropagation()}
+        onScroll={(e) => setHeaderStuck(e.currentTarget.scrollTop > 4)}
+      >
+        <div className={`dossier-header ${headerStuck ? 'dossier-header-stuck' : ''}`}>
           <span className="dossier-title">Dossier {complaint.ticket}</span>
           <span className="chip dossier-status-chip">{AVANCEMENT_LABEL[complaint.avancement]}</span>
           <div className="dossier-header-spacer" />
-          <button type="button" className="btn-filled dossier-export-btn" onClick={() => window.print()}>
-            Exporter
-          </button>
+          <div className="export-menu-wrap" ref={exportMenuRef}>
+            <button
+              type="button"
+              className="btn-filled dossier-export-btn"
+              onClick={() => setExportMenuOpen((v) => !v)}
+            >
+              Exporter
+            </button>
+            <ExportMenu
+              open={exportMenuOpen}
+              preferences={exportPreferences}
+              onChange={setExportPreferences}
+              onExport={handleExportComplaint}
+              selectionCount={1}
+            />
+          </div>
           <button type="button" className="drawer-close-button" aria-label="Fermer" onClick={performClose}>
             <img src={drawerClose} alt="" width={14} height={14} />
           </button>
@@ -495,6 +585,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
             />
             <SectionSelectField<Relation>
               label="Relation client/réclamant"
+              required
               value={reclamantDraft.relation}
               options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
               onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
@@ -558,6 +649,64 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
           </AccordionSection>
 
           <AccordionSection
+            icon={<CalendarCheckIcon />}
+            title="Suivi et Clôture"
+            badge={
+              suiviMissing > 0
+                ? { label: `${suiviMissing} à vérifier`, className: 'chip-declinee' }
+                : { label: 'Complété', className: 'chip-mes-reclamations' }
+            }
+            open={openSections.has('suivi')}
+            onToggle={() => toggleSection('suivi')}
+            headline="Ces champs peuvent être complétés à tout moment pendant le traitement du dossier — ils ne bloquent pas la complétion du dossier."
+          >
+            <div className="dossier-field-row">
+              <SectionTextField
+                label="Date d'AR / réponse intermédiaire"
+                value={suiviDraft.dateAR}
+                placeholder="Ex: 05/05/2026"
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, dateAR: v }))}
+              />
+              <SectionTextField
+                label="Date de réponse"
+                value={suiviDraft.dateReponse}
+                placeholder="Ex: 05/05/2026"
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, dateReponse: v }))}
+              />
+            </div>
+            <div className="dossier-field-row">
+              <SectionTextField
+                label="Action immédiate"
+                value={suiviDraft.actionImmediate}
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
+              />
+              <SectionTextField
+                label="Action corrective"
+                value={suiviDraft.actionCorrective}
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
+              />
+            </div>
+            <div className="dossier-field-row">
+              <SectionTextField
+                label="Action réalisée"
+                value={suiviDraft.actionRealisee}
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
+              />
+              <SectionTextField
+                label="Vérification d'efficacité"
+                value={suiviDraft.verificationEfficacite}
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
+              />
+            </div>
+            <SectionTextField
+              label="Réponse apportée"
+              value={suiviDraft.reponseApportee}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, reponseApportee: v }))}
+            />
+            <SaveButton disabled={!suiviDirty} onClick={saveSuivi} />
+          </AccordionSection>
+
+          <AccordionSection
             icon={<NotepadIcon />}
             title="Notes Internes"
             open={openSections.has('notes')}
@@ -617,6 +766,33 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
           </div>
         )}
       </div>
+
+      {showUnsavedConfirm && (
+        <div className="confirm-dialog-backdrop" onClick={() => setShowUnsavedConfirm(false)}>
+          <div className="confirm-dialog-paper" onClick={(e) => e.stopPropagation()}>
+            <p className="confirm-dialog-title">Informations non sauvegardées</p>
+            <p className="confirm-dialog-body">
+              Vous avez des modifications non sauvegardées dans ce dossier. Si vous fermez maintenant, elles seront
+              perdues.
+            </p>
+            <div className="confirm-dialog-actions">
+              <button type="button" className="btn-text" onClick={() => setShowUnsavedConfirm(false)}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="btn-filled"
+                onClick={() => {
+                  setShowUnsavedConfirm(false);
+                  closeForReal();
+                }}
+              >
+                Fermer sans sauvegarder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

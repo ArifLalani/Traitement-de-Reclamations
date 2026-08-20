@@ -316,13 +316,16 @@ export default function ReclamationsPage() {
   }, [exportMenuOpen]);
 
   useEffect(() => {
-    if (!createTarget) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (!createTarget && !selectedComplaint) return;
+    // The scrolling element is document.documentElement (html), not body —
+    // locking body's overflow alone no longer blocks the page scroll now
+    // that html has its own explicit overflow-x rule (see index.css).
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.documentElement.style.overflow = previousOverflow;
     };
-  }, [createTarget]);
+  }, [createTarget, selectedComplaint]);
 
   const isEffectivelyNew = (r: (typeof reclamations)[number]) =>
     r.isNew && r.state !== 'mes-reclamations' && !createdIds.has(r.id) && !seenIds.has(r.id);
@@ -342,6 +345,15 @@ export default function ReclamationsPage() {
       }
       return next;
     });
+  };
+
+  const handleResetUnread = () => {
+    setSeenIds(new Set());
+    try {
+      localStorage.removeItem(SEEN_IDS_STORAGE_KEY);
+    } catch {
+      // localStorage unavailable, ignore
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -669,15 +681,20 @@ export default function ReclamationsPage() {
   const visibleComplaints = filteredComplaints.slice(0, visibleCount);
   const hasMoreComplaints = visibleCount < filteredComplaints.length;
 
+  const mentionsFiltersActive =
+    etatFilter !== 'tous' || appreciationFilter !== 'tous' || reclamationsFacet !== 'tous';
+  const complaintsFiltersActive = progressionFilter !== 'tous' || conformiteFilter !== 'tous';
+
   return (
     <div className="page">
-      <button
-        type="button"
-        className="debug-empty-toggle"
-        onClick={() => setForceEmpty((v) => !v)}
-      >
-        DEBUG: empty state {forceEmpty ? 'ON' : 'OFF'}
-      </button>
+      <div className="debug-toolbar">
+        <button type="button" className="debug-toolbar-btn" onClick={() => setForceEmpty((v) => !v)}>
+          DEBUG: empty state {forceEmpty ? 'ON' : 'OFF'}
+        </button>
+        <button type="button" className="debug-toolbar-btn" onClick={handleResetUnread}>
+          DEBUG: reset mentions to non-lu
+        </button>
+      </div>
 
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <button
@@ -709,8 +726,8 @@ export default function ReclamationsPage() {
         <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
 
         <main className="body">
-          <div className="content">
-            <div ref={appbarRef} className={`appbar ${appbarStuck ? 'appbar-stuck' : ''}`}>
+          <div ref={appbarRef} className={`appbar-bar ${appbarStuck ? 'appbar-bar-stuck' : ''}`}>
+            <div className="appbar">
               <div className="search-field">
                 <img src={searchIcon} alt="" width={24} height={24} />
                 <input
@@ -747,11 +764,12 @@ export default function ReclamationsPage() {
                 <div className="appbar-actions">
                   <button
                     type="button"
-                    className="icon-button appbar-icon-button"
+                    className="icon-button appbar-icon-button appbar-icon-button-badgeable"
                     aria-label="Filtres"
                     onClick={() => setFiltersOpen(true)}
                   >
                     <FunnelIcon />
+                    {mentionsFiltersActive && <span className="appbar-icon-badge" />}
                   </button>
                   <button type="button" className="icon-button appbar-icon-button" aria-label="Trier">
                     <SortIcon />
@@ -787,11 +805,12 @@ export default function ReclamationsPage() {
                 <div className="appbar-actions">
                   <button
                     type="button"
-                    className="icon-button appbar-icon-button"
+                    className="icon-button appbar-icon-button appbar-icon-button-badgeable"
                     aria-label="Filtres"
                     onClick={() => setComplaintsFiltersOpen(true)}
                   >
                     <FunnelIcon />
+                    {complaintsFiltersActive && <span className="appbar-icon-badge" />}
                   </button>
                   <button type="button" className="icon-button appbar-icon-button" aria-label="Trier">
                     <SortIcon />
@@ -829,7 +848,9 @@ export default function ReclamationsPage() {
                 </div>
               )}
             </div>
+          </div>
 
+          <div className="content">
             {activeTab === 'mentions' ? (
               <div className="panel-body">
                 {forceEmpty ? (

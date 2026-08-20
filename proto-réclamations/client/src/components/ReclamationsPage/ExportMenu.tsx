@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 
 export type ExportFormat = 'csv' | 'pdf';
 export type ExportPeriod = 'mois' | 'annees' | 'custom';
@@ -119,8 +119,13 @@ type ExportMenuProps = {
 
 export default function ExportMenu({ open, preferences, onChange, onExport, selectionCount = 0 }: ExportMenuProps) {
   const [localPreferences, setLocalPreferences] = useState(preferences);
+  const [renderKey, setRenderKey] = useState(0);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRenderKey((k) => k + 1);
+  }, [open]);
 
   const hasSelection = selectionCount > 0;
 
@@ -135,55 +140,61 @@ export default function ExportMenu({ open, preferences, onChange, onExport, sele
   };
 
   return (
-    <div className="export-menu" onClick={(e) => e.stopPropagation()}>
-      {hasSelection && (
-        <p className="export-menu-selection-note">
-          {selectionCount} réclamation{selectionCount > 1 ? 's' : ''} sélectionnée{selectionCount > 1 ? 's' : ''}
-        </p>
-      )}
+    <div className={`export-menu ${open ? 'export-menu-open' : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className="export-menu-body" key={renderKey}>
+        {hasSelection && (
+          <p className="export-menu-selection-note">
+            {selectionCount} réclamation{selectionCount > 1 ? 's' : ''} sélectionnée{selectionCount > 1 ? 's' : ''}
+          </p>
+        )}
 
-      <div className="export-menu-section">
-        <span className="export-menu-label">Format du fichier</span>
-        <SegmentedControl<ExportFormat>
-          value={localPreferences.format}
-          options={[
-            { id: 'csv', label: 'CSV' },
-            { id: 'pdf', label: 'PDF' },
-          ]}
-          onChange={(format) => update({ format })}
-        />
-      </div>
+        <div className="export-menu-section">
+          <span className="export-menu-label">Format du fichier</span>
+          <SegmentedControl<ExportFormat>
+            value={localPreferences.format}
+            options={[
+              { id: 'csv', label: 'CSV' },
+              { id: 'pdf', label: 'PDF' },
+            ]}
+            onChange={(format) => update({ format })}
+          />
+        </div>
 
-      {!hasSelection && (
-        <>
-          <div className="export-menu-section">
-            <span className="export-menu-label">Range</span>
-            <RangeChips<ExportPeriod> value={localPreferences.period} options={RANGE_OPTIONS} onChange={changePeriod} />
-          </div>
-
-          <div className="export-menu-section">
-            <span className="export-menu-label">Period</span>
-            <div className="export-menu-period-fields">
-              <DateField
-                label="Du"
-                value={localPreferences.from}
-                placeholder={PERIOD_PLACEHOLDER[localPreferences.period]}
-                onChange={(from) => update({ from })}
-              />
-              <DateField
-                label="Au"
-                value={localPreferences.to}
-                placeholder={PERIOD_PLACEHOLDER[localPreferences.period]}
-                onChange={(to) => update({ to })}
+        {!hasSelection && (
+          <>
+            <div className="export-menu-section">
+              <span className="export-menu-label">Range</span>
+              <RangeChips<ExportPeriod>
+                value={localPreferences.period}
+                options={RANGE_OPTIONS}
+                onChange={changePeriod}
               />
             </div>
-          </div>
-        </>
-      )}
 
-      <button type="button" className="btn-text export-menu-cta" onClick={onExport}>
-        Exporter
-      </button>
+            <div className="export-menu-section">
+              <span className="export-menu-label">Period</span>
+              <div className="export-menu-period-fields">
+                <DateField
+                  label="Du"
+                  value={localPreferences.from}
+                  placeholder={PERIOD_PLACEHOLDER[localPreferences.period]}
+                  onChange={(from) => update({ from })}
+                />
+                <DateField
+                  label="Au"
+                  value={localPreferences.to}
+                  placeholder={PERIOD_PLACEHOLDER[localPreferences.period]}
+                  onChange={(to) => update({ to })}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        <button type="button" className="btn-text export-menu-cta" onClick={onExport}>
+          Exporter
+        </button>
+      </div>
     </div>
   );
 }

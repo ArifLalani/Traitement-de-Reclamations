@@ -26,6 +26,16 @@ export type Traitement = {
   priorite: Priorite | '';
 };
 
+export type SuiviCloture = {
+  dateAR: string;
+  dateReponse: string;
+  actionImmediate: string;
+  actionCorrective: string;
+  actionRealisee: string;
+  verificationEfficacite: string;
+  reponseApportee: string;
+};
+
 export type HistoriqueEntry = {
   title: string;
   description: string;
@@ -53,6 +63,7 @@ export type Complaint = {
   reclamant: Reclamant;
   classification: Classification;
   traitement: Traitement;
+  suiviCloture: SuiviCloture;
   notesInternes: string;
   historique: HistoriqueEntry[];
 };
@@ -141,7 +152,10 @@ export const TYPES_SINISTRE = [
 
 export const INTERLOCUTEURS = ['Julien Fontaine', 'Claire Martin', 'Marc Dubois', 'Sophie Leroy'];
 
-export type ComplaintCore = Omit<Complaint, 'reclamant' | 'classification' | 'traitement' | 'notesInternes' | 'historique'>;
+export type ComplaintCore = Omit<
+  Complaint,
+  'reclamant' | 'classification' | 'traitement' | 'suiviCloture' | 'notesInternes' | 'historique'
+>;
 
 export function attachDetails(c: ComplaintCore): Complaint {
   const [prenom, nom] = splitName(c.requerant);
@@ -190,6 +204,15 @@ export function attachDetails(c: ComplaintCore): Complaint {
       statut: AVANCEMENT_LABEL[c.avancement],
       interlocuteur: '',
       priorite: '',
+    },
+    suiviCloture: {
+      dateAR: '',
+      dateReponse: '',
+      actionImmediate: '',
+      actionCorrective: '',
+      actionRealisee: '',
+      verificationEfficacite: '',
+      reponseApportee: '',
     },
     notesInternes: '',
     historique,
