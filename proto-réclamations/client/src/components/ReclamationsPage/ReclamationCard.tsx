@@ -217,13 +217,13 @@ export default function ReclamationCard({
               {isMesReclamations ? (
                 <button
                   type="button"
-                  className="btn-outlined"
+                  className="btn-text"
                   onClick={(e) => {
                     e.stopPropagation();
                     onFollow();
                   }}
                 >
-                  Suivre la réclamation
+                  Voir la réclamation
                 </button>
               ) : isDeclinee ? (
                 <button

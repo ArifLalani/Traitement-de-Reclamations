@@ -14,6 +14,7 @@ import ComplaintsFiltersPanel, {
 } from './ComplaintsFiltersPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
+import ReclamationCreatedAlert from './ReclamationCreatedAlert';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
   type EtatFilter,
@@ -97,6 +98,14 @@ function CloseIcon() {
   );
 }
 
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
 
 type TabId = SidebarSection;
@@ -116,6 +125,9 @@ export default function ReclamationsPage() {
   const [complaintsSearch, setComplaintsSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [scrolled, setScrolled] = useState(false);
+  const [appbarStuck, setAppbarStuck] = useState(false);
+  const appbarRef = useRef<HTMLDivElement>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
@@ -126,6 +138,7 @@ export default function ReclamationsPage() {
     onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
+  const [createdAlert, setCreatedAlert] = useState<{ complaint: Complaint } | null>(null);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
     ...initialArchivedComplaints,
@@ -258,6 +271,7 @@ export default function ReclamationsPage() {
     const handleScroll = () => {
       setScrolled(window.scrollY > 4);
       setShowScrollTop(window.scrollY > 600);
+      setAppbarStuck((appbarRef.current?.getBoundingClientRect().top ?? Infinity) <= 73);
     };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -479,13 +493,20 @@ export default function ReclamationsPage() {
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     setCreateTarget(null);
-    setSnackbar({ id, message: 'Réclamation créée.', variant: 'success' });
-    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
-    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
+    setCreatedAlert({ complaint: newComplaint });
   };
 
-  const handleFollowReclamation = () => {
+  const openComplaintDetail = (complaint: Complaint) => {
     handleSelectTab('reclamations');
+    // Let the réclamations list finish mounting and playing its card entrance
+    // animation (0.6s, see .card-list > * in ReclamationsPage.css) before the
+    // detail drawer slides in, so the two animations don't overlap.
+    setTimeout(() => setSelectedComplaint(complaint), 650);
+  };
+
+  const handleFollowReclamation = (reclamationId: string) => {
+    const complaint = complaintsList.find((c) => c.sourceReclamationId === reclamationId);
+    if (complaint) openComplaintDetail(complaint);
   };
 
   const handleUpdateComplaint = (id: string, updates: ComplaintInformationsUpdate) => {
@@ -640,6 +661,14 @@ export default function ReclamationsPage() {
   return (
     <div className="page">
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
+        <button
+          type="button"
+          className="icon-button sidebar-toggle"
+          aria-label={sidebarOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+          onClick={() => setSidebarOpen((open) => !open)}
+        >
+          <MenuIcon />
+        </button>
         <div className="header-top">
           <div className="logo">
             <img src={logoText} alt="Opinion System" className="logo-text" />
@@ -655,11 +684,11 @@ export default function ReclamationsPage() {
       </header>
 
       <div className="app-shell">
-        <Sidebar active={activeTab} onSelect={handleSelectTab} />
+        <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
 
         <main className="body">
           <div className="content">
-            <div className="appbar">
+            <div ref={appbarRef} className={`appbar ${appbarStuck ? 'appbar-stuck' : ''}`}>
               <div className="search-field">
                 <img src={searchIcon} alt="" width={24} height={24} />
                 <input
@@ -850,7 +879,7 @@ export default function ReclamationsPage() {
                         onToggleSelect={() => toggleSelectId(reclamation.id)}
                         onCreate={() => handleRequestCreate(reclamation)}
                         onDisqualify={() => handleDisqualify(reclamation.id)}
-                        onFollow={handleFollowReclamation}
+                        onFollow={() => handleFollowReclamation(reclamation.id)}
                       />
                     </div>
                   ))}
@@ -1004,6 +1033,15 @@ export default function ReclamationsPage() {
         variant={snackbar?.variant ?? 'info'}
         actionLabel={snackbar?.variant === 'info' ? 'Annuler' : undefined}
         onAction={snackbar?.variant === 'info' ? handleSnackbarUndo : undefined}
+      />
+
+      <ReclamationCreatedAlert
+        visible={!!createdAlert}
+        onView={() => {
+          if (createdAlert) openComplaintDetail(createdAlert.complaint);
+          setCreatedAlert(null);
+        }}
+        onClose={() => setCreatedAlert(null)}
       />
 
       {createTarget && (

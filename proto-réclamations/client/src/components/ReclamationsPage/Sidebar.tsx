@@ -3,6 +3,7 @@ export type SidebarSection = 'mentions' | 'reclamations';
 type SidebarProps = {
   active: SidebarSection;
   onSelect: (section: SidebarSection) => void;
+  open?: boolean;
 };
 
 function ThumbsUpIcon() {
@@ -87,9 +88,9 @@ function ChevronIcon({ direction = 'down' }: { direction?: 'up' | 'down' }) {
   );
 }
 
-export default function Sidebar({ active, onSelect }: SidebarProps) {
+export default function Sidebar({ active, onSelect, open = true }: SidebarProps) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${open ? '' : 'sidebar-collapsed'}`}>
       <div className="sidebar-profile">
         <div className="sidebar-avatar">JB</div>
         <div className="sidebar-profile-text">

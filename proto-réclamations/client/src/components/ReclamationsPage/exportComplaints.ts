@@ -101,7 +101,7 @@ function parseDateReception(value: string): Date | null {
 
 function parseRangeBound(value: string, period: ExportPeriod, isEnd: boolean): Date | null {
   const trimmed = value.trim();
-  if (period === 'jours') {
+  if (period === 'custom') {
     const date = parseDateReception(trimmed);
     if (!date) return null;
     if (isEnd) date.setHours(23, 59, 59, 999);

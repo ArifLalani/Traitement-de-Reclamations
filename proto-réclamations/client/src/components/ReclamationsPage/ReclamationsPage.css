@@ -34,6 +34,14 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
+.sidebar-toggle {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-white);
+}
+
 .header-top {
   width: 100%;
   max-width: 1100px;
@@ -111,6 +119,13 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  transition: width 0.25s ease, box-shadow 0.25s ease;
+}
+
+.sidebar-collapsed {
+  width: 0;
+  overflow: hidden;
+  box-shadow: none;
 }
 
 .sidebar-profile {
@@ -374,6 +389,14 @@
   align-items: center;
   padding: 0 16px;
   animation: panel-fade-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  position: sticky;
+  top: 73px;
+  z-index: 5;
+  transition: box-shadow 0.25s ease;
+}
+
+.appbar-stuck {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
 .search-field {
@@ -505,37 +528,40 @@
   color: var(--color-text-primary);
 }
 
-.export-menu-select {
-  background: var(--color-white);
-  border: 1px solid rgba(0, 0, 0, 0.23);
-  border-radius: 4px;
-}
-
-.export-menu-select select,
-.export-menu-select input {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  appearance: none;
-  padding: 16px 12px;
-  font: var(--font-input-text);
-  letter-spacing: 0.15px;
-  color: var(--color-text-primary);
-}
-
-.export-menu-select input::placeholder {
-  color: var(--color-text-disabled);
-}
-
-.export-menu-row {
+.export-menu-range-row {
   display: flex;
   gap: 10px;
 }
 
-.export-menu-row .export-menu-section {
-  flex: 1;
-  min-width: 0;
+.export-menu-range-chip {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid #bdbdbd;
+  background: var(--color-white);
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.export-menu-range-chip-active {
+  border-color: transparent;
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+}
+
+.export-menu-period-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.export-menu-date-field .field-border {
+  color: var(--color-text-secondary);
+}
+
+.export-menu-date-field input::placeholder {
+  color: var(--color-text-disabled);
 }
 
 .export-menu-cta {
@@ -1328,6 +1354,99 @@
 }
 
 .alert-snackbar-action:hover {
+  background: var(--color-action-hover);
+}
+
+.created-alert {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  width: 700px;
+  max-width: calc(100vw - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #e5f6fd;
+  border-radius: 4px;
+  padding: 12px 16px;
+  box-shadow:
+    0 1px 8px 0 rgba(0, 0, 0, 0.12),
+    0 3px 4px 0 rgba(0, 0, 0, 0.14),
+    0 3px 3px -2px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.created-alert-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.created-alert-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 100px;
+  color: #014361;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.created-alert-close:hover {
+  background: rgba(0, 0, 0, 0.04);
+  opacity: 1;
+}
+
+.created-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 28px;
+  color: #014361;
+  font: var(--font-h6);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+}
+
+.created-alert-description {
+  margin: 0;
+  padding-right: 28px;
+  color: #014361;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+}
+
+.created-alert-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.created-alert-cta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.46px;
+  text-transform: uppercase;
+  color: var(--color-primary-blue);
+}
+
+.created-alert-cta:hover {
   background: var(--color-action-hover);
 }
 
