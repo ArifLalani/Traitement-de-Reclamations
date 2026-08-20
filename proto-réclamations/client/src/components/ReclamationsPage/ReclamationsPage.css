@@ -133,6 +133,7 @@
   top: 73px;
   height: calc(100vh - 73px);
   overflow: hidden;
+  z-index: 6;
   transition: width 0.25s ease, box-shadow 0.25s ease;
 }
 
