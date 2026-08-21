@@ -163,7 +163,7 @@ export default function ReclamationsPage() {
   const [scrolled, setScrolled] = useState(false);
   const [appbarStuck, setAppbarStuck] = useState(false);
   const appbarRef = useRef<HTMLDivElement>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
