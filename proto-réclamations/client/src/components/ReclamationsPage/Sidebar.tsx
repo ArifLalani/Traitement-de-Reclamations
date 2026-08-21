@@ -1,4 +1,4 @@
-export type SidebarSection = 'mentions' | 'reclamations';
+export type SidebarSection = 'reputation-intro' | 'mentions' | 'reclamations';
 
 type SidebarProps = {
   active: SidebarSection;
@@ -103,11 +103,15 @@ export default function Sidebar({ active, onSelect, open = true }: SidebarProps)
 
         <nav className="sidebar-nav">
           <div className="sidebar-section">
-            <div className="sidebar-section-header">
+            <button
+              type="button"
+              className={`sidebar-section-header ${active === 'reputation-intro' ? 'sidebar-section-header-active' : ''}`}
+              onClick={() => onSelect('reputation-intro')}
+            >
               <ThumbsUpIcon />
               <span>Ma Réputation en ligne</span>
               <ChevronIcon direction="up" />
-            </div>
+            </button>
             <button
               type="button"
               className={`sidebar-subitem ${active === 'mentions' ? 'sidebar-subitem-active' : ''}`}

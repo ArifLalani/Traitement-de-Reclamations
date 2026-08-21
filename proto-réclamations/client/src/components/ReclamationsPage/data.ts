@@ -227,7 +227,7 @@ function generate(state: ReclamationState, count: number, startId: number): Recl
   });
 }
 
-function parseDateValue(date: string): number {
+export function parseDateValue(date: string): number {
   const now = new Date();
 
   if (date.startsWith("Aujourd'hui")) {

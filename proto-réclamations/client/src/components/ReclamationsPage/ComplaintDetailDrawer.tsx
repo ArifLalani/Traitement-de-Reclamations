@@ -438,6 +438,15 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
               onClick={() => setExportMenuOpen((v) => !v)}
             >
               Exporter
+              <svg
+                viewBox="0 0 9 5.5575"
+                width={12}
+                height={7.4}
+                fill="currentColor"
+                className={`btn-link-icon ${exportMenuOpen ? 'btn-link-icon-flipped' : ''}`}
+              >
+                <path d="M7.9425 0L4.5 3.435L1.0575 0L0 1.0575L4.5 5.5575L9 1.0575L7.9425 0Z" />
+              </svg>
             </button>
             <ExportMenu
               open={exportMenuOpen}

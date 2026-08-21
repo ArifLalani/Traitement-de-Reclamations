@@ -21,9 +21,11 @@ import MentionsFiltersPanel, {
   type ReclamationsFacet,
 } from './MentionsFiltersPanel';
 import ReclamationCard from './ReclamationCard';
+import ReputationIntro from './ReputationIntro';
 import ScrollTopButton from './ScrollTopButton';
+import SortPanel, { type SortOrder } from './SortPanel';
 import Sidebar, { type SidebarSection } from './Sidebar';
-import { getSentiment, reclamations, type Reclamation, type ReclamationState } from './data';
+import { getSentiment, parseDateValue, reclamations, type Reclamation, type ReclamationState } from './data';
 import {
   attachDetails,
   complaints as initialComplaints,
@@ -40,6 +42,38 @@ function FunnelIcon() {
       <g transform="translate(1.5 6.75)">
         <path d="M12.75 9C13.1642 9 13.5 9.33579 13.5 9.75C13.5 10.1642 13.1642 10.5 12.75 10.5H8.25C7.83579 10.5 7.5 10.1642 7.5 9.75C7.5 9.33579 7.83579 9 8.25 9H12.75ZM16.5 4.5C16.9142 4.5 17.25 4.83579 17.25 5.25C17.25 5.66421 16.9142 6 16.5 6H4.5C4.08579 6 3.75 5.66421 3.75 5.25C3.75 4.83579 4.08579 4.5 4.5 4.5H16.5ZM20.25 0C20.6642 0 21 0.335786 21 0.75C21 1.16421 20.6642 1.5 20.25 1.5H0.75C0.335786 1.5 0 1.16421 0 0.75C0 0.335786 0.335786 0 0.75 0H20.25Z" />
       </g>
+    </svg>
+  );
+}
+
+function SortIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={20} height={20} fill="currentColor">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12.9697 15.2197C13.2626 14.9268 13.7374 14.9268 14.0303 15.2197L17.25 18.4393L20.4697 15.2197C20.7626 14.9268 21.2374 14.9268 21.5303 15.2197C21.8232 15.5126 21.8232 15.9874 21.5303 16.2803L17.7803 20.0303C17.4874 20.3232 17.0126 20.3232 16.7197 20.0303L12.9697 16.2803C12.6768 15.9874 12.6768 15.5126 12.9697 15.2197Z"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M17.25 9.75C17.6642 9.75 18 10.0858 18 10.5V19.5C18 19.9142 17.6642 20.25 17.25 20.25C16.8358 20.25 16.5 19.9142 16.5 19.5V10.5C16.5 10.0858 16.8358 9.75 17.25 9.75Z"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M3.75 12C3.75 11.5858 4.08579 11.25 4.5 11.25H11.25C11.6642 11.25 12 11.5858 12 12C12 12.4142 11.6642 12.75 11.25 12.75H4.5C4.08579 12.75 3.75 12.4142 3.75 12Z"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M3.75 6C3.75 5.58579 4.08579 5.25 4.5 5.25H17.25C17.6642 5.25 18 5.58579 18 6C18 6.41421 17.6642 6.75 17.25 6.75H4.5C4.08579 6.75 3.75 6.41421 3.75 6Z"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M3.75 18C3.75 17.5858 4.08579 17.25 4.5 17.25H9.75C10.1642 17.25 10.5 17.5858 10.5 18C10.5 18.4142 10.1642 18.75 9.75 18.75H4.5C4.08579 18.75 3.75 18.4142 3.75 18Z"
+      />
     </svg>
   );
 }
@@ -100,17 +134,26 @@ function MenuIcon() {
 
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
+const REPUTATION_INTRO_SEEN_KEY = 'reputation-intro-seen-v1';
 
 type TabId = SidebarSection;
 
 const PAGE_SIZE = 20;
 
 export default function ReclamationsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('mentions');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    try {
+      return localStorage.getItem(REPUTATION_INTRO_SEEN_KEY) ? 'mentions' : 'reputation-intro';
+    } catch {
+      return 'mentions';
+    }
+  });
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [sortPanelOpen, setSortPanelOpen] = useState(false);
+  const [mentionsSortOrder, setMentionsSortOrder] = useState<SortOrder>('recent');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -139,6 +182,8 @@ export default function ReclamationsPage() {
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
   const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(true);
+  const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
+  const [complaintsSortOrder, setComplaintsSortOrder] = useState<SortOrder>('recent');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
@@ -244,6 +289,24 @@ export default function ReclamationsPage() {
     if (id === activeTab) return;
     setActiveTab(id);
     setVisibleCount(PAGE_SIZE);
+  };
+
+  const markReputationIntroSeen = () => {
+    try {
+      localStorage.setItem(REPUTATION_INTRO_SEEN_KEY, '1');
+    } catch {
+      // localStorage unavailable, ignore
+    }
+  };
+
+  const handleDismissReputationIntro = () => {
+    markReputationIntroSeen();
+    handleSelectTab('mentions');
+  };
+
+  const handleSelectFromReputationIntro = (section: 'mentions' | 'reclamations') => {
+    markReputationIntroSeen();
+    handleSelectTab(section);
   };
 
   const sentinelRef = useCallback((el: HTMLDivElement | null) => {
@@ -632,16 +695,20 @@ export default function ReclamationsPage() {
     (r) => isEffectivelyNew(r) && getSentiment(r.text) === 'negative',
   ).length;
 
-  const filtered = searched.filter(
-    (r) => matchesReclamationsFacet(r) && matchesEtat(r) && matchesAppreciation(r),
-  );
+  const filtered = searched
+    .filter((r) => matchesReclamationsFacet(r) && matchesEtat(r) && matchesAppreciation(r))
+    .sort((a, b) =>
+      mentionsSortOrder === 'recent'
+        ? parseDateValue(b.date) - parseDateValue(a.date)
+        : parseDateValue(a.date) - parseDateValue(b.date),
+    );
   const complaintsQuery = complaintsSearch.trim().toLowerCase();
 
-  const echeanceDays = (c: Complaint) => {
-    const match = c.echeanceLabel.match(/-?\d+/);
-    // Closed dossiers ("-") have no deadline left to sort by — push them to
-    // the end, after every dossier that still has (or has blown) one.
-    return match ? Number(match[0]) : Infinity;
+  const parseDateReception = (value: string) => {
+    const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return 0;
+    const [, day, month, year] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day)).getTime();
   };
 
   const filteredComplaints = complaintsList
@@ -656,7 +723,11 @@ export default function ReclamationsPage() {
       const matchesConformite = conformiteFilter === 'tous' || c.conformite === conformiteFilter;
       return matchesSearch && matchesProgression && matchesConformite;
     })
-    .sort((a, b) => echeanceDays(a) - echeanceDays(b));
+    .sort((a, b) =>
+      complaintsSortOrder === 'recent'
+        ? parseDateReception(b.dateReception) - parseDateReception(a.dateReception)
+        : parseDateReception(a.dateReception) - parseDateReception(b.dateReception),
+    );
 
   filteredLength.current = activeTab === 'mentions' ? filtered.length : filteredComplaints.length;
   const visibleItems = filtered.slice(0, visibleCount);
@@ -679,7 +750,6 @@ export default function ReclamationsPage() {
         >
           <MenuIcon />
         </button>
-        <div className={`header-sidebar-spacer ${sidebarOpen ? '' : 'header-sidebar-spacer-collapsed'}`} />
         <div className="header-center">
           <div className="header-top">
             <div className="logo">
@@ -700,6 +770,16 @@ export default function ReclamationsPage() {
         <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
 
         <main className="body">
+          {activeTab === 'reputation-intro' ? (
+            <div className="content">
+              <ReputationIntro
+                onDismiss={handleDismissReputationIntro}
+                onSelectMentions={() => handleSelectFromReputationIntro('mentions')}
+                onSelectReclamations={() => handleSelectFromReputationIntro('reclamations')}
+              />
+            </div>
+          ) : (
+            <>
           <div ref={appbarRef} className={`appbar-bar ${appbarStuck ? 'appbar-bar-stuck' : ''}`}>
             <div className="appbar">
               <div className="search-field">
@@ -740,10 +820,24 @@ export default function ReclamationsPage() {
                     type="button"
                     className="icon-button appbar-icon-button appbar-icon-button-badgeable"
                     aria-label="Filtres"
-                    onClick={() => setFiltersOpen(true)}
+                    onClick={() => {
+                      setFiltersOpen(true);
+                      setSortPanelOpen(false);
+                    }}
                   >
                     <FunnelIcon />
                     {mentionsFiltersActive && <span className="appbar-icon-badge" />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button appbar-icon-button"
+                    aria-label="Trier"
+                    onClick={() => {
+                      setSortPanelOpen(true);
+                      setFiltersOpen(false);
+                    }}
+                  >
+                    <SortIcon />
                   </button>
                   <div className="appbar-more-menu-wrap" ref={moreMenuRef}>
                     <button
@@ -778,10 +872,24 @@ export default function ReclamationsPage() {
                     type="button"
                     className="icon-button appbar-icon-button appbar-icon-button-badgeable"
                     aria-label="Filtres"
-                    onClick={() => setComplaintsFiltersOpen(true)}
+                    onClick={() => {
+                      setComplaintsFiltersOpen(true);
+                      setComplaintsSortPanelOpen(false);
+                    }}
                   >
                     <FunnelIcon />
                     {complaintsFiltersActive && <span className="appbar-icon-badge" />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button appbar-icon-button"
+                    aria-label="Trier"
+                    onClick={() => {
+                      setComplaintsSortPanelOpen(true);
+                      setComplaintsFiltersOpen(false);
+                    }}
+                  >
+                    <SortIcon />
                   </button>
                   <div className="appbar-more-menu-wrap" ref={complaintsMoreMenuRef}>
                     <button
@@ -1008,6 +1116,8 @@ export default function ReclamationsPage() {
               </div>
             )}
           </div>
+            </>
+          )}
         </main>
 
         <MentionsFiltersPanel
@@ -1030,6 +1140,20 @@ export default function ReclamationsPage() {
           conformite={conformiteFilter}
           onConformiteChange={selectConformiteFilter}
           onReset={resetComplaintsFilters}
+        />
+
+        <SortPanel
+          open={sortPanelOpen && activeTab === 'mentions'}
+          onClose={() => setSortPanelOpen(false)}
+          value={mentionsSortOrder}
+          onChange={setMentionsSortOrder}
+        />
+
+        <SortPanel
+          open={complaintsSortPanelOpen && activeTab === 'reclamations'}
+          onClose={() => setComplaintsSortPanelOpen(false)}
+          value={complaintsSortOrder}
+          onChange={setComplaintsSortOrder}
         />
       </div>
 
