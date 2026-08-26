@@ -12,12 +12,14 @@ import ComplaintsFiltersPanel, {
   type ConformiteFilter,
   type ProgressionFilter,
 } from './ComplaintsFiltersPanel';
+import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
 import ReclamationCreatedAlert from './ReclamationCreatedAlert';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
   type EtatFilter,
+  type PeriodeFilter,
   type ReclamationsFacet,
 } from './MentionsFiltersPanel';
 import ReclamationCard from './ReclamationCard';
@@ -29,7 +31,7 @@ import { getSentiment, parseDateValue, reclamations, type Reclamation, type Recl
 import {
   attachDetails,
   complaints as initialComplaints,
-  archivedComplaints as initialArchivedComplaints,
+  closedComplaints as initialClosedComplaints,
   type Complaint,
 } from './complaintsData';
 import { exportComplaintsToCsv, exportComplaintsToPdf, filterComplaintsByRange } from './exportComplaints';
@@ -151,6 +153,7 @@ export default function ReclamationsPage() {
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
+  const [periodeFilter, setPeriodeFilter] = useState<PeriodeFilter>('annee');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [sortPanelOpen, setSortPanelOpen] = useState(false);
   const [mentionsSortOrder, setMentionsSortOrder] = useState<SortOrder>('recent');
@@ -177,13 +180,13 @@ export default function ReclamationsPage() {
   const [createdAlert, setCreatedAlert] = useState<{ complaint: Complaint } | null>(null);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
-    ...initialArchivedComplaints,
+    ...initialClosedComplaints,
   ]);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
   const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(true);
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
-  const [complaintsSortOrder, setComplaintsSortOrder] = useState<SortOrder>('recent');
+  const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
@@ -192,8 +195,8 @@ export default function ReclamationsPage() {
   const [exportPreferences, setExportPreferences] = useState<ExportPreferences>({
     format: 'csv',
     period: 'mois',
-    from: 'Aout 2026',
-    to: 'Aout 2026',
+    from: 'Août 2026',
+    to: 'Août 2026',
   });
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const createdAlertTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -244,11 +247,19 @@ export default function ReclamationsPage() {
     setVisibleCount(PAGE_SIZE);
   };
 
+  const selectPeriodeFilter = (id: PeriodeFilter) => {
+    if (id === periodeFilter) return;
+    prevTops.current = measureTops();
+    setPeriodeFilter(id);
+    setVisibleCount(PAGE_SIZE);
+  };
+
   const resetMentionsFilters = () => {
     prevTops.current = measureTops();
     setEtatFilter('tous');
     setAppreciationFilter('tous');
     setReclamationsFacet('tous');
+    setPeriodeFilter('annee');
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -328,7 +339,7 @@ export default function ReclamationsPage() {
     const handleScroll = () => {
       setScrolled(window.scrollY > 4);
       setShowScrollTop(window.scrollY > 600);
-      setAppbarStuck((appbarRef.current?.getBoundingClientRect().top ?? Infinity) <= 73);
+      setAppbarStuck(window.scrollY > 4);
     };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -405,8 +416,12 @@ export default function ReclamationsPage() {
   };
 
   const handleBulkMarkRead = () => {
-    if (selectedIds.size === 0) return;
-    markIdsAsRead([...selectedIds]);
+    const idsToMark = [...selectedIds].filter((id) => {
+      const r = effectiveReclamations.find((x) => x.id === id);
+      return r && isEffectivelyNew(r);
+    });
+    if (idsToMark.length === 0) return;
+    markIdsAsRead(idsToMark);
     setSelectionMode(false);
     setSelectedIds(new Set());
   };
@@ -492,9 +507,12 @@ export default function ReclamationsPage() {
     if (hasSelection) handleCancelComplaintsSelection();
   };
 
-  const handleBulkArchive = () => {
-    if (selectedIds.size === 0) return;
-    const ids = [...selectedIds];
+  const handleBulkDismiss = () => {
+    const ids = [...selectedIds].filter((id) => {
+      const r = effectiveReclamations.find((x) => x.id === id);
+      return r && r.state === 'possible';
+    });
+    if (ids.length === 0) return;
     prevTops.current = measureTops();
     setStateOverrides((prev) => {
       const next = { ...prev };
@@ -504,8 +522,8 @@ export default function ReclamationsPage() {
       return next;
     });
     setSnackbar({
-      id: 'bulk-archive',
-      message: `${ids.length} mention${ids.length > 1 ? 's' : ''} archivée${ids.length > 1 ? 's' : ''}.`,
+      id: 'bulk-dismiss',
+      message: `${ids.length} mention${ids.length > 1 ? 's' : ''} écartée${ids.length > 1 ? 's' : ''}.`,
       variant: 'info',
       onUndo: () => {
         prevTops.current = measureTops();
@@ -531,7 +549,7 @@ export default function ReclamationsPage() {
 
     const nextTicketNumber =
       Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1;
-    const requerant = `${formData.prenom} ${formData.nom}`.trim() || 'Requérant inconnu';
+    const requerant = `${formData.prenom} ${formData.nom}`.trim() || 'Réclamant inconnu';
     const newComplaint: Complaint = attachDetails({
       id: `created-${id}`,
       sourceReclamationId: id,
@@ -588,7 +606,7 @@ export default function ReclamationsPage() {
     setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
     setSnackbar({
       id,
-      message: 'Mention archivée',
+      message: 'Mention écartée',
       variant: 'info',
       onUndo: () => {
         prevTops.current = measureTops();
@@ -638,6 +656,7 @@ export default function ReclamationsPage() {
     etatFilter,
     appreciationFilter,
     reclamationsFacet,
+    periodeFilter,
     complaintsSearch,
     progressionFilter,
     conformiteFilter,
@@ -683,11 +702,26 @@ export default function ReclamationsPage() {
         return r.state === 'mes-reclamations';
       case 'ecartees':
         return r.state === 'declinee';
-      case 'expire':
-        return false;
       default:
         return true;
     }
+  };
+
+  const matchesPeriode = (r: (typeof effectiveReclamations)[number]) => {
+    if (periodeFilter === 'tout') return true;
+    const ts = parseDateValue(r.date);
+    const now = new Date();
+    if (periodeFilter === 'semaine') {
+      const daysSinceMonday = (now.getDay() + 6) % 7;
+      const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday).getTime();
+      return ts >= startOfWeek;
+    }
+    if (periodeFilter === 'mois') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      return ts >= startOfMonth;
+    }
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, now.getDate()).getTime();
+    return ts >= twelveMonthsAgo;
   };
 
   const newCount = activeReclamations.filter(isEffectivelyNew).length;
@@ -696,7 +730,7 @@ export default function ReclamationsPage() {
   ).length;
 
   const filtered = searched
-    .filter((r) => matchesReclamationsFacet(r) && matchesEtat(r) && matchesAppreciation(r))
+    .filter((r) => matchesReclamationsFacet(r) && matchesEtat(r) && matchesAppreciation(r) && matchesPeriode(r))
     .sort((a, b) =>
       mentionsSortOrder === 'recent'
         ? parseDateValue(b.date) - parseDateValue(a.date)
@@ -724,9 +758,9 @@ export default function ReclamationsPage() {
       return matchesSearch && matchesProgression && matchesConformite;
     })
     .sort((a, b) =>
-      complaintsSortOrder === 'recent'
-        ? parseDateReception(b.dateReception) - parseDateReception(a.dateReception)
-        : parseDateReception(a.dateReception) - parseDateReception(b.dateReception),
+      complaintsSortOrder === 'urgence'
+        ? (a.echeanceDays ?? Infinity) - (b.echeanceDays ?? Infinity)
+        : parseDateReception(b.dateReception) - parseDateReception(a.dateReception),
     );
 
   filteredLength.current = activeTab === 'mentions' ? filtered.length : filteredComplaints.length;
@@ -736,8 +770,15 @@ export default function ReclamationsPage() {
   const hasMoreComplaints = visibleCount < filteredComplaints.length;
 
   const mentionsFiltersActive =
-    etatFilter !== 'tous' || appreciationFilter !== 'tous' || reclamationsFacet !== 'tous';
+    etatFilter !== 'tous' ||
+    appreciationFilter !== 'tous' ||
+    reclamationsFacet !== 'tous' ||
+    periodeFilter !== 'annee';
   const complaintsFiltersActive = progressionFilter !== 'tous' || conformiteFilter !== 'tous';
+
+  const selectedReclamations = effectiveReclamations.filter((r) => selectedIds.has(r.id));
+  const canMarkSelectedRead = selectedReclamations.some((r) => isEffectivelyNew(r));
+  const canDismissSelectedFlagged = selectedReclamations.some((r) => r.state === 'possible');
 
   return (
     <div className="page">
@@ -821,7 +862,7 @@ export default function ReclamationsPage() {
                     className="icon-button appbar-icon-button appbar-icon-button-badgeable"
                     aria-label="Filtres"
                     onClick={() => {
-                      setFiltersOpen(true);
+                      setFiltersOpen((v) => !v);
                       setSortPanelOpen(false);
                     }}
                   >
@@ -833,7 +874,7 @@ export default function ReclamationsPage() {
                     className="icon-button appbar-icon-button"
                     aria-label="Trier"
                     onClick={() => {
-                      setSortPanelOpen(true);
+                      setSortPanelOpen((v) => !v);
                       setFiltersOpen(false);
                     }}
                   >
@@ -873,7 +914,7 @@ export default function ReclamationsPage() {
                     className="icon-button appbar-icon-button appbar-icon-button-badgeable"
                     aria-label="Filtres"
                     onClick={() => {
-                      setComplaintsFiltersOpen(true);
+                      setComplaintsFiltersOpen((v) => !v);
                       setComplaintsSortPanelOpen(false);
                     }}
                   >
@@ -885,7 +926,7 @@ export default function ReclamationsPage() {
                     className="icon-button appbar-icon-button"
                     aria-label="Trier"
                     onClick={() => {
-                      setComplaintsSortPanelOpen(true);
+                      setComplaintsSortPanelOpen((v) => !v);
                       setComplaintsFiltersOpen(false);
                     }}
                   >
@@ -930,7 +971,7 @@ export default function ReclamationsPage() {
             {activeTab === 'mentions' ? (
               <div className="panel-body">
                 {selectionMode ? (
-                  <div className="mentions-selection-toolbar">
+                  <div className={`mentions-selection-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
                     <div className="mentions-selection-heading">
                       <button
                         type="button"
@@ -948,15 +989,15 @@ export default function ReclamationsPage() {
                       <button
                         type="button"
                         className="mark-all-read-btn"
-                        disabled={selectedIds.size === 0}
-                        onClick={handleBulkArchive}
+                        disabled={!canDismissSelectedFlagged}
+                        onClick={handleBulkDismiss}
                       >
                         Écarter
                       </button>
                       <button
                         type="button"
                         className="mark-all-read-btn"
-                        disabled={selectedIds.size === 0}
+                        disabled={!canMarkSelectedRead}
                         onClick={handleBulkMarkRead}
                       >
                         Marquer comme lu
@@ -964,7 +1005,7 @@ export default function ReclamationsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mentions-toolbar">
+                  <div className={`mentions-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
                     <span className="mentions-count-chip">
                       <ListIcon />
                       {filtered.length} Mentions
@@ -1017,7 +1058,7 @@ export default function ReclamationsPage() {
             ) : (
               <div className="panel-body">
                 {complaintsSelectionMode ? (
-                  <div className="mentions-selection-toolbar">
+                  <div className={`mentions-selection-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
                     <div className="mentions-selection-heading">
                       <button
                         type="button"
@@ -1052,7 +1093,7 @@ export default function ReclamationsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mentions-toolbar">
+                  <div className={`mentions-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
                     <span className="mentions-count-chip">
                       <ListIcon />
                       {filteredComplaints.length} Réclamations
@@ -1129,6 +1170,8 @@ export default function ReclamationsPage() {
           onAppreciationChange={selectAppreciationFilter}
           reclamationsFacet={reclamationsFacet}
           onReclamationsFacetChange={selectReclamationsFacet}
+          periode={periodeFilter}
+          onPeriodeChange={selectPeriodeFilter}
           onReset={resetMentionsFilters}
         />
 
@@ -1149,7 +1192,7 @@ export default function ReclamationsPage() {
           onChange={setMentionsSortOrder}
         />
 
-        <SortPanel
+        <ComplaintsSortPanel
           open={complaintsSortPanelOpen && activeTab === 'reclamations'}
           onClose={() => setComplaintsSortPanelOpen(false)}
           value={complaintsSortOrder}

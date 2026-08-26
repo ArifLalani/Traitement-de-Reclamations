@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import expandMore from '../../assets/figma/expand-more.svg';
 import ArrowUpRight from './ArrowUpRight';
+import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
-import { getSentiment, type Reclamation } from './data';
+import type { Reclamation } from './data';
 
 const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; className: string }>> = {
-  possible: { label: 'Réclamation Potentiel', className: 'chip-possible' },
-  declinee: { label: 'Archivé', className: 'chip-declinee' },
+  possible: { label: 'Réclamation potentielle', className: 'chip-possible' },
+  declinee: { label: 'Écartée', className: 'chip-declinee' },
   'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
 };
 
@@ -19,39 +20,6 @@ function FlagIcon() {
   return (
     <svg viewBox="0 0 20 20" width={14} height={14} fill="none" stroke="currentColor" strokeWidth="1.4">
       <path d="M4 17V3.5c0-.3.2-.5.5-.5H15l-2.5 4L15 11H4.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SentimentIcon({ text }: { text: string }) {
-  const sentiment = getSentiment(text);
-
-  if (sentiment === 'negative') {
-    return (
-      <svg viewBox="0 0 32 32" width={28} height={28} fill="none" stroke="#d32f2f" strokeWidth="1.6">
-        <circle cx="16" cy="16" r="13" />
-        <circle cx="11.5" cy="13" r="1.4" fill="#d32f2f" stroke="none" />
-        <circle cx="20.5" cy="13" r="1.4" fill="#d32f2f" stroke="none" />
-        <path d="M11 21c1-2 3-3 5-3s4 1 5 3" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (sentiment === 'positive') {
-    return (
-      <svg viewBox="0 0 32 32" width={28} height={28} fill="none" stroke="#1b5e20" strokeWidth="1.6">
-        <circle cx="16" cy="16" r="13" />
-        <circle cx="11.5" cy="13" r="1.4" fill="#1b5e20" stroke="none" />
-        <circle cx="20.5" cy="13" r="1.4" fill="#1b5e20" stroke="none" />
-        <path d="M11 19.5c1 2 3 3 5 3s4-1 5-3" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 32 32" width={28} height={28} fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="1.6">
-      <circle cx="16" cy="16" r="13" />
-      <circle cx="11.5" cy="13" r="1.4" fill="rgba(0,0,0,0.6)" stroke="none" />
-      <circle cx="20.5" cy="13" r="1.4" fill="rgba(0,0,0,0.6)" stroke="none" />
-      <path d="M11 20.5h10" strokeLinecap="round" />
     </svg>
   );
 }

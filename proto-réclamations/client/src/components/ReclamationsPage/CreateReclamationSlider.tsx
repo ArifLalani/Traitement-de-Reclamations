@@ -118,10 +118,10 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
             <FormField label="Nom" value={nom} onChange={setNom} />
             <div className="modal-row">
               <FormField label="Email" value={email} onChange={setEmail} />
-              <FormField label="Telephone" value={telephone} onChange={setTelephone} />
+              <FormField label="Téléphone" value={telephone} onChange={setTelephone} />
             </div>
-            <FormField label="Address" value={adresse} onChange={setAdresse} />
-            <FormTextarea label="Objet de la réclamation" required value={objet} onChange={setObjet} />
+            <FormField label="Adresse" value={adresse} onChange={setAdresse} />
+            <FormField label="Objet de la réclamation" required value={objet} onChange={setObjet} />
             <FormTextarea label="Notes internes" value={notesInternes} onChange={setNotesInternes} />
           </div>
         </div>

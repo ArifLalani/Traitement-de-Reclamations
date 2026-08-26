@@ -23,8 +23,18 @@ export default function ComplaintCard({
   selected = false,
   onToggleSelect,
 }: ComplaintCardProps) {
-  const { ticket, objet, dateReception, sourceUrl, requerant, description, avancement, conformite, echeanceLabel, echeanceWarning } =
-    complaint;
+  const {
+    ticket,
+    objet,
+    dateReception,
+    sourceUrl,
+    requerant,
+    description,
+    avancement,
+    conformite,
+    echeanceLabel,
+    echeanceWarning,
+  } = complaint;
 
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);

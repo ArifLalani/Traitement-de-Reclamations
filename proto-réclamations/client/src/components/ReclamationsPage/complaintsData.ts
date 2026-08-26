@@ -1,9 +1,9 @@
 import type { Source } from './SourceIcon';
 import { reclamations } from './data';
 
-export type Avancement = 'a-traiter' | 'en-cours' | 'en-attente' | 'sans-suite' | 'cloture';
+export type Avancement = 'a-traiter' | 'sans-suite' | 'cloture';
 export type Conformite = 'conforme' | 'non-conforme';
-export type Relation = 'assure-principal' | 'beneficiaire' | 'mandataire' | 'tiers';
+export type Relation = 'assure-principal' | 'beneficiaire' | 'mandataire' | 'tiers' | 'autre';
 export type Priorite = 'basse' | 'normale' | 'haute';
 
 export type Reclamant = {
@@ -13,6 +13,7 @@ export type Reclamant = {
   telephone: string;
   adresse: string;
   relation: Relation | '';
+  relationAutrePrecision?: string;
 };
 
 export type Classification = {
@@ -51,6 +52,7 @@ export type Complaint = {
   dateReception: string;
   echeanceLabel: string;
   echeanceWarning?: boolean;
+  echeanceDays?: number;
   avancement: Avancement;
   conformite: Conformite;
   canal: Source;
@@ -70,8 +72,6 @@ export type Complaint = {
 
 export const AVANCEMENT_LABEL: Record<Avancement, string> = {
   'a-traiter': 'À traiter',
-  'en-cours': 'En cours',
-  'en-attente': 'En attente',
   'sans-suite': 'Sans suite',
   cloture: 'Clôturé',
 };
@@ -86,6 +86,7 @@ export const RELATION_LABEL: Record<Relation, string> = {
   beneficiaire: 'Bénéficiaire',
   mandataire: 'Mandataire',
   tiers: 'Tiers',
+  autre: 'Autre',
 };
 
 export const PRIORITE_LABEL: Record<Priorite, string> = {
@@ -106,9 +107,11 @@ export type DossierStep = {
 // Where a complaint's file currently sits in its 5-stage lifecycle. Steps 0-1
 // (mention received, complaint created) are implicit — a Complaint record
 // existing at all means both already happened.
-export function getDossierSteps(complaint: Pick<Complaint, 'avancement' | 'echeanceLabel' | 'echeanceWarning'>): DossierStep[] {
-  const { avancement, echeanceLabel, echeanceWarning } = complaint;
-  const arDone = avancement !== 'a-traiter';
+export function getDossierSteps(
+  complaint: Pick<Complaint, 'avancement' | 'echeanceLabel' | 'echeanceWarning' | 'suiviCloture'>,
+): DossierStep[] {
+  const { avancement, echeanceLabel, echeanceWarning, suiviCloture } = complaint;
+  const arDone = suiviCloture.dateAR !== '' || avancement === 'sans-suite' || avancement === 'cloture';
   const reponseDone = avancement === 'sans-suite' || avancement === 'cloture';
   const clotureDone = avancement === 'cloture';
 
@@ -262,20 +265,20 @@ function formatDateReception(daysAgo: number): string {
 
 const TICKET_NUMBERS = [57, 1, 3, 24, 33, 12, 5, 7, 19, 41, 2, 9, 28, 15];
 const AVANCEMENT_CYCLE: Avancement[] = [
-  'en-cours',
+  'a-traiter',
   'a-traiter',
   'a-traiter',
   'sans-suite',
   'a-traiter',
-  'en-attente',
-  'cloture',
-  'cloture',
-  'en-cours',
   'a-traiter',
-  'en-attente',
+  'cloture',
   'cloture',
   'a-traiter',
-  'en-cours',
+  'a-traiter',
+  'a-traiter',
+  'cloture',
+  'a-traiter',
+  'a-traiter',
 ];
 const REMAINING_DAYS = [59, 8, 3, 46, 8, 12, 0, 0, 27, 6, 15, 0, 2, 34];
 
@@ -288,9 +291,9 @@ const LONG_DESCRIPTIONS: Record<number, string> = {
   9: "Dossier transmis depuis plus de trois semaines pour un dégât des eaux important, toujours en attente du passage de l'expert malgré plusieurs relances par téléphone et par email restées sans réponse claire. Le délai annoncé initialement par l'agence n'a clairement pas été respecté, et les dégâts continuent de s'aggraver en l'absence d'intervention. Le client demande qu'un expert soit dépêché en urgence et qu'un geste commercial soit envisagé pour compenser ce retard significatif.",
 };
 
-const archivedComplaintsCore: ComplaintCore[] = [
+const closedComplaintsCore: ComplaintCore[] = [
   {
-    id: 'archived-001',
+    id: 'closed-001',
     ticket: '#0044',
     requerant: 'Isabelle Renaud',
     dateReception: formatDateReception(95),
@@ -306,7 +309,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Réclamation relative au délai de remboursement suite à un sinistre automobile. Dossier traité et clôturé après versement de l'indemnisation le 14 janvier 2026.",
   },
   {
-    id: 'archived-002',
+    id: 'closed-002',
     ticket: '#0038',
     requerant: 'Lucas Bernard',
     dateReception: formatDateReception(110),
@@ -322,7 +325,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Le client contestait la résiliation de son contrat habitation. Après examen du dossier, la résiliation a été confirmée conforme aux conditions générales. Classé sans suite après accord du client.",
   },
   {
-    id: 'archived-003',
+    id: 'closed-003',
     ticket: '#0031',
     requerant: 'Nathalie Vasseur',
     dateReception: formatDateReception(130),
@@ -338,7 +341,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Double prélèvement constaté sur le compte de la cliente. Erreur de facturation confirmée et remboursement effectué sous 5 jours ouvrés. Dossier clôturé avec geste commercial.",
   },
   {
-    id: 'archived-004',
+    id: 'closed-004',
     ticket: '#0026',
     requerant: 'Arnaud Petit',
     dateReception: formatDateReception(148),
@@ -354,7 +357,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Réclamation portant sur un délai de traitement jugé trop long pour un sinistre dégât des eaux. Dossier finalisé après intervention de l'expert et versement de l'indemnisation.",
   },
   {
-    id: 'archived-005',
+    id: 'closed-005',
     ticket: '#0018',
     requerant: 'Céline Morel',
     dateReception: formatDateReception(162),
@@ -370,7 +373,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "La cliente signalait une absence de réponse à ses sollicitations. Après contact, il s'est avéré que les emails étaient redirigés dans les spams. Classé sans suite après résolution.",
   },
   {
-    id: 'archived-006',
+    id: 'closed-006',
     ticket: '#0014',
     requerant: 'Julien Garnier',
     dateReception: formatDateReception(178),
@@ -386,7 +389,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Le client contestait un écart entre le devis initial et la facture finale pour une réparation de toiture. Après médiation avec le prestataire, un avoir a été accordé et le dossier clôturé.",
   },
   {
-    id: 'archived-007',
+    id: 'closed-007',
     ticket: '#0011',
     requerant: 'Marie-Claire Dupuis',
     dateReception: formatDateReception(195),
@@ -402,7 +405,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Réclamation portant sur un remboursement de frais médicaux tardif. Le virement a été effectué dans les délais réglementaires après correction d'une erreur de RIB. Dossier clôturé.",
   },
   {
-    id: 'archived-008',
+    id: 'closed-008',
     ticket: '#0008',
     requerant: 'Thierry Blanchard',
     dateReception: formatDateReception(210),
@@ -418,7 +421,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Le client souhaitait résilier son contrat avec effet immédiat hors délai légal. Après examen, la demande n'entrait pas dans les cas de résiliation anticipée. Classé sans suite.",
   },
   {
-    id: 'archived-009',
+    id: 'closed-009',
     ticket: '#0006',
     requerant: 'Sophie Aubert',
     dateReception: formatDateReception(225),
@@ -434,7 +437,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "La cliente n'avait pas reçu de nouvelles de son dossier sinistre vol après 6 semaines. Après relance interne, l'expertise a été diligentée et l'indemnisation versée. Dossier clôturé.",
   },
   {
-    id: 'archived-010',
+    id: 'closed-010',
     ticket: '#0004',
     requerant: 'François Lemaire',
     dateReception: formatDateReception(240),
@@ -450,7 +453,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Double prélèvement de la cotisation annuelle constaté en janvier. Remboursement effectué sous 48h après vérification comptable. Le client a confirmé la réception du virement.",
   },
   {
-    id: 'archived-011',
+    id: 'closed-011',
     ticket: '#0010',
     requerant: 'Élise Fontaine',
     dateReception: formatDateReception(258),
@@ -466,7 +469,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Attente de plus de deux mois pour le passage de l'expert suite à un dégât des eaux. Dossier escaladé, expert mandaté en urgence. Indemnisation versée et clôture formalisée.",
   },
   {
-    id: 'archived-012',
+    id: 'closed-012',
     ticket: '#0016',
     requerant: 'Marc Girard',
     dateReception: formatDateReception(275),
@@ -482,7 +485,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
       "Le client contestait l'application d'une clause d'exclusion de garantie suite à un sinistre. Après analyse juridique, la clause a été jugée applicable. Classé sans suite.",
   },
   {
-    id: 'archived-013',
+    id: 'closed-013',
     ticket: '#0020',
     requerant: 'Patricia Chevalier',
     dateReception: formatDateReception(290),
@@ -499,7 +502,7 @@ const archivedComplaintsCore: ComplaintCore[] = [
   },
 ];
 
-export const archivedComplaints: Complaint[] = archivedComplaintsCore.map(attachDetails);
+export const closedComplaints: Complaint[] = closedComplaintsCore.map(attachDetails);
 
 const complaintsCore: ComplaintCore[] = reclamations
   .filter((r) => r.state === 'mes-reclamations')
@@ -516,7 +519,8 @@ const complaintsCore: ComplaintCore[] = reclamations
       requerant: r.author,
       dateReception: formatDateReception(index * 4 + 3),
       echeanceLabel: isClosed ? '-' : `${remainingDays} jours restants`,
-      echeanceWarning: !isClosed && remainingDays <= 3,
+      echeanceWarning: !isClosed && remainingDays <= 9,
+      echeanceDays: isClosed ? undefined : remainingDays,
       avancement,
       conformite: index === 9 ? 'non-conforme' : 'conforme',
       canal: r.source,

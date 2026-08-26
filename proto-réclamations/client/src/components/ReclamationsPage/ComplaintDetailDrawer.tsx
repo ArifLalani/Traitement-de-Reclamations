@@ -12,6 +12,7 @@ import {
   TYPES_SINISTRE,
   type Classification,
   type Complaint,
+  type HistoriqueEntry,
   type Priorite,
   type Reclamant,
   type Relation,
@@ -344,32 +345,80 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- Historique ---
+  const buildHistoryEntry = (title: string, description: string): HistoriqueEntry => {
+    const now = new Date();
+    return {
+      title,
+      description,
+      date: `${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      author: 'Joe Bleau',
+    };
+  };
+  const withHistory = (title: string, changedLabels: string[]): Pick<Complaint, 'historique'> | Record<string, never> => {
+    if (changedLabels.length === 0) return {};
+    const description = `Champs modifiés : ${changedLabels.join(', ')}.`;
+    return { historique: [...complaint.historique, buildHistoryEntry(title, description)] };
+  };
+
   // --- Informations de la réclamation ---
   const [infoDraft, setInfoDraft] = useState({
-    denominateurSocial: complaint.denominateurSocial,
     objet: complaint.objet,
     description: complaint.description,
   });
-  const infoDirty =
-    infoDraft.denominateurSocial !== complaint.denominateurSocial ||
-    infoDraft.objet !== complaint.objet ||
-    infoDraft.description !== complaint.description;
+  const infoDirty = infoDraft.objet !== complaint.objet || infoDraft.description !== complaint.description;
   const saveInfo = () => {
-    onUpdate?.(complaint.id, infoDraft);
+    const changed: string[] = [];
+    if (infoDraft.objet !== complaint.objet) changed.push('Objet de la réclamation');
+    if (infoDraft.description !== complaint.description) changed.push('Description');
+    onUpdate?.(complaint.id, {
+      ...infoDraft,
+      ...withHistory('Modification des informations de la réclamation', changed),
+    });
   };
 
   // --- Informations du réclamant ---
   const [reclamantDraft, setReclamantDraft] = useState<Reclamant>(complaint.reclamant);
-  const reclamantDirty = JSON.stringify(reclamantDraft) !== JSON.stringify(complaint.reclamant);
-  const saveReclamant = () => onUpdate?.(complaint.id, { reclamant: reclamantDraft });
-  const reclamantMissing = [reclamantDraft.prenom, reclamantDraft.nom, reclamantDraft.email, reclamantDraft.relation].filter(
-    (v) => !v,
-  ).length;
+  const [denominateurSocialDraft, setDenominateurSocialDraft] = useState(complaint.denominateurSocial);
+  const reclamantDirty =
+    JSON.stringify(reclamantDraft) !== JSON.stringify(complaint.reclamant) ||
+    denominateurSocialDraft !== complaint.denominateurSocial;
+  const saveReclamant = () => {
+    const changed: string[] = [];
+    if (reclamantDraft.prenom !== complaint.reclamant.prenom) changed.push('Prénom');
+    if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push('Nom');
+    if (reclamantDraft.email !== complaint.reclamant.email) changed.push('Email');
+    if (reclamantDraft.telephone !== complaint.reclamant.telephone) changed.push('Téléphone');
+    if (reclamantDraft.adresse !== complaint.reclamant.adresse) changed.push('Adresse');
+    if (reclamantDraft.relation !== complaint.reclamant.relation) changed.push('Relation avec ce client');
+    if (reclamantDraft.relationAutrePrecision !== complaint.reclamant.relationAutrePrecision) changed.push('Précision');
+    if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination Sociale');
+    onUpdate?.(complaint.id, {
+      reclamant: reclamantDraft,
+      denominateurSocial: denominateurSocialDraft,
+      ...withHistory('Modification des informations du réclamant', changed),
+    });
+  };
+  const reclamantMissing = [
+    reclamantDraft.prenom,
+    reclamantDraft.nom,
+    reclamantDraft.email,
+    reclamantDraft.relation,
+    ...(reclamantDraft.relation === 'autre' ? [reclamantDraft.relationAutrePrecision] : []),
+  ].filter((v) => !v).length;
 
   // --- Classification ---
   const [classificationDraft, setClassificationDraft] = useState<Classification>(complaint.classification);
   const classificationDirty = JSON.stringify(classificationDraft) !== JSON.stringify(complaint.classification);
-  const saveClassification = () => onUpdate?.(complaint.id, { classification: classificationDraft });
+  const saveClassification = () => {
+    const changed: string[] = [];
+    if (classificationDraft.porteurDuRisque !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
+    if (classificationDraft.typeSinistre !== complaint.classification.typeSinistre) changed.push('Type de sinistre');
+    onUpdate?.(complaint.id, {
+      classification: classificationDraft,
+      ...withHistory('Modification de la classification de la réclamation', changed),
+    });
+  };
   const classificationMissing = [classificationDraft.porteurDuRisque, classificationDraft.typeSinistre].filter(
     (v) => !v,
   ).length;
@@ -377,7 +426,15 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
   // --- Traitement / attribution ---
   const [traitementDraft, setTraitementDraft] = useState<Traitement>(complaint.traitement);
   const traitementDirty = JSON.stringify(traitementDraft) !== JSON.stringify(complaint.traitement);
-  const saveTraitement = () => onUpdate?.(complaint.id, { traitement: traitementDraft });
+  const saveTraitement = () => {
+    const changed: string[] = [];
+    if (traitementDraft.interlocuteur !== complaint.traitement.interlocuteur) changed.push('Interlocuteur en charge');
+    if (traitementDraft.priorite !== complaint.traitement.priorite) changed.push('Priorité');
+    onUpdate?.(complaint.id, {
+      traitement: traitementDraft,
+      ...withHistory('Modification du traitement / attribution', changed),
+    });
+  };
   const traitementMissing = [traitementDraft.statut, traitementDraft.interlocuteur, traitementDraft.priorite].filter(
     (v) => !v,
   ).length;
@@ -385,13 +442,32 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
   // --- Suivi et clôture ---
   const [suiviDraft, setSuiviDraft] = useState<SuiviCloture>(complaint.suiviCloture);
   const suiviDirty = JSON.stringify(suiviDraft) !== JSON.stringify(complaint.suiviCloture);
-  const saveSuivi = () => onUpdate?.(complaint.id, { suiviCloture: suiviDraft });
+  const saveSuivi = () => {
+    const changed: string[] = [];
+    if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR) changed.push("Date d'AR / réponse intermédiaire");
+    if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse) changed.push('Date de réponse');
+    if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate) changed.push('Action immédiate');
+    if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective) changed.push('Action corrective');
+    if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Action réalisée');
+    if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
+      changed.push("Vérification d'efficacité");
+    if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponse apportée');
+    onUpdate?.(complaint.id, {
+      suiviCloture: suiviDraft,
+      ...withHistory('Modification du suivi et clôture', changed),
+    });
+  };
   const suiviMissing = Object.values(suiviDraft).filter((v) => !v).length;
 
   // --- Notes internes ---
   const [notesDraft, setNotesDraft] = useState(complaint.notesInternes);
   const notesDirty = notesDraft !== complaint.notesInternes;
-  const saveNotes = () => onUpdate?.(complaint.id, { notesInternes: notesDraft });
+  const saveNotes = () => {
+    onUpdate?.(complaint.id, {
+      notesInternes: notesDraft,
+      ...withHistory('Modification des notes internes', ['Notes internes']),
+    });
+  };
 
   const hasUnsavedChanges =
     infoDirty || reclamantDirty || classificationDirty || traitementDirty || suiviDirty || notesDirty;
@@ -400,11 +476,37 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
   const completedCount = steps.filter((s) => s.status === 'done').length;
   const currentStep = steps.find((s) => s.status === 'current');
 
+  const arSent = complaint.suiviCloture.dateAR !== '';
+
   const handleConfirmNextStep = () => {
-    if (complaint.avancement === 'a-traiter') {
-      onUpdate?.(complaint.id, { avancement: 'en-cours' });
-    } else if (complaint.avancement === 'en-cours' || complaint.avancement === 'en-attente') {
-      onUpdate?.(complaint.id, { avancement: 'cloture' });
+    const todayLabel = new Date().toLocaleDateString('fr-FR');
+    if (!arSent) {
+      const nextSuivi = { ...suiviDraft, dateAR: todayLabel };
+      setSuiviDraft(nextSuivi);
+      onUpdate?.(complaint.id, {
+        suiviCloture: nextSuivi,
+        historique: [
+          ...complaint.historique,
+          buildHistoryEntry(
+            "Confirmation de l'envoi de l'Accusé de Réception",
+            'Accusé de réception envoyé au réclamant.',
+          ),
+        ],
+      });
+    } else {
+      const nextSuivi = { ...suiviDraft, dateReponse: todayLabel };
+      setSuiviDraft(nextSuivi);
+      onUpdate?.(complaint.id, {
+        avancement: 'cloture',
+        suiviCloture: nextSuivi,
+        historique: [
+          ...complaint.historique,
+          buildHistoryEntry(
+            'Confirmation de l’envoi de la Réponse Définitive',
+            'Réponse définitive envoyée au réclamant.',
+          ),
+        ],
+      });
     }
   };
 
@@ -416,7 +518,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     complaint.reclamant.email,
     complaint.reclamant.relation,
   ].filter((v) => !v).length;
-  const nextStepBlocked = complaint.avancement === 'a-traiter' && savedReclamantMissing > 0;
+  const nextStepBlocked = !arSent && savedReclamantMissing > 0;
 
   const showNextStepBanner = complaint.avancement !== 'cloture' && complaint.avancement !== 'sans-suite';
 
@@ -509,16 +611,9 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
               <SectionTextField label="Référence" value={complaint.ticket} readOnly />
               <SectionTextField label="Canal de réception" value={complaint.canal} readOnly />
             </div>
-            <div className="dossier-field-row">
-              <SectionTextField label="Date de réception" value={complaint.dateReception} readOnly />
-              <SectionTextField
-                label="Dénomination Sociale"
-                value={infoDraft.denominateurSocial}
-                onChange={(v) => setInfoDraft((d) => ({ ...d, denominateurSocial: v }))}
-              />
-            </div>
+            <SectionTextField label="Date de réception" value={complaint.dateReception} readOnly />
             <SectionTextField
-              label="Objet / Motif"
+              label="Objet de la réclamation"
               value={infoDraft.objet}
               onChange={(v) => setInfoDraft((d) => ({ ...d, objet: v }))}
             />
@@ -575,7 +670,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
               <SectionTextField
                 label="Email"
                 required
-                placeholder="Entrez une adresse courrielle"
+                placeholder="Entrez une adresse email"
                 value={reclamantDraft.email}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
               />
@@ -592,13 +687,27 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
               value={reclamantDraft.adresse}
               onChange={(v) => setReclamantDraft((d) => ({ ...d, adresse: v }))}
             />
+            <SectionTextField
+              label="Dénomination Sociale"
+              value={denominateurSocialDraft}
+              onChange={setDenominateurSocialDraft}
+            />
             <SectionSelectField<Relation>
-              label="Relation client/réclamant"
+              label="Relation avec ce client"
               required
               value={reclamantDraft.relation}
               options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
               onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
             />
+            {reclamantDraft.relation === 'autre' && (
+              <SectionTextField
+                label="Précision"
+                required
+                placeholder="Précisez la relation avec le réclamant"
+                value={reclamantDraft.relationAutrePrecision ?? ''}
+                onChange={(v) => setReclamantDraft((d) => ({ ...d, relationAutrePrecision: v }))}
+              />
+            )}
             <SaveButton disabled={!reclamantDirty} onClick={saveReclamant} />
           </AccordionSection>
 
@@ -683,18 +792,16 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateReponse: v }))}
               />
             </div>
-            <div className="dossier-field-row">
-              <SectionTextField
-                label="Action immédiate"
-                value={suiviDraft.actionImmediate}
-                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
-              />
-              <SectionTextField
-                label="Action corrective"
-                value={suiviDraft.actionCorrective}
-                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
-              />
-            </div>
+            <SectionTextField
+              label="Action immédiate"
+              value={suiviDraft.actionImmediate}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
+            />
+            <SectionTextField
+              label="Action corrective"
+              value={suiviDraft.actionCorrective}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
+            />
             <div className="dossier-field-row">
               <SectionTextField
                 label="Action réalisée"
@@ -738,7 +845,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
             onToggle={() => toggleSection('historique')}
           >
             <div className="dossier-history">
-              {complaint.historique.map((entry, index) => (
+              {[...complaint.historique].reverse().map((entry, index) => (
                 <div key={index} className="dossier-history-item">
                   <span className="dossier-history-dot" />
                   <div className="dossier-history-content">
@@ -758,8 +865,8 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
           <div className="dossier-next-step">
             <p className="dossier-next-step-title">Prochaine étape</p>
             <p className="dossier-next-step-text">
-              {complaint.avancement === 'a-traiter'
-                ? "Renseignez le nom et un contact valide (email ou téléphone) du requérant dans la section Informations pour pouvoir confirmer l'envoi de l'accusé de réception."
+              {!arSent
+                ? "Renseignez le nom et un contact valide (email ou téléphone) du réclamant dans la section Informations pour pouvoir confirmer l'envoi de l'accusé de réception."
                 : 'Confirmez l’envoi de la réponse définitive pour clôturer ce dossier.'}
             </p>
             <button
@@ -768,7 +875,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
               disabled={nextStepBlocked}
               onClick={handleConfirmNextStep}
             >
-              {complaint.avancement === 'a-traiter'
+              {!arSent
                 ? "Confirmer l'envoi de l'Accusé de Réception"
                 : 'Confirmer l’envoi de la Réponse Définitive'}
             </button>

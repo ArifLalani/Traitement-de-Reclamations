@@ -163,7 +163,7 @@ export default function ExportMenu({ open, preferences, onChange, onExport, sele
         {!hasSelection && (
           <>
             <div className="export-menu-section">
-              <span className="export-menu-label">Range</span>
+              <span className="export-menu-label">Plage</span>
               <RangeChips<ExportPeriod>
                 value={localPreferences.period}
                 options={RANGE_OPTIONS}
@@ -172,7 +172,7 @@ export default function ExportMenu({ open, preferences, onChange, onExport, sele
             </div>
 
             <div className="export-menu-section">
-              <span className="export-menu-label">Period</span>
+              <span className="export-menu-label">Période</span>
               <div className="export-menu-period-fields">
                 <DateField
                   label="Du"

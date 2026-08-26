@@ -50,7 +50,7 @@
 
 .header-top {
   width: 100%;
-  max-width: 1100px;
+  max-width: var(--content-max-width);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -119,17 +119,17 @@
   background: var(--color-white);
   box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
   position: fixed;
-  top: 73px;
+  top: 77px;
   left: 0;
-  height: calc(100vh - 73px);
+  height: calc(100vh - 77px);
   overflow: hidden;
   z-index: 6;
-  transition: width 0.25s ease, box-shadow 0.25s ease;
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-collapsed {
-  width: 0;
-  box-shadow: none;
+  transform: translateX(-100%);
 }
 
 .sidebar-inner {
@@ -272,7 +272,7 @@
 
 .content {
   width: 100%;
-  max-width: 1100px;
+  max-width: var(--content-max-width);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -493,7 +493,7 @@
 /* Appbar / search */
 .appbar-bar {
   position: sticky;
-  top: 73px;
+  top: 77px;
   z-index: 5;
   align-self: stretch;
   width: 100%;
@@ -501,13 +501,10 @@
   transition: box-shadow 0.25s ease;
 }
 
-.appbar-bar-stuck {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-}
 
 .appbar {
   width: 100%;
-  max-width: 1100px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   height: 88px;
   display: flex;
@@ -780,7 +777,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  width: 100vw;
+  position: sticky;
+  top: 165px;
+  z-index: 4;
+  background: var(--color-body-bg);
+  padding: 8px calc((100vw - var(--content-max-width)) / 2 + 24px);
+  margin: -24px 0 -8px calc(-1 * ((100vw - var(--content-max-width)) / 2 + 24px));
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0), 0 3px 4px 0 rgba(0, 0, 0, 0), 0 1px 8px 0 rgba(0, 0, 0, 0);
+  transition: box-shadow 0.25s ease;
 }
 
 .mentions-selection-toolbar {
@@ -792,6 +797,19 @@
   border: 1px solid var(--color-grey-200);
   border-radius: 8px;
   padding: 8px;
+  position: sticky;
+  top: 181px;
+  z-index: 4;
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0), 0 3px 4px 0 rgba(0, 0, 0, 0), 0 1px 8px 0 rgba(0, 0, 0, 0);
+  transition: box-shadow 0.25s ease;
+}
+
+.mentions-toolbar.mentions-toolbar-stuck {
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+}
+
+.mentions-selection-toolbar.mentions-toolbar-stuck {
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
 }
 
 .mentions-selection-heading {
@@ -1020,6 +1038,39 @@
   color: var(--color-lightblue-text);
 }
 
+.sort-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sort-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.sort-radio-circle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-disabled);
+  transition: border-color 0.2s ease;
+}
+
+.sort-radio-circle-checked {
+  border-color: #2196f3;
+  background: radial-gradient(circle, #2196f3 0 5px, transparent 6px 100%);
+}
+
+.sort-radio-label {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
 /* Filters */
 .filters-row {
   display: flex;
@@ -1043,29 +1094,6 @@
   animation: none !important;
   opacity: 0 !important;
   transform: translateY(-16px) !important;
-}
-
-.archives-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  border-radius: 4px;
-  font: var(--font-button-medium);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-  background: transparent;
-  cursor: pointer;
-  flex-shrink: 0;
-  transform: translateY(0);
-  opacity: 1;
-  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s ease;
-}
-
-.archives-link:hover {
-  background: var(--color-action-hover);
 }
 
 .filter-chip-static {
@@ -2134,7 +2162,7 @@
 .complaint-echeance {
   font: var(--font-body2);
   letter-spacing: 0.17px;
-  color: var(--color-warning-main);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
@@ -2146,21 +2174,18 @@
   color: var(--color-text-secondary);
 }
 
-.complaints-chip-avancement-a-traiter,
 .complaints-chip-conformite-conforme {
   background: var(--color-lightblue-50);
   color: var(--color-lightblue-text);
 }
 
-.complaints-chip-avancement-en-cours {
-  background: #e8f5e9;
-  color: #2e7d32;
+.complaints-chip-avancement-a-traiter {
+  background: var(--color-orange-50);
+  color: var(--color-warning-dark);
 }
 
-.complaints-chip-avancement-en-attente,
 .complaints-chip-avancement-sans-suite,
-.complaints-chip-avancement-cloture,
-.complaints-chip-avancement-archive {
+.complaints-chip-avancement-cloture {
   background: var(--color-chip-selected-bg);
   color: var(--color-text-primary);
 }

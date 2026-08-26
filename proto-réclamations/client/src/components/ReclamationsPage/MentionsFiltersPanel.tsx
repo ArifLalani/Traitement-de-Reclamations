@@ -1,6 +1,7 @@
 export type EtatFilter = 'tous' | 'non-lu' | 'lu';
 export type AppreciationFilter = 'tous' | 'positive' | 'neutre' | 'negative';
-export type ReclamationsFacet = 'tous' | 'potentielles' | 'confirmees' | 'ecartees' | 'expire';
+export type ReclamationsFacet = 'tous' | 'potentielles' | 'confirmees' | 'ecartees';
+export type PeriodeFilter = 'semaine' | 'mois' | 'annee' | 'tout';
 
 type ChipGroupProps<T extends string> = {
   label: string;
@@ -47,7 +48,7 @@ function ResetIcon() {
 
 const ETAT_OPTIONS: { id: EtatFilter; label: string }[] = [
   { id: 'tous', label: 'Tous' },
-  { id: 'non-lu', label: 'Non-Lu' },
+  { id: 'non-lu', label: 'Non lu' },
   { id: 'lu', label: 'Lu' },
 ];
 
@@ -63,7 +64,13 @@ const RECLAMATIONS_OPTIONS: { id: ReclamationsFacet; label: string }[] = [
   { id: 'potentielles', label: 'Potentielles' },
   { id: 'confirmees', label: 'Confirmées' },
   { id: 'ecartees', label: 'Écartées' },
-  { id: 'expire', label: 'Expiré' },
+];
+
+const PERIODE_OPTIONS: { id: PeriodeFilter; label: string }[] = [
+  { id: 'tout', label: 'Tout' },
+  { id: 'annee', label: '12 derniers mois' },
+  { id: 'mois', label: 'Mois en cours' },
+  { id: 'semaine', label: 'Cette semaine' },
 ];
 
 type MentionsFiltersPanelProps = {
@@ -75,6 +82,8 @@ type MentionsFiltersPanelProps = {
   onAppreciationChange: (value: AppreciationFilter) => void;
   reclamationsFacet: ReclamationsFacet;
   onReclamationsFacetChange: (value: ReclamationsFacet) => void;
+  periode: PeriodeFilter;
+  onPeriodeChange: (value: PeriodeFilter) => void;
   onReset: () => void;
 };
 
@@ -87,6 +96,8 @@ export default function MentionsFiltersPanel({
   onAppreciationChange,
   reclamationsFacet,
   onReclamationsFacetChange,
+  periode,
+  onPeriodeChange,
   onReset,
 }: MentionsFiltersPanelProps) {
   return (
@@ -103,7 +114,7 @@ export default function MentionsFiltersPanel({
         </div>
       </div>
       <div className="filters-panel-content">
-        <ChipGroup label="Etat" value={etat} options={ETAT_OPTIONS} onChange={onEtatChange} />
+        <ChipGroup label="État" value={etat} options={ETAT_OPTIONS} onChange={onEtatChange} />
         <ChipGroup
           label="Appréciation"
           value={appreciation}
@@ -116,6 +127,7 @@ export default function MentionsFiltersPanel({
           options={RECLAMATIONS_OPTIONS}
           onChange={onReclamationsFacetChange}
         />
+        <ChipGroup label="Période" value={periode} options={PERIODE_OPTIONS} onChange={onPeriodeChange} />
       </div>
     </div>
   );

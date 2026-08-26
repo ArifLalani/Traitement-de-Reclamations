@@ -28,6 +28,13 @@
   --color-warning-main: #ed6c02;
   --color-error-main: #d32f2f;
 
+  /* Main content column width. 1100px is the reference size for 1920x1080
+     screens; below that it steps down at fixed breakpoints (rather than
+     scaling fluidly) so it never renders underneath the sidebar (300px) or
+     filters/sort panel (320px), which float as overlays and don't reserve
+     layout space. */
+  --content-max-width: 100%;
+
   /* Typography — Figma design tokens */
   --font-family: 'Roboto', system-ui, sans-serif;
   --font-h6: 500 20px/1.6 var(--font-family);
@@ -42,6 +49,30 @@
 
   font-family: var(--font-family);
   color-scheme: light;
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --content-max-width: 640px;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --content-max-width: 800px;
+  }
+}
+
+@media (min-width: 1680px) {
+  :root {
+    --content-max-width: 1000px;
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --content-max-width: 1100px;
+  }
 }
 
 * {

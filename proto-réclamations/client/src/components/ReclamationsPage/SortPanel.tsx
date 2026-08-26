@@ -1,8 +1,10 @@
+import SortRadioGroup from './SortRadioGroup';
+
 export type SortOrder = 'recent' | 'ancien';
 
 const SORT_OPTIONS: { id: SortOrder; label: string }[] = [
-  { id: 'recent', label: 'Plus récent en premier' },
-  { id: 'ancien', label: 'Plus ancien en premier' },
+  { id: 'recent', label: 'Plus récent en haut' },
+  { id: 'ancien', label: 'Plus ancien en haut' },
 ];
 
 function CloseIcon() {
@@ -33,18 +35,8 @@ export default function SortPanel({ open, onClose, value, onChange }: SortPanelP
       </div>
       <div className="filters-panel-content">
         <div className="filters-panel-group">
-          <div className="filters-panel-chips filters-panel-chips-vertical">
-            {SORT_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`filters-panel-chip ${value === option.id ? 'filters-panel-chip-active' : ''}`}
-                onClick={() => onChange(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <span className="filters-panel-group-label">Trier par</span>
+          <SortRadioGroup value={value} options={SORT_OPTIONS} onChange={onChange} />
         </div>
       </div>
     </div>

@@ -201,7 +201,7 @@ const texts = [
   "Très bonne prise en charge initiale, mais depuis la transmission à un autre service, plus aucune nouvelle. J'aimerais un point précis sur l'avancement de mon dossier.",
   "Facturation incorrecte sur mon contrat ce mois-ci, j'ai contacté le service client qui m'a confirmé l'erreur mais rien n'a encore été corrigé sur mon espace client.",
   "Le remboursement reçu ne correspond pas du tout au montant indiqué dans le devis validé initialement. Pouvez-vous vérifier ce point rapidement ?",
-  "Echange téléphonique correct mais aucune trace écrite de notre conversation, ce qui complique le suivi. Merci de me confirmer les éléments discutés par email.",
+  "Échange téléphonique correct mais aucune trace écrite de notre conversation, ce qui complique le suivi. Merci de me confirmer les éléments discutés par email.",
   "Plusieurs tentatives de contact sans succès cette semaine. Le formulaire en ligne semble également ne pas fonctionner correctement sur mobile.",
   "Dossier transmis depuis 3 semaines pour un dégât des eaux, toujours en attente de l'expert. Le délai annoncé initialement n'a clairement pas été respecté.",
   "Service rendu satisfaisant dans l'ensemble mais la communication pourrait être largement améliorée, notamment sur les délais de traitement annoncés.",

@@ -31,7 +31,7 @@ export default function ReputationIntro({
       <div className="reputation-intro-body">
         <div className="reputation-intro-text">
           <p>
-            Ici, vous pouvez consulter l&apos;ensemble de tous vos mentions en ligne et identifier facilement celles
+            Ici, vous pouvez consulter l&apos;ensemble de toutes vos mentions en ligne et identifier facilement celles
             qui nécessitent une attention particulière.
           </p>
           <p>
