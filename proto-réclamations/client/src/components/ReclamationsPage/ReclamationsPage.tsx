@@ -134,6 +134,14 @@ function MenuIcon() {
   );
 }
 
+function ResetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
+      <path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+    </svg>
+  );
+}
+
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
 const REPUTATION_INTRO_SEEN_KEY = 'reputation-intro-seen-v1';
@@ -159,6 +167,8 @@ export default function ReclamationsPage() {
   const [mentionsSortOrder, setMentionsSortOrder] = useState<SortOrder>('recent');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
+  const [selectionModeClosing, setSelectionModeClosing] = useState(false);
+  const selectionModeCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [complaintsSearch, setComplaintsSearch] = useState('');
@@ -415,6 +425,16 @@ export default function ReclamationsPage() {
     markIdsAsRead(reclamations.map((r) => r.id));
   };
 
+  const exitSelectionMode = () => {
+    setSelectionModeClosing(true);
+    if (selectionModeCloseTimeout.current) clearTimeout(selectionModeCloseTimeout.current);
+    selectionModeCloseTimeout.current = setTimeout(() => {
+      setSelectionMode(false);
+      setSelectedIds(new Set());
+      setSelectionModeClosing(false);
+    }, 220);
+  };
+
   const handleBulkMarkRead = () => {
     const idsToMark = [...selectedIds].filter((id) => {
       const r = effectiveReclamations.find((x) => x.id === id);
@@ -422,8 +442,17 @@ export default function ReclamationsPage() {
     });
     if (idsToMark.length === 0) return;
     markIdsAsRead(idsToMark);
-    setSelectionMode(false);
-    setSelectedIds(new Set());
+    exitSelectionMode();
+  };
+
+  const handleResetApp = () => {
+    try {
+      localStorage.removeItem(SEEN_IDS_STORAGE_KEY);
+      localStorage.removeItem(REPUTATION_INTRO_SEEN_KEY);
+    } catch {
+      // localStorage unavailable, ignore
+    }
+    window.location.reload();
   };
 
   const handleShowNewMentions = () => {
@@ -434,10 +463,11 @@ export default function ReclamationsPage() {
   };
 
   const toggleSelectionMode = () => {
-    setSelectionMode((value) => {
-      if (value) setSelectedIds(new Set());
-      return !value;
-    });
+    if (selectionMode) {
+      exitSelectionMode();
+    } else {
+      setSelectionMode(true);
+    }
     setMoreMenuOpen(false);
   };
 
@@ -448,18 +478,20 @@ export default function ReclamationsPage() {
   };
 
   const toggleSelectId = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setSelectionMode(true);
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    if (next.size === 0) {
+      setSelectedIds(next);
+      exitSelectionMode();
+    } else {
+      setSelectedIds(next);
+      setSelectionMode(true);
+    }
   };
 
   const handleCancelSelection = () => {
-    setSelectionMode(false);
-    setSelectedIds(new Set());
+    exitSelectionMode();
   };
 
   const toggleComplaintsSelectionMode = () => {
@@ -536,8 +568,7 @@ export default function ReclamationsPage() {
     });
     if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
     snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
-    setSelectionMode(false);
-    setSelectedIds(new Set());
+    exitSelectionMode();
   };
 
   const handleConfirmCreate = (formData: ReclamationFormData) => {
@@ -783,14 +814,25 @@ export default function ReclamationsPage() {
   return (
     <div className="page">
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
-        <button
-          type="button"
-          className="icon-button sidebar-toggle"
-          aria-label={sidebarOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-          onClick={() => setSidebarOpen((open) => !open)}
-        >
-          <MenuIcon />
-        </button>
+        <div className="header-left-actions">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={sidebarOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            onClick={() => setSidebarOpen((open) => !open)}
+          >
+            <MenuIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button reset-app-button"
+            aria-label="Réinitialiser le prototype"
+            title="Réinitialiser le prototype"
+            onClick={handleResetApp}
+          >
+            <ResetIcon />
+          </button>
+        </div>
         <div className="header-center">
           <div className="header-top">
             <div className="logo">
@@ -970,8 +1012,10 @@ export default function ReclamationsPage() {
           <div className="content">
             {activeTab === 'mentions' ? (
               <div className="panel-body">
-                {selectionMode ? (
-                  <div className={`mentions-selection-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
+                {selectionMode || selectionModeClosing ? (
+                  <div
+                    className={`mentions-selection-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''} ${selectionModeClosing ? 'mentions-selection-toolbar-closing' : ''}`}
+                  >
                     <div className="mentions-selection-heading">
                       <button
                         type="button"
@@ -1010,9 +1054,11 @@ export default function ReclamationsPage() {
                       <ListIcon />
                       {filtered.length} Mentions
                     </span>
-                    <button type="button" className="mark-all-read-btn" onClick={handleMarkAllRead}>
-                      Tout marquer comme lu
-                    </button>
+                    {newCount > 0 && (
+                      <button type="button" className="mark-all-read-btn" onClick={handleMarkAllRead}>
+                        Tout marquer comme lu
+                      </button>
+                    )}
                   </div>
                 )}
 

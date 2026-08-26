@@ -33,13 +33,20 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
-.sidebar-toggle {
+.header-left-actions {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-left-actions .icon-button {
   color: var(--color-white);
 }
+
 
 .header-center {
   flex: 1;
@@ -806,6 +813,22 @@
 
 .mentions-toolbar.mentions-toolbar-stuck {
   box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+}
+
+@keyframes mentions-selection-toolbar-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.mentions-selection-toolbar-closing {
+  animation: mentions-selection-toolbar-fade-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
 
 .mentions-selection-toolbar.mentions-toolbar-stuck {
