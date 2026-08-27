@@ -160,9 +160,34 @@ export type ComplaintCore = Omit<
   'reclamant' | 'classification' | 'traitement' | 'suiviCloture' | 'notesInternes' | 'historique'
 >;
 
-export function attachDetails(c: ComplaintCore): Complaint {
+const NOTES_TEMPLATES = [
+  'Client injoignable au premier appel, message laissé. Rappel prévu sous 48h.',
+  'Dossier suivi de près en raison du montant élevé du sinistre.',
+  'Client sous contrat premium — traitement prioritaire demandé par le service commercial.',
+  'Antécédent de réclamation similaire il y a 6 mois, à surveiller.',
+];
+
+const EDIT_ENTRIES: { title: string; description: string }[] = [
+  { title: 'Modification des informations du réclamant', description: 'Numéro de téléphone ajouté suite à un appel de suivi.' },
+  { title: 'Modification des informations du réclamant', description: 'Adresse postale complétée par le réclamant.' },
+  { title: 'Modification du traitement / attribution', description: 'Dossier réattribué pour équilibrer la charge entre interlocuteurs.' },
+  { title: 'Modification du suivi et clôture', description: 'Action corrective renseignée après validation du service qualité.' },
+];
+
+export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   const [prenom, nom] = splitName(c.requerant);
   const porteurDuRisque = c.assureur && c.assureur !== 'Non renseigné' ? c.assureur : '';
+  // A dossier can't reach these stages in the live app without the underlying
+  // step being completed first, so the mock data has to reflect that instead
+  // of leaving downstream fields blank on an already-advanced dossier.
+  const arDone = c.avancement !== 'a-traiter';
+  const reponseDone = c.avancement === 'sans-suite' || c.avancement === 'cloture';
+  const dateAR = arDone ? addDaysToFrDate(c.dateReception, 3) : '';
+  const dateReponse = reponseDone ? addDaysToFrDate(c.dateReception, 25) : '';
+  const interlocuteur = arDone ? INTERLOCUTEURS[index % INTERLOCUTEURS.length] : '';
+  // Only a subset of dossiers get the extra activity — not every progressed
+  // dossier had a manual edit or an internal note logged against it.
+  const enriched = arDone && index % 3 === 0;
 
   const historique: HistoriqueEntry[] = [
     {
@@ -172,19 +197,27 @@ export function attachDetails(c: ComplaintCore): Complaint {
       author: 'Système',
     },
   ];
-  if (c.avancement !== 'a-traiter') {
+  if (arDone) {
     historique.push({
       title: "Confirmation de l'envoi de l'Accusé de Réception",
       description: 'Accusé de réception envoyé au réclamant.',
-      date: c.dateReception,
+      date: dateAR,
       author: 'Julien Fontaine',
     });
   }
-  if (c.avancement === 'sans-suite' || c.avancement === 'cloture') {
+  if (enriched) {
+    const edit = EDIT_ENTRIES[index % EDIT_ENTRIES.length];
+    historique.push({
+      ...edit,
+      date: addDaysToFrDate(dateAR, 2),
+      author: interlocuteur,
+    });
+  }
+  if (reponseDone) {
     historique.push({
       title: 'Confirmation de l’envoi de la Réponse Définitive',
       description: 'Réponse définitive envoyée au réclamant.',
-      date: c.dateReception,
+      date: dateReponse,
       author: 'Julien Fontaine',
     });
   }
@@ -205,19 +238,19 @@ export function attachDetails(c: ComplaintCore): Complaint {
     },
     traitement: {
       statut: AVANCEMENT_LABEL[c.avancement],
-      interlocuteur: '',
+      interlocuteur,
       priorite: '',
     },
     suiviCloture: {
-      dateAR: '',
-      dateReponse: '',
+      dateAR,
+      dateReponse,
       actionImmediate: '',
       actionCorrective: '',
       actionRealisee: '',
       verificationEfficacite: '',
       reponseApportee: '',
     },
-    notesInternes: '',
+    notesInternes: enriched ? NOTES_TEMPLATES[index % NOTES_TEMPLATES.length] : '',
     historique,
   };
 }
@@ -260,6 +293,15 @@ function guessEmail(author: string): string {
 function formatDateReception(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
+  return date.toLocaleDateString('fr-FR');
+}
+
+function addDaysToFrDate(value: string, days: number): string {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return '';
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  date.setDate(date.getDate() + days);
   return date.toLocaleDateString('fr-FR');
 }
 
@@ -502,7 +544,7 @@ const closedComplaintsCore: ComplaintCore[] = [
   },
 ];
 
-export const closedComplaints: Complaint[] = closedComplaintsCore.map(attachDetails);
+export const closedComplaints: Complaint[] = closedComplaintsCore.map((c, index) => attachDetails(c, index));
 
 const complaintsCore: ComplaintCore[] = reclamations
   .filter((r) => r.state === 'mes-reclamations')
@@ -511,6 +553,12 @@ const complaintsCore: ComplaintCore[] = reclamations
     const remainingDays = REMAINING_DAYS[index % REMAINING_DAYS.length];
     const isClosed = avancement === 'cloture' || avancement === 'sans-suite';
     const description = LONG_DESCRIPTIONS[index] ?? r.text;
+    // Reaching this stage means the AR was already confirmed, which itself
+    // requires a valid contact — a guessed-but-empty email can't survive
+    // past "à traiter" in the mock data any more than it could live.
+    const guessedEmail = guessEmail(r.author);
+    const email =
+      guessedEmail || (avancement === 'a-traiter' ? '' : `${stripDiacritics(splitName(r.author)[0] || 'contact')}.${index}@gmail.com`.toLowerCase());
 
     return {
       id: `complaint-${r.id}`,
@@ -527,10 +575,10 @@ const complaintsCore: ComplaintCore[] = reclamations
       sourceUrl: r.url.replace(/\.{3}$/, ''),
       denominateurSocial: 'Non renseigné',
       assureur: 'Non renseigné',
-      email: guessEmail(r.author),
+      email,
       objet: suggestObjet(description),
       description,
     };
   });
 
-export const complaints: Complaint[] = complaintsCore.map(attachDetails);
+export const complaints: Complaint[] = complaintsCore.map((c, index) => attachDetails(c, index));
