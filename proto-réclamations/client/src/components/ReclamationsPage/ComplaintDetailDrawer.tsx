@@ -7,13 +7,9 @@ import {
   AVANCEMENT_LABEL,
   getDossierSteps,
   INTERLOCUTEURS,
-  PRIORITE_LABEL,
   RELATION_LABEL,
-  TYPES_SINISTRE,
-  type Classification,
   type Complaint,
   type HistoriqueEntry,
-  type Priorite,
   type Reclamant,
   type Relation,
   type SuiviCloture,
@@ -68,15 +64,6 @@ function UserIcon() {
   );
 }
 
-function TagIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M11.5 3H5a1 1 0 0 0-1 1v6.5a1 1 0 0 0 .3.7l9 9a1 1 0 0 0 1.4 0l6.5-6.5a1 1 0 0 0 0-1.4l-9-9a1 1 0 0 0-.7-.3Z" strokeLinejoin="round" />
-      <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 function BriefcaseIcon() {
   return (
     <svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -122,6 +109,7 @@ type TextFieldProps = {
   placeholder?: string;
   multiline?: boolean;
   readOnly?: boolean;
+  plain?: boolean;
   onChange?: (value: string) => void;
   endAdornment?: React.ReactNode;
 };
@@ -133,6 +121,7 @@ function SectionTextField({
   placeholder,
   multiline,
   readOnly,
+  plain,
   onChange,
   endAdornment,
 }: TextFieldProps) {
@@ -141,7 +130,7 @@ function SectionTextField({
       <span className="dossier-field-label">
         {label} {required && <span className="dossier-field-required">*</span>}
       </span>
-      <div className="dossier-field-input">
+      <div className={`dossier-field-input ${readOnly || plain ? 'dossier-field-input-readonly' : ''}`}>
         {multiline ? (
           <textarea
             value={value}
@@ -272,7 +261,6 @@ type SectionKey =
   | 'avancement'
   | 'informations'
   | 'reclamant'
-  | 'classification'
   | 'traitement'
   | 'suivi'
   | 'notes'
@@ -363,16 +351,25 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
 
   // --- Informations de la réclamation ---
   const [infoDraft, setInfoDraft] = useState({
+    dateReception: complaint.dateReception,
     objet: complaint.objet,
     description: complaint.description,
+    sourceUrl: complaint.sourceUrl ?? '',
   });
-  const infoDirty = infoDraft.objet !== complaint.objet || infoDraft.description !== complaint.description;
+  const infoDirty =
+    infoDraft.dateReception !== complaint.dateReception ||
+    infoDraft.objet !== complaint.objet ||
+    infoDraft.description !== complaint.description ||
+    infoDraft.sourceUrl !== (complaint.sourceUrl ?? '');
   const saveInfo = () => {
     const changed: string[] = [];
+    if (infoDraft.dateReception !== complaint.dateReception) changed.push('Date de réception');
     if (infoDraft.objet !== complaint.objet) changed.push('Objet de la réclamation');
     if (infoDraft.description !== complaint.description) changed.push('Description');
+    if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? '')) changed.push('Lien de la source');
     onUpdate?.(complaint.id, {
       ...infoDraft,
+      sourceUrl: infoDraft.sourceUrl || undefined,
       ...withHistory('Modification des informations de la réclamation', changed),
     });
   };
@@ -380,9 +377,11 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
   // --- Informations du réclamant ---
   const [reclamantDraft, setReclamantDraft] = useState<Reclamant>(complaint.reclamant);
   const [denominateurSocialDraft, setDenominateurSocialDraft] = useState(complaint.denominateurSocial);
+  const [porteurDuRisqueDraft, setPorteurDuRisqueDraft] = useState(complaint.classification.porteurDuRisque);
   const reclamantDirty =
     JSON.stringify(reclamantDraft) !== JSON.stringify(complaint.reclamant) ||
-    denominateurSocialDraft !== complaint.denominateurSocial;
+    denominateurSocialDraft !== complaint.denominateurSocial ||
+    porteurDuRisqueDraft !== complaint.classification.porteurDuRisque;
   const saveReclamant = () => {
     const changed: string[] = [];
     if (reclamantDraft.prenom !== complaint.reclamant.prenom) changed.push('Prénom');
@@ -393,9 +392,11 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     if (reclamantDraft.relation !== complaint.reclamant.relation) changed.push('Relation avec ce client');
     if (reclamantDraft.relationAutrePrecision !== complaint.reclamant.relationAutrePrecision) changed.push('Précision');
     if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination Sociale');
+    if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
     onUpdate?.(complaint.id, {
       reclamant: reclamantDraft,
       denominateurSocial: denominateurSocialDraft,
+      classification: { ...complaint.classification, porteurDuRisque: porteurDuRisqueDraft },
       ...withHistory('Modification des informations du réclamant', changed),
     });
   };
@@ -403,25 +404,8 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     reclamantDraft.prenom,
     reclamantDraft.nom,
     reclamantDraft.email,
-    reclamantDraft.relation,
     ...(reclamantDraft.relation === 'autre' ? [reclamantDraft.relationAutrePrecision] : []),
   ].filter((v) => !v).length;
-
-  // --- Classification ---
-  const [classificationDraft, setClassificationDraft] = useState<Classification>(complaint.classification);
-  const classificationDirty = JSON.stringify(classificationDraft) !== JSON.stringify(complaint.classification);
-  const saveClassification = () => {
-    const changed: string[] = [];
-    if (classificationDraft.porteurDuRisque !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
-    if (classificationDraft.typeSinistre !== complaint.classification.typeSinistre) changed.push('Type de sinistre');
-    onUpdate?.(complaint.id, {
-      classification: classificationDraft,
-      ...withHistory('Modification de la classification de la réclamation', changed),
-    });
-  };
-  const classificationMissing = [classificationDraft.porteurDuRisque, classificationDraft.typeSinistre].filter(
-    (v) => !v,
-  ).length;
 
   // --- Traitement / attribution ---
   const [traitementDraft, setTraitementDraft] = useState<Traitement>(complaint.traitement);
@@ -429,25 +413,25 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
   const saveTraitement = () => {
     const changed: string[] = [];
     if (traitementDraft.interlocuteur !== complaint.traitement.interlocuteur) changed.push('Interlocuteur en charge');
-    if (traitementDraft.priorite !== complaint.traitement.priorite) changed.push('Priorité');
     onUpdate?.(complaint.id, {
       traitement: traitementDraft,
       ...withHistory('Modification du traitement / attribution', changed),
     });
   };
-  const traitementMissing = [traitementDraft.statut, traitementDraft.interlocuteur, traitementDraft.priorite].filter(
-    (v) => !v,
-  ).length;
+  const traitementMissing = [traitementDraft.statut, traitementDraft.interlocuteur].filter((v) => !v).length;
 
   // --- Suivi et clôture ---
   const [suiviDraft, setSuiviDraft] = useState<SuiviCloture>(complaint.suiviCloture);
   const suiviDirty = JSON.stringify(suiviDraft) !== JSON.stringify(complaint.suiviCloture);
   const saveSuivi = () => {
     const changed: string[] = [];
-    if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR) changed.push("Date d'AR / réponse intermédiaire");
-    if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse) changed.push('Date de réponse');
-    if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate) changed.push('Action immédiate');
-    if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective) changed.push('Action corrective');
+    if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR) changed.push("Date d'envoi de l'accusé de réception");
+    if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse)
+      changed.push("Date d'envoi de la réponse intermédiaire");
+    if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate)
+      changed.push("Date de l'action immédiate");
+    if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
+      changed.push("Date de l'action corrective");
     if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Action réalisée');
     if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
       changed.push("Vérification d'efficacité");
@@ -469,8 +453,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     });
   };
 
-  const hasUnsavedChanges =
-    infoDirty || reclamantDirty || classificationDirty || traitementDirty || suiviDirty || notesDirty;
+  const hasUnsavedChanges = infoDirty || reclamantDirty || traitementDirty || suiviDirty || notesDirty;
 
   const steps = getDossierSteps(complaint);
   const completedCount = steps.filter((s) => s.status === 'done').length;
@@ -516,7 +499,6 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
     complaint.reclamant.prenom,
     complaint.reclamant.nom,
     complaint.reclamant.email,
-    complaint.reclamant.relation,
   ].filter((v) => !v).length;
   const nextStepBlocked = !arSent && savedReclamantMissing > 0;
 
@@ -531,7 +513,11 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
       >
         <div className={`dossier-header ${headerStuck ? 'dossier-header-stuck' : ''}`}>
           <span className="dossier-title">Dossier {complaint.ticket}</span>
-          <span className="chip dossier-status-chip">{AVANCEMENT_LABEL[complaint.avancement]}</span>
+          <span
+            className={`chip dossier-status-chip ${complaint.avancement !== 'a-traiter' ? 'dossier-status-chip-closed' : ''}`}
+          >
+            {AVANCEMENT_LABEL[complaint.avancement]}
+          </span>
           <div className="dossier-header-spacer" />
           <div className="export-menu-wrap" ref={exportMenuRef}>
             <button
@@ -608,28 +594,38 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
             headline="Confirmez ou complétez les champs ci-dessous"
           >
             <div className="dossier-field-row">
-              <SectionTextField label="Référence" value={complaint.ticket} readOnly />
-              <SectionTextField label="Canal de réception" value={complaint.canal} readOnly />
+              <SectionTextField label="Référence" value={complaint.ticket} required readOnly />
+              <SectionTextField label="Canal de réception" value="Web" required readOnly />
             </div>
-            <SectionTextField label="Date de réception" value={complaint.dateReception} readOnly />
+            <SectionTextField
+              label="Date de réception"
+              value={infoDraft.dateReception}
+              required
+              onChange={(v) => setInfoDraft((d) => ({ ...d, dateReception: v }))}
+            />
             <SectionTextField
               label="Objet de la réclamation"
               value={infoDraft.objet}
+              required
               onChange={(v) => setInfoDraft((d) => ({ ...d, objet: v }))}
             />
             <SectionTextField
               label="Description"
               value={infoDraft.description}
               multiline
+              plain
+              required
               onChange={(v) => setInfoDraft((d) => ({ ...d, description: v }))}
             />
             {complaint.sourceUrl && (
               <SectionTextField
-                label="Lien/Source"
-                value={complaint.sourceUrl}
-                readOnly
+                label="Lien de la source"
+                value={infoDraft.sourceUrl}
+                plain
+                required
+                onChange={(v) => setInfoDraft((d) => ({ ...d, sourceUrl: v }))}
                 endAdornment={
-                  <a href={toHref(complaint.sourceUrl)} target="_blank" rel="noopener noreferrer">
+                  <a href={toHref(infoDraft.sourceUrl)} target="_blank" rel="noopener noreferrer">
                     <ArrowUpRight />
                   </a>
                 }
@@ -682,19 +678,12 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
               />
             </div>
             <SectionTextField
-              label="Adresse (optionnel)"
-              placeholder="Entrez l'adresse du réclamant"
-              value={reclamantDraft.adresse}
-              onChange={(v) => setReclamantDraft((d) => ({ ...d, adresse: v }))}
-            />
-            <SectionTextField
               label="Dénomination Sociale"
               value={denominateurSocialDraft}
               onChange={setDenominateurSocialDraft}
             />
             <SectionSelectField<Relation>
               label="Relation avec ce client"
-              required
               value={reclamantDraft.relation}
               options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
               onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
@@ -708,34 +697,13 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, relationAutrePrecision: v }))}
               />
             )}
-            <SaveButton disabled={!reclamantDirty} onClick={saveReclamant} />
-          </AccordionSection>
-
-          <AccordionSection
-            icon={<TagIcon />}
-            title="Classification de la réclamation"
-            badge={
-              classificationMissing > 0
-                ? { label: `${classificationMissing} à vérifier`, className: 'chip-declinee' }
-                : { label: 'Complété', className: 'chip-mes-reclamations' }
-            }
-            open={openSections.has('classification')}
-            onToggle={() => toggleSection('classification')}
-            headline="Confirmez ou complétez les champs ci-dessous"
-          >
             <SectionTextField
               label="Porteur du risque"
               placeholder="Entrez le nom du porteur du risque"
-              value={classificationDraft.porteurDuRisque}
-              onChange={(v) => setClassificationDraft((d) => ({ ...d, porteurDuRisque: v }))}
+              value={porteurDuRisqueDraft}
+              onChange={setPorteurDuRisqueDraft}
             />
-            <SectionSelectField
-              label="Type de sinistre"
-              value={classificationDraft.typeSinistre}
-              options={TYPES_SINISTRE.map((label) => ({ id: label, label }))}
-              onChange={(v) => setClassificationDraft((d) => ({ ...d, typeSinistre: v }))}
-            />
-            <SaveButton disabled={!classificationDirty} onClick={saveClassification} />
+            <SaveButton disabled={!reclamantDirty} onClick={saveReclamant} />
           </AccordionSection>
 
           <AccordionSection
@@ -750,25 +718,27 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
             onToggle={() => toggleSection('traitement')}
             headline="Dernière étape avant la prise en charge"
           >
-            <SectionTextField label="Statut" value={traitementDraft.statut} readOnly />
+            <div className="dossier-field">
+              <span className="dossier-field-label">Statut</span>
+              <span
+                className={`chip complaints-chip-avancement-${complaint.avancement}`}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {AVANCEMENT_LABEL[complaint.avancement]}
+              </span>
+            </div>
             <SectionSelectField
               label="Interlocuteur en charge"
               value={traitementDraft.interlocuteur}
               options={INTERLOCUTEURS.map((label) => ({ id: label, label }))}
               onChange={(v) => setTraitementDraft((d) => ({ ...d, interlocuteur: v }))}
             />
-            <SectionSelectField<Priorite>
-              label="Priorité"
-              value={traitementDraft.priorite}
-              options={(Object.keys(PRIORITE_LABEL) as Priorite[]).map((id) => ({ id, label: PRIORITE_LABEL[id] }))}
-              onChange={(v) => setTraitementDraft((d) => ({ ...d, priorite: v }))}
-            />
             <SaveButton disabled={!traitementDirty} onClick={saveTraitement} />
           </AccordionSection>
 
           <AccordionSection
             icon={<CalendarCheckIcon />}
-            title="Suivi et Clôture"
+            title="Suivi et clôture"
             badge={
               suiviMissing > 0
                 ? { label: `${suiviMissing} à vérifier`, className: 'chip-declinee' }
@@ -780,40 +750,42 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
           >
             <div className="dossier-field-row">
               <SectionTextField
-                label="Date d'AR / réponse intermédiaire"
+                label="Date d'envoi de l'accusé de réception"
                 value={suiviDraft.dateAR}
                 placeholder="Ex: 05/05/2026"
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateAR: v }))}
               />
               <SectionTextField
-                label="Date de réponse"
+                label="Date d'envoi de la réponse intermédiaire"
                 value={suiviDraft.dateReponse}
                 placeholder="Ex: 05/05/2026"
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateReponse: v }))}
               />
             </div>
-            <SectionTextField
-              label="Action immédiate"
-              value={suiviDraft.actionImmediate}
-              onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
-            />
-            <SectionTextField
-              label="Action corrective"
-              value={suiviDraft.actionCorrective}
-              onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
-            />
             <div className="dossier-field-row">
               <SectionTextField
-                label="Action réalisée"
-                value={suiviDraft.actionRealisee}
-                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
+                label="Date de l'action immédiate"
+                value={suiviDraft.actionImmediate}
+                placeholder="Ex: 05/05/2026"
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
               />
               <SectionTextField
-                label="Vérification d'efficacité"
-                value={suiviDraft.verificationEfficacite}
-                onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
+                label="Date de l'action corrective"
+                value={suiviDraft.actionCorrective}
+                placeholder="Ex: 05/05/2026"
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
               />
             </div>
+            <SectionTextField
+              label="Action réalisée"
+              value={suiviDraft.actionRealisee}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
+            />
+            <SectionTextField
+              label="Vérification d'efficacité"
+              value={suiviDraft.verificationEfficacite}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
+            />
             <SectionTextField
               label="Réponse apportée"
               value={suiviDraft.reponseApportee}

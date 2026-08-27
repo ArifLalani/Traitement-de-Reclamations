@@ -1591,10 +1591,6 @@
   transition: opacity 0.25s ease, transform 0.25s ease, left 0.25s ease;
 }
 
-.created-alert-shifted {
-  left: calc(50% + 150px);
-}
-
 .created-alert-visible {
   opacity: 1;
   transform: translate(-50%, 0);
@@ -2598,6 +2594,12 @@ a.drawer-canal:hover .arrow-up-right {
   color: var(--color-primary-blue);
 }
 
+.dossier-status-chip-closed {
+  background: var(--color-chip-selected-bg);
+  border-color: transparent;
+  color: var(--color-text-primary);
+}
+
 .dossier-header-spacer {
   flex: 1;
 }
@@ -2740,7 +2742,7 @@ a.drawer-canal:hover .arrow-up-right {
   border-radius: 4px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 0 12px;
 }
 
@@ -2755,6 +2757,9 @@ a.drawer-canal:hover .arrow-up-right {
   letter-spacing: 0.15px;
   color: var(--color-text-primary);
   padding: 16px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dossier-field-input textarea {
@@ -2762,7 +2767,7 @@ a.drawer-canal:hover .arrow-up-right {
   min-width: 0;
   border: none;
   outline: none;
-  resize: vertical;
+  resize: none;
   background: transparent;
   font: var(--font-input-text);
   letter-spacing: 0.15px;
@@ -2775,6 +2780,27 @@ a.drawer-canal:hover .arrow-up-right {
 .dossier-field-input textarea[readonly] {
   color: var(--color-text-secondary);
   cursor: default;
+}
+
+.dossier-field-input-readonly {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.dossier-field-input-readonly input,
+.dossier-field-input-readonly textarea {
+  padding: 0;
+}
+
+.dossier-field-input-readonly input {
+  flex: 0 1 auto;
+  field-sizing: content;
+}
+
+.dossier-field-input-readonly textarea {
+  min-height: 0;
 }
 
 .dossier-field-adornment {
@@ -2926,7 +2952,7 @@ a.drawer-canal:hover .arrow-up-right {
   border: 1px solid rgba(33, 150, 243, 0.5);
   border-radius: 8px;
   box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
-  margin: 16px;
+  margin: 16px 24px;
   padding: 16px;
   display: flex;
   flex-direction: column;

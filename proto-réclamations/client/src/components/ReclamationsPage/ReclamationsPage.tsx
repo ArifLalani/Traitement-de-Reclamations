@@ -310,6 +310,16 @@ export default function ReclamationsPage() {
     if (id === activeTab) return;
     setActiveTab(id);
     setVisibleCount(PAGE_SIZE);
+    if (selectionMode || selectionModeClosing) {
+      if (selectionModeCloseTimeout.current) clearTimeout(selectionModeCloseTimeout.current);
+      setSelectionMode(false);
+      setSelectionModeClosing(false);
+      setSelectedIds(new Set());
+    }
+    if (complaintsSelectionMode) {
+      setComplaintsSelectionMode(false);
+      setSelectedComplaintIds(new Set());
+    }
   };
 
   const markReputationIntroSeen = () => {
@@ -409,6 +419,7 @@ export default function ReclamationsPage() {
   };
 
   const markIdsAsRead = (ids: string[]) => {
+    prevTops.current = measureTops();
     setSeenIds((prev) => {
       const next = new Set(prev);
       ids.forEach((id) => next.add(id));
@@ -591,7 +602,7 @@ export default function ReclamationsPage() {
       avancement: 'a-traiter',
       conformite: 'conforme',
       canal: formData.canal as Source,
-      sourceUrl: createTarget.url,
+      sourceUrl: createTarget.url.replace(/\.{3}$/, ''),
       denominateurSocial: 'Non renseigné',
       assureur: 'Non renseigné',
       email: formData.email,
@@ -684,6 +695,7 @@ export default function ReclamationsPage() {
   }, [
     search,
     stateOverrides,
+    seenIds,
     etatFilter,
     appreciationFilter,
     reclamationsFacet,
@@ -1261,7 +1273,6 @@ export default function ReclamationsPage() {
 
       <ReclamationCreatedAlert
         visible={!!createdAlert}
-        sidebarOpen={sidebarOpen}
         onView={() => {
           if (createdAlert) openComplaintDetail(createdAlert.complaint);
           dismissCreatedAlert();

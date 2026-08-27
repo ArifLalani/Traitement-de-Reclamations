@@ -524,7 +524,7 @@ const complaintsCore: ComplaintCore[] = reclamations
       avancement,
       conformite: index === 9 ? 'non-conforme' : 'conforme',
       canal: r.source,
-      sourceUrl: r.url,
+      sourceUrl: r.url.replace(/\.{3}$/, ''),
       denominateurSocial: 'Non renseigné',
       assureur: 'Non renseigné',
       email: guessEmail(r.author),
