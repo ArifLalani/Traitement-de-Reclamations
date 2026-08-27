@@ -32,8 +32,8 @@ export default function MentionsAlertBanner({ count, negativeCount, onShow }: Me
         </p>
         {negativeCount > 0 && (
           <p className="alert-banner-subtitle">
-            Dont <strong>{negativeCount}</strong> <strong>avis négatif{negativeCount > 1 ? 's' : ''}</strong> qui
-            appellent une réponse
+            Dont <strong>{negativeCount} mention{negativeCount > 1 ? 's' : ''} négative{negativeCount > 1 ? 's' : ''}</strong> qui
+            appelle{negativeCount > 1 ? 'nt' : ''} une réponse
           </p>
         )}
       </div>
