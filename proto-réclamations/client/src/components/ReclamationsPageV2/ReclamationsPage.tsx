@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import bellIcon from '../../assets/figma/bell-icon.svg';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
@@ -15,7 +14,7 @@ import ComplaintsFiltersPanel, {
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
-import ReclamationCreatedAlert from './ReclamationCreatedAlert';
+import PostCreateDialog from './PostCreateDialog';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
   type EtatFilter,
@@ -145,6 +144,18 @@ function ResetIcon() {
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
 const REPUTATION_INTRO_SEEN_KEY = 'reputation-intro-seen-v1';
+const POST_CREATE_PREFERENCE_KEY = 'post-create-dialog-preference-v1';
+
+type PostCreatePreference = 'ask' | 'always' | 'never';
+
+function readPostCreatePreference(): PostCreatePreference {
+  try {
+    const raw = localStorage.getItem(POST_CREATE_PREFERENCE_KEY);
+    return raw === 'always' || raw === 'never' ? raw : 'ask';
+  } catch {
+    return 'ask';
+  }
+}
 
 type TabId = SidebarSection;
 
@@ -162,7 +173,7 @@ export default function ReclamationsPage() {
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
   const [periodeFilter, setPeriodeFilter] = useState<PeriodeFilter>('annee');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortPanelOpen, setSortPanelOpen] = useState(false);
   const [mentionsSortOrder, setMentionsSortOrder] = useState<SortOrder>('recent');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -187,14 +198,15 @@ export default function ReclamationsPage() {
     onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
-  const [createdAlert, setCreatedAlert] = useState<{ complaint: Complaint } | null>(null);
+  const [pendingCreatedComplaint, setPendingCreatedComplaint] = useState<Complaint | null>(null);
+  const postCreatePreference = useRef<PostCreatePreference>(readPostCreatePreference());
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
     ...initialClosedComplaints,
   ]);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
-  const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(true);
+  const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(false);
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
@@ -209,7 +221,6 @@ export default function ReclamationsPage() {
     to: 'Août 2026',
   });
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const createdAlertTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [seenIds, setSeenIds] = useState<Set<string>>(() => {
     try {
@@ -460,6 +471,7 @@ export default function ReclamationsPage() {
     try {
       localStorage.removeItem(SEEN_IDS_STORAGE_KEY);
       localStorage.removeItem(REPUTATION_INTRO_SEEN_KEY);
+      localStorage.removeItem(POST_CREATE_PREFERENCE_KEY);
     } catch {
       // localStorage unavailable, ignore
     }
@@ -615,14 +627,33 @@ export default function ReclamationsPage() {
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     setCreateTarget(null);
-    setCreatedAlert({ complaint: newComplaint });
-    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
-    createdAlertTimeout.current = setTimeout(() => setCreatedAlert(null), 8000);
+
+    if (postCreatePreference.current === 'always') {
+      openComplaintDetail(newComplaint);
+    } else if (postCreatePreference.current === 'ask') {
+      setPendingCreatedComplaint(newComplaint);
+    }
+    // 'never' — stay put, no dialog, no redirect.
   };
 
-  const dismissCreatedAlert = () => {
-    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
-    setCreatedAlert(null);
+  const savePostCreatePreference = (preference: PostCreatePreference) => {
+    postCreatePreference.current = preference;
+    try {
+      localStorage.setItem(POST_CREATE_PREFERENCE_KEY, preference);
+    } catch {
+      // localStorage unavailable, ignore
+    }
+  };
+
+  const handlePostCreateView = (dontAskAgain: boolean) => {
+    if (dontAskAgain) savePostCreatePreference('always');
+    if (pendingCreatedComplaint) openComplaintDetail(pendingCreatedComplaint);
+    setPendingCreatedComplaint(null);
+  };
+
+  const handlePostCreateDismiss = (dontAskAgain: boolean) => {
+    if (dontAskAgain) savePostCreatePreference('never');
+    setPendingCreatedComplaint(null);
   };
 
   const openComplaintDetail = (complaint: Complaint) => {
@@ -824,7 +855,7 @@ export default function ReclamationsPage() {
   const canDismissSelectedFlagged = selectedReclamations.some((r) => r.state === 'possible');
 
   return (
-    <div className="page">
+    <div className="page scope-v2">
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <div className="header-left-actions">
           <button
@@ -854,9 +885,6 @@ export default function ReclamationsPage() {
                 <img src={logoSystemText} alt="" className="logo-system" />
               </div>
             </div>
-            <button type="button" className="icon-button">
-              <img src={bellIcon} alt="Notifications" width={18} height={20.4} />
-            </button>
           </div>
         </div>
       </header>
@@ -864,7 +892,7 @@ export default function ReclamationsPage() {
       <div className="app-shell">
         <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
 
-        <main className="body">
+        <main className={`body ${sidebarOpen ? 'body-shifted' : ''}`}>
           {activeTab === 'reputation-intro' ? (
             <div className="content">
               <ReputationIntro
@@ -1271,14 +1299,9 @@ export default function ReclamationsPage() {
         onAction={snackbar?.variant === 'info' ? handleSnackbarUndo : undefined}
       />
 
-      <ReclamationCreatedAlert
-        visible={!!createdAlert}
-        onView={() => {
-          if (createdAlert) openComplaintDetail(createdAlert.complaint);
-          dismissCreatedAlert();
-        }}
-        onClose={dismissCreatedAlert}
-      />
+      {pendingCreatedComplaint && (
+        <PostCreateDialog onView={handlePostCreateView} onDismiss={handlePostCreateDismiss} />
+      )}
 
       {createTarget && (
         <CreateReclamationSlider

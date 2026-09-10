@@ -1,18 +1,37 @@
 import { useState } from 'react';
 import ReclamationsPage from './components/ReclamationsPage/ReclamationsPage';
-import ReclamationsPageV1_1 from './components/ReclamationsPageV1_1/ReclamationsPage';
-import ReclamationsPageV1_1_1 from './components/ReclamationsPageV1_1_1/ReclamationsPage';
+import ReclamationsPageV2 from './components/ReclamationsPageV2/ReclamationsPage';
+import ReclamationsPageV3 from './components/ReclamationsPageV3/ReclamationsPage';
 
 type Version = {
   id: string;
   label: string;
+  description: string;
   render: () => React.ReactElement;
 };
 
 const VERSIONS: Version[] = [
-  { id: 'v1', label: 'Version 1', render: () => <ReclamationsPage /> },
-  { id: 'v1.1', label: 'Version 1.1', render: () => <ReclamationsPageV1_1 /> },
-  { id: 'v1.1.1', label: 'Version 1.1.1', render: () => <ReclamationsPageV1_1_1 /> },
+  {
+    id: 'v1',
+    label: 'Version 1',
+    description:
+      "Après la création d'une réclamation : plus d'alerte — bascule automatique sur la page Réclamations et ouverture directe du dossier.",
+    render: () => <ReclamationsPage />,
+  },
+  {
+    id: 'v2',
+    label: 'Version 2',
+    description:
+      "Après la création d'une réclamation : le slider se ferme et une modale demande si vous voulez voir le dossier, avec une case \"Ne plus afficher\" pour mémoriser votre choix.",
+    render: () => <ReclamationsPageV2 />,
+  },
+  {
+    id: 'v3',
+    label: 'Version 3',
+    description:
+      "Après la création d'une réclamation : l'alerte reste affichée, mais centrée par rapport au contenu, en vert (succès), et son délai de 8s avant disparition se met en pause tant qu'elle est survolée.",
+    render: () => <ReclamationsPageV3 />,
+  },
 ];
 
 const switcherWrapStyle: React.CSSProperties = {
@@ -25,7 +44,7 @@ const switcherWrapStyle: React.CSSProperties = {
   flexDirection: 'column',
   background: '#fff',
   borderRadius: 4,
-  overflow: 'hidden',
+  overflow: 'visible',
   boxShadow: '0 3px 3px -2px rgba(0,0,0,0.2), 0 3px 4px 0 rgba(0,0,0,0.14), 0 1px 8px 0 rgba(0,0,0,0.12)',
 };
 
@@ -38,24 +57,74 @@ const switcherLabelStyle: React.CSSProperties = {
   color: 'rgba(0,0,0,0.45)',
 };
 
-function versionItemStyle(isActive: boolean): React.CSSProperties {
+function versionRowStyle(isActive: boolean): React.CSSProperties {
   return {
     display: 'flex',
     alignItems: 'center',
     width: '100%',
-    padding: '8px 16px',
+    background: isActive ? 'rgba(33, 150, 243, 0.16)' : 'transparent',
+  };
+}
+
+function versionButtonStyle(isActive: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    minWidth: 0,
+    padding: '8px 4px 8px 16px',
     border: 'none',
+    background: 'transparent',
     textAlign: 'left',
     cursor: 'pointer',
     fontSize: 13,
     fontWeight: isActive ? 700 : 500,
-    background: isActive ? 'rgba(33, 150, 243, 0.16)' : 'transparent',
     color: isActive ? '#0b1f4b' : 'rgba(0,0,0,0.7)',
   };
 }
 
+const infoIconWrapStyle: React.CSSProperties = {
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center',
+  padding: '0 12px 0 4px',
+};
+
+const infoIconStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 16,
+  height: 16,
+  borderRadius: '50%',
+  border: '1.3px solid rgba(0,0,0,0.35)',
+  color: 'rgba(0,0,0,0.5)',
+  fontSize: 10,
+  fontWeight: 700,
+  fontStyle: 'italic',
+  fontFamily: 'Georgia, serif',
+  cursor: 'default',
+};
+
+const tooltipStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: '100%',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  marginLeft: 10,
+  width: 240,
+  background: '#1a1a1a',
+  color: '#fff',
+  fontSize: 12,
+  lineHeight: 1.4,
+  padding: '8px 10px',
+  borderRadius: 4,
+  boxShadow: '0 3px 4px 0 rgba(0,0,0,0.14), 0 1px 8px 0 rgba(0,0,0,0.2)',
+  zIndex: 30,
+  pointerEvents: 'none',
+};
+
 function App() {
   const [versionId, setVersionId] = useState<string>(VERSIONS[0].id);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const active = VERSIONS.find((v) => v.id === versionId) ?? VERSIONS[0];
 
   return (
@@ -64,14 +133,19 @@ function App() {
       <div style={switcherWrapStyle}>
         <span style={switcherLabelStyle}>Versions</span>
         {VERSIONS.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            style={versionItemStyle(v.id === versionId)}
-            onClick={() => setVersionId(v.id)}
-          >
-            {v.label}
-          </button>
+          <div key={v.id} style={versionRowStyle(v.id === versionId)}>
+            <button type="button" style={versionButtonStyle(v.id === versionId)} onClick={() => setVersionId(v.id)}>
+              {v.label}
+            </button>
+            <span
+              style={infoIconWrapStyle}
+              onMouseEnter={() => setHoveredId(v.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              <span style={infoIconStyle}>i</span>
+              {hoveredId === v.id && <div style={tooltipStyle}>{v.description}</div>}
+            </span>
+          </div>
         ))}
       </div>
     </>

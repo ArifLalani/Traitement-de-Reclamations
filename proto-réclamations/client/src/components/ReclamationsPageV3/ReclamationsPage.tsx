@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import bellIcon from '../../assets/figma/bell-icon.svg';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
@@ -209,7 +208,6 @@ export default function ReclamationsPage() {
     to: 'Août 2026',
   });
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const createdAlertTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [seenIds, setSeenIds] = useState<Set<string>>(() => {
     try {
@@ -616,12 +614,9 @@ export default function ReclamationsPage() {
 
     setCreateTarget(null);
     setCreatedAlert({ complaint: newComplaint });
-    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
-    createdAlertTimeout.current = setTimeout(() => setCreatedAlert(null), 8000);
   };
 
   const dismissCreatedAlert = () => {
-    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
     setCreatedAlert(null);
   };
 
@@ -824,7 +819,7 @@ export default function ReclamationsPage() {
   const canDismissSelectedFlagged = selectedReclamations.some((r) => r.state === 'possible');
 
   return (
-    <div className="page">
+    <div className="page scope-v3">
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <div className="header-left-actions">
           <button
@@ -854,9 +849,6 @@ export default function ReclamationsPage() {
                 <img src={logoSystemText} alt="" className="logo-system" />
               </div>
             </div>
-            <button type="button" className="icon-button">
-              <img src={bellIcon} alt="Notifications" width={18} height={20.4} />
-            </button>
           </div>
         </div>
       </header>
@@ -864,7 +856,7 @@ export default function ReclamationsPage() {
       <div className="app-shell">
         <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
 
-        <main className="body">
+        <main className={`body ${sidebarOpen ? 'body-shifted' : ''}`}>
           {activeTab === 'reputation-intro' ? (
             <div className="content">
               <ReputationIntro
@@ -1278,6 +1270,7 @@ export default function ReclamationsPage() {
           dismissCreatedAlert();
         }}
         onClose={dismissCreatedAlert}
+        sidebarOpen={sidebarOpen}
       />
 
       {createTarget && (

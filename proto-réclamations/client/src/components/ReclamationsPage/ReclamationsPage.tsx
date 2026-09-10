@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import bellIcon from '../../assets/figma/bell-icon.svg';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
@@ -15,7 +14,6 @@ import ComplaintsFiltersPanel, {
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
-import ReclamationCreatedAlert from './ReclamationCreatedAlert';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
   type EtatFilter,
@@ -162,7 +160,7 @@ export default function ReclamationsPage() {
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
   const [periodeFilter, setPeriodeFilter] = useState<PeriodeFilter>('annee');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortPanelOpen, setSortPanelOpen] = useState(false);
   const [mentionsSortOrder, setMentionsSortOrder] = useState<SortOrder>('recent');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -187,14 +185,13 @@ export default function ReclamationsPage() {
     onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
-  const [createdAlert, setCreatedAlert] = useState<{ complaint: Complaint } | null>(null);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
     ...initialClosedComplaints,
   ]);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
-  const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(true);
+  const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(false);
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
@@ -209,7 +206,6 @@ export default function ReclamationsPage() {
     to: 'Août 2026',
   });
   const snackbarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const createdAlertTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [seenIds, setSeenIds] = useState<Set<string>>(() => {
     try {
@@ -615,14 +611,7 @@ export default function ReclamationsPage() {
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     setCreateTarget(null);
-    setCreatedAlert({ complaint: newComplaint });
-    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
-    createdAlertTimeout.current = setTimeout(() => setCreatedAlert(null), 8000);
-  };
-
-  const dismissCreatedAlert = () => {
-    if (createdAlertTimeout.current) clearTimeout(createdAlertTimeout.current);
-    setCreatedAlert(null);
+    openComplaintDetail(newComplaint);
   };
 
   const openComplaintDetail = (complaint: Complaint) => {
@@ -824,7 +813,7 @@ export default function ReclamationsPage() {
   const canDismissSelectedFlagged = selectedReclamations.some((r) => r.state === 'possible');
 
   return (
-    <div className="page">
+    <div className="page scope-v1">
       <header className={`header ${scrolled ? 'header-scrolled' : ''}`}>
         <div className="header-left-actions">
           <button
@@ -854,9 +843,6 @@ export default function ReclamationsPage() {
                 <img src={logoSystemText} alt="" className="logo-system" />
               </div>
             </div>
-            <button type="button" className="icon-button">
-              <img src={bellIcon} alt="Notifications" width={18} height={20.4} />
-            </button>
           </div>
         </div>
       </header>
@@ -864,7 +850,7 @@ export default function ReclamationsPage() {
       <div className="app-shell">
         <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
 
-        <main className="body">
+        <main className={`body ${sidebarOpen ? 'body-shifted' : ''}`}>
           {activeTab === 'reputation-intro' ? (
             <div className="content">
               <ReputationIntro
@@ -1269,15 +1255,6 @@ export default function ReclamationsPage() {
         variant={snackbar?.variant ?? 'info'}
         actionLabel={snackbar?.variant === 'info' ? 'Annuler' : undefined}
         onAction={snackbar?.variant === 'info' ? handleSnackbarUndo : undefined}
-      />
-
-      <ReclamationCreatedAlert
-        visible={!!createdAlert}
-        onView={() => {
-          if (createdAlert) openComplaintDetail(createdAlert.complaint);
-          dismissCreatedAlert();
-        }}
-        onClose={dismissCreatedAlert}
       />
 
       {createTarget && (

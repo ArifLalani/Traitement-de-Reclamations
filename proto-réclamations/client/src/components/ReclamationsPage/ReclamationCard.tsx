@@ -203,7 +203,7 @@ export default function ReclamationCard({
                     onCreate();
                   }}
                 >
-                  Créer une réclamation
+                  Traiter cette réclamation
                 </button>
               ) : (
                 <>
@@ -228,7 +228,7 @@ export default function ReclamationCard({
                         onCreate();
                       }}
                     >
-                      Créer une réclamation
+                      Traiter cette réclamation
                     </button>
                   )}
                 </>

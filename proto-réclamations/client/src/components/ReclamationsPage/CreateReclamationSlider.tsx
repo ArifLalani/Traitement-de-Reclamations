@@ -1,7 +1,21 @@
 import { useState } from 'react';
 import drawerClose from '../../assets/figma/drawer-close.svg';
 import { FormField, FormTextarea, ReadOnlyField } from './FormFields';
+import type { DossierStep } from './complaintsData';
 import type { Reclamation } from './data';
+
+// Preview of the dossier's lifecycle before it exists. Unlike an already
+// created complaint (where getDossierSteps treats "Réception" and
+// "Création" as implicit past facts), this slider IS the "Création" step —
+// it isn't done until the form is submitted, so only "Réception" is done
+// and everything from "Création" onward is still ahead.
+const DOSSIER_PREVIEW_STEPS: DossierStep[] = [
+  { label: 'Réception de la mention', status: 'done', badgeLabel: 'Complété' },
+  { label: 'Création de la réclamation', status: 'current' },
+  { label: "Confirmation de l'envoi de l'Accusé de Réception", status: 'upcoming' },
+  { label: 'Confirmation de l’envoi de la Réponse Définitive', status: 'upcoming' },
+  { label: 'Clôture du dossier de réclamation', status: 'upcoming' },
+];
 
 function formatDateFR(dateLabel: string) {
   const match = dateLabel.match(/(\d{2}\/\d{2}\/\d{4})/);
@@ -18,6 +32,53 @@ const OBJET_KEYWORDS: [RegExp, string][] = [
   [/devis/i, 'Litige sur un devis'],
   [/réponse|répond|contact|appel/i, 'Absence de réponse du service client'],
 ];
+
+const DOSSIER_STEP_SHORT_LABELS = [
+  'Réception',
+  'Création',
+  'Accusé de réception',
+  'Réponse définitive',
+  'Clôture',
+];
+
+// The 5 dots are the flex items (fixed 24px each) that `justify-content:
+// space-between` actually spaces — so spacing is decided purely by the
+// dots, evenly, and doesn't shift with label width. The container's own
+// left/right padding is set (in CSS) to exactly offset the first/last
+// dot's centering so that the LABEL's outer edge — not the dot — is what
+// lands on the panel's margin: dot0 is pushed right by the padding by
+// just enough that "Réception" (wider than the dot) ends up flush left,
+// and dot4 is pulled in by just enough that "Clôture" ends up flush
+// right. Every other label centers under its own dot as usual.
+function DossierHStepper({ steps }: { steps: DossierStep[] }) {
+  const completedCount = steps.filter((s) => s.status === 'done').length;
+  const fillFraction = completedCount / (steps.length - 1);
+
+  return (
+    <div className="dossier-hstepper">
+      <span className="dossier-hstepper-line" />
+      <span
+        className="dossier-hstepper-line-fill"
+        style={{ width: `calc(${fillFraction} * (100% - 51.15px))` }}
+      />
+      {steps.map((step, index) => (
+        <div key={step.label} className={`dossier-hstep dossier-hstep-${step.status}`}>
+          <span className="dossier-hstep-dot" aria-hidden>
+            {step.status === 'done' ? '✓' : index + 1}
+          </span>
+          <span className="dossier-hstep-label" title={step.label}>
+            {DOSSIER_STEP_SHORT_LABELS[index]}
+          </span>
+          {step.status === 'current' && step.badgeLabel && (
+            <span className={`dossier-hstep-badge ${step.badgeWarning ? 'dossier-hstep-badge-warning' : ''}`}>
+              {step.badgeLabel}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function suggestObjet(text: string): string {
   const match = OBJET_KEYWORDS.find(([regex]) => regex.test(text));
@@ -61,6 +122,8 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
 
   const canSubmit = canal.trim().length > 0 && dateReception.trim().length > 0 && objet.trim().length > 0;
 
+  const dossierSteps = DOSSIER_PREVIEW_STEPS;
+
   const requestClose = (action: () => void) => {
     if (closing) return;
     setClosing(true);
@@ -97,6 +160,8 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
         </div>
 
         <div className="create-claim-body">
+          <DossierHStepper steps={dossierSteps} />
+
           <span className="create-claim-heading">Statut du dossier</span>
           <div className="create-claim-section">
             <div className="modal-row">
