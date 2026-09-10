@@ -6,7 +6,7 @@ import ReclamationsPageV3 from './components/ReclamationsPageV3/ReclamationsPage
 type Version = {
   id: string;
   label: string;
-  description: string;
+  bullets: string[];
   render: () => React.ReactElement;
 };
 
@@ -14,22 +14,33 @@ const VERSIONS: Version[] = [
   {
     id: 'v1',
     label: 'Version 1',
-    description:
-      "Après la création d'une réclamation : plus d'alerte — bascule automatique sur la page Réclamations et ouverture directe du dossier.",
+    bullets: [
+      "Plus d'alerte à la création",
+      'Bascule automatique sur la page Réclamations',
+      'Ouverture directe du dossier, section "Informations du réclamant" dépliée',
+    ],
     render: () => <ReclamationsPage />,
   },
   {
     id: 'v2',
     label: 'Version 2',
-    description:
-      "Après la création d'une réclamation : le slider se ferme et une modale demande si vous voulez voir le dossier, avec une case \"Ne plus afficher\" pour mémoriser votre choix.",
+    bullets: [
+      "Plus d'alerte à la création",
+      'Le slider se ferme, une modale demande si vous voulez voir le dossier',
+      'Case "Ne plus afficher" pour mémoriser le choix',
+      'Si "Voir le dossier" : section "Informations du réclamant" dépliée',
+    ],
     render: () => <ReclamationsPageV2 />,
   },
   {
     id: 'v3',
     label: 'Version 3',
-    description:
-      "Après la création d'une réclamation : l'alerte reste affichée, mais centrée par rapport au contenu, en vert (succès), et son délai de 8s avant disparition se met en pause tant qu'elle est survolée.",
+    bullets: [
+      "L'alerte reste affichée",
+      'Recentrée par rapport au contenu (pas à l\'écran)',
+      'Couleur verte (succès) au lieu de bleu',
+      'Le survol met en pause le délai de 8s avant disparition',
+    ],
     render: () => <ReclamationsPageV3 />,
   },
 ];
@@ -110,16 +121,24 @@ const tooltipStyle: React.CSSProperties = {
   top: '50%',
   transform: 'translateY(-50%)',
   marginLeft: 10,
-  width: 240,
+  width: 260,
   background: '#1a1a1a',
   color: '#fff',
   fontSize: 12,
   lineHeight: 1.4,
-  padding: '8px 10px',
+  padding: '10px 12px',
   borderRadius: 4,
   boxShadow: '0 3px 4px 0 rgba(0,0,0,0.14), 0 1px 8px 0 rgba(0,0,0,0.2)',
   zIndex: 30,
   pointerEvents: 'none',
+};
+
+const tooltipListStyle: React.CSSProperties = {
+  margin: 0,
+  paddingLeft: 16,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
 };
 
 function App() {
@@ -143,7 +162,15 @@ function App() {
               onMouseLeave={() => setHoveredId(null)}
             >
               <span style={infoIconStyle}>i</span>
-              {hoveredId === v.id && <div style={tooltipStyle}>{v.description}</div>}
+              {hoveredId === v.id && (
+                <div style={tooltipStyle}>
+                  <ul style={tooltipListStyle}>
+                    {v.bullets.map((bullet) => (
+                      <li key={bullet}>{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </span>
           </div>
         ))}

@@ -5,7 +5,7 @@ import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
 import AlertSnackbar from './AlertSnackbar';
 import ComplaintCard from './ComplaintCard';
-import ComplaintDetailDrawer, { type ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
+import ComplaintDetailDrawer, { type ComplaintInformationsUpdate, type SectionKey } from './ComplaintDetailDrawer';
 import ExportMenu, { type ExportPreferences } from './ExportMenu';
 import ComplaintsFiltersPanel, {
   type ConformiteFilter,
@@ -210,6 +210,7 @@ export default function ReclamationsPage() {
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [drawerInitialSection, setDrawerInitialSection] = useState<SectionKey | null>(null);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
   const [selectedComplaintIds, setSelectedComplaintIds] = useState<Set<string>>(new Set());
@@ -629,7 +630,7 @@ export default function ReclamationsPage() {
     setCreateTarget(null);
 
     if (postCreatePreference.current === 'always') {
-      openComplaintDetail(newComplaint);
+      openComplaintDetail(newComplaint, 'reclamant');
     } else if (postCreatePreference.current === 'ask') {
       setPendingCreatedComplaint(newComplaint);
     }
@@ -647,7 +648,7 @@ export default function ReclamationsPage() {
 
   const handlePostCreateView = (dontAskAgain: boolean) => {
     if (dontAskAgain) savePostCreatePreference('always');
-    if (pendingCreatedComplaint) openComplaintDetail(pendingCreatedComplaint);
+    if (pendingCreatedComplaint) openComplaintDetail(pendingCreatedComplaint, 'reclamant');
     setPendingCreatedComplaint(null);
   };
 
@@ -656,8 +657,9 @@ export default function ReclamationsPage() {
     setPendingCreatedComplaint(null);
   };
 
-  const openComplaintDetail = (complaint: Complaint) => {
+  const openComplaintDetail = (complaint: Complaint, initialSection?: SectionKey) => {
     handleSelectTab('reclamations');
+    setDrawerInitialSection(initialSection ?? null);
     // Let the réclamations list finish mounting and playing its card entrance
     // animation (0.6s, see .card-list > * in ReclamationsPage.css) before the
     // detail drawer slides in, so the two animations don't overlap.
@@ -1316,6 +1318,7 @@ export default function ReclamationsPage() {
           complaint={selectedComplaint}
           onClose={() => setSelectedComplaint(null)}
           onUpdate={handleUpdateComplaint}
+          initialOpenSection={drawerInitialSection ?? undefined}
         />
       )}
     </div>

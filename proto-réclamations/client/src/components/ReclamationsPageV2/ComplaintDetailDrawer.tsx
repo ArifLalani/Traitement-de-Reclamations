@@ -255,9 +255,10 @@ type ComplaintDetailDrawerProps = {
   complaint: Complaint;
   onClose: () => void;
   onUpdate?: (id: string, updates: ComplaintInformationsUpdate) => void;
+  initialOpenSection?: SectionKey;
 };
 
-type SectionKey =
+export type SectionKey =
   | 'avancement'
   | 'informations'
   | 'reclamant'
@@ -266,10 +267,17 @@ type SectionKey =
   | 'notes'
   | 'historique';
 
-export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: ComplaintDetailDrawerProps) {
+export default function ComplaintDetailDrawer({
+  complaint,
+  onClose,
+  onUpdate,
+  initialOpenSection,
+}: ComplaintDetailDrawerProps) {
   const [closing, setClosing] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
-  const [openSections, setOpenSections] = useState<Set<SectionKey>>(new Set());
+  const [openSections, setOpenSections] = useState<Set<SectionKey>>(
+    () => new Set(initialOpenSection ? [initialOpenSection] : []),
+  );
   const [headerStuck, setHeaderStuck] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportPreferences, setExportPreferences] = useState<ExportPreferences>({
