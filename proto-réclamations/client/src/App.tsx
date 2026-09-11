@@ -13,25 +13,10 @@ type Version = {
 
 const VERSIONS: Version[] = [
   {
-    id: 'v1',
-    label: 'Version 1',
-    bullets: [
-      "Plus d'alerte à la création",
-      'Bascule automatique sur la page Réclamations',
-      'Ouverture directe du dossier, section "Informations du réclamant" dépliée',
-    ],
-    render: () => <ReclamationsPage />,
-  },
-  {
-    id: 'v2',
-    label: 'Version 2',
-    bullets: [
-      "Plus d'alerte à la création",
-      'Le slider se ferme, une modale demande si vous voulez voir le dossier',
-      'Case "Ne plus afficher" pour mémoriser le choix',
-      'Si "Voir le dossier" : section "Informations du réclamant" dépliée',
-    ],
-    render: () => <ReclamationsPageV2 />,
+    id: 'v4',
+    label: 'Version 4',
+    bullets: ['Copie de la V3, en cours de modification (retours réunion du jour)'],
+    render: () => <ReclamationsPageV4 />,
   },
   {
     id: 'v3',
@@ -45,10 +30,25 @@ const VERSIONS: Version[] = [
     render: () => <ReclamationsPageV3 />,
   },
   {
-    id: 'v4',
-    label: 'Version 4',
-    bullets: ['Copie de la V3, en cours de modification (retours réunion du jour)'],
-    render: () => <ReclamationsPageV4 />,
+    id: 'v2',
+    label: 'Version 2',
+    bullets: [
+      "Plus d'alerte à la création",
+      'Le slider se ferme, une modale demande si vous voulez voir le dossier',
+      'Case "Ne plus afficher" pour mémoriser le choix',
+      'Si "Voir le dossier" : section "Informations du réclamant" dépliée',
+    ],
+    render: () => <ReclamationsPageV2 />,
+  },
+  {
+    id: 'v1',
+    label: 'Version 1',
+    bullets: [
+      "Plus d'alerte à la création",
+      'Bascule automatique sur la page Réclamations',
+      'Ouverture directe du dossier, section "Informations du réclamant" dépliée',
+    ],
+    render: () => <ReclamationsPage />,
   },
 ];
 
