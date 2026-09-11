@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ReclamationsPage from './components/ReclamationsPage/ReclamationsPage';
 import ReclamationsPageV2 from './components/ReclamationsPageV2/ReclamationsPage';
 import ReclamationsPageV3 from './components/ReclamationsPageV3/ReclamationsPage';
+import ReclamationsPageV4 from './components/ReclamationsPageV4/ReclamationsPage';
 
 type Version = {
   id: string;
@@ -42,6 +43,12 @@ const VERSIONS: Version[] = [
       'Le survol met en pause le délai de 8s avant disparition',
     ],
     render: () => <ReclamationsPageV3 />,
+  },
+  {
+    id: 'v4',
+    label: 'Version 4',
+    bullets: ['Copie de la V3, en cours de modification (retours réunion du jour)'],
+    render: () => <ReclamationsPageV4 />,
   },
 ];
 
