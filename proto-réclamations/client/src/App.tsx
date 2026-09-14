@@ -3,6 +3,7 @@ import ReclamationsPage from './components/ReclamationsPage/ReclamationsPage';
 import ReclamationsPageV2 from './components/ReclamationsPageV2/ReclamationsPage';
 import ReclamationsPageV3 from './components/ReclamationsPageV3/ReclamationsPage';
 import ReclamationsPageV4 from './components/ReclamationsPageV4/ReclamationsPage';
+import ReclamationsPageV5 from './components/ReclamationsPageV5/ReclamationsPage';
 
 type Version = {
   id: string;
@@ -13,9 +14,29 @@ type Version = {
 
 const VERSIONS: Version[] = [
   {
+    id: 'v5',
+    label: 'Version 5',
+    bullets: [
+      'Dossier réorganisé en onglets : Informations / Traitement / Historique',
+      'Onglets et stepper restent affichés en haut (sticky) pendant le scroll',
+      "Onglet Traitement : question guidée « Avez-vous les coordonnées du réclamant ? »",
+      "Si Oui : formulaire de contact + message d'accusé de réception pré-rempli et modifiable",
+      "Si Non : demande d'information au réclamant, dossier passe en « En attente »",
+      'Étape Réponse définitive avec message pré-rempli, puis récapitulatif complet à la Clôture',
+      'Dossier classé sans suite réouvrable à tout moment',
+    ],
+    render: () => <ReclamationsPageV5 />,
+  },
+  {
     id: 'v4',
     label: 'Version 4',
-    bullets: ['Copie de la V3, en cours de modification (retours réunion du jour)'],
+    bullets: [
+      'Stepper horizontal du dossier toujours visible (retiré de son accordéon)',
+      'Section "Informations de la réclamation" consolidée (statuts, interlocuteur, notes)',
+      'Réordonnancement de "Informations du réclamant" (porteur du risque, relation client)',
+      'Clôture du dossier désormais une étape manuelle et explicite, distincte de la réponse définitive',
+      'Modale "modifications non sauvegardées" : CTA principal "Sauvegarder", croix pour annuler',
+    ],
     render: () => <ReclamationsPageV4 />,
   },
   {
