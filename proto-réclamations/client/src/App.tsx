@@ -53,7 +53,9 @@ const VERSIONS: Version[] = [
   {
     id: 'v2',
     label: 'Version 2',
-    bullets: ['Copie de la Version 1, point de départ pour de prochaines itérations'],
+    bullets: [
+      "À la création d'une réclamation, le slider ne se ferme plus : un court chargement s'affiche puis le contenu bascule directement sur le traitement du dossier",
+    ],
     render: () => <ReclamationsPageV2 />,
   },
   {

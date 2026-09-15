@@ -402,7 +402,7 @@ function ChoiceToggle({ value, onChange }: { value: 'oui' | 'non' | null; onChan
 function SaveButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
   if (disabled) return null;
   return (
-    <button type="button" className="btn-text dossier-save-btn" onClick={onClick}>
+    <button type="button" className="btn-filled dossier-save-btn" onClick={onClick}>
       Sauvegarder
     </button>
   );
@@ -1235,7 +1235,6 @@ export default function ComplaintDetailDrawer({
             badge={{ label: 'Complété', className: 'chip-mes-reclamations' }}
             open={openSections.has('informations')}
             onToggle={() => toggleSection('informations')}
-            headline="Confirmez ou complétez les champs ci-dessous"
           >
             <div className="dossier-field-row">
               <SectionTextField label="Référence" value={complaint.ticket} required readOnly />
@@ -1258,12 +1257,15 @@ export default function ComplaintDetailDrawer({
                 </span>
               </div>
             </div>
-            <SectionTextField
-              label="Date de réception"
-              value={infoDraft.dateReception}
-              required
-              onChange={(v) => setInfoDraft((d) => ({ ...d, dateReception: v }))}
-            />
+            <div className="dossier-field-row">
+              <SectionTextField
+                label="Date de réception"
+                value={infoDraft.dateReception}
+                required
+                onChange={(v) => setInfoDraft((d) => ({ ...d, dateReception: v }))}
+              />
+              <div className="dossier-field-spacer" />
+            </div>
             <SectionTextField
               label="Objet de la réclamation"
               value={infoDraft.objet}
@@ -1292,12 +1294,15 @@ export default function ComplaintDetailDrawer({
                 }
               />
             )}
-            <SectionSelectField
-              label="Interlocuteur en charge"
-              value={traitementDraft.interlocuteur}
-              options={INTERLOCUTEURS.map((label) => ({ id: label, label }))}
-              onChange={(v) => setTraitementDraft((d) => ({ ...d, interlocuteur: v }))}
-            />
+            <div className="dossier-field-row">
+              <SectionSelectField
+                label="Interlocuteur en charge"
+                value={traitementDraft.interlocuteur}
+                options={INTERLOCUTEURS.map((label) => ({ id: label, label }))}
+                onChange={(v) => setTraitementDraft((d) => ({ ...d, interlocuteur: v }))}
+              />
+              <div className="dossier-field-spacer" />
+            </div>
             <SectionTextField
               label="Notes internes"
               multiline
@@ -1318,7 +1323,6 @@ export default function ComplaintDetailDrawer({
             }
             open={openSections.has('reclamant')}
             onToggle={() => toggleSection('reclamant')}
-            headline="Confirmez ou complétez les champs ci-dessous"
           >
             <div className="dossier-field-row">
               <SectionTextField
@@ -1359,23 +1363,28 @@ export default function ComplaintDetailDrawer({
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
               />
             </div>
-            <SectionTextField
-              label="Dénomination Sociale"
-              value={denominateurSocialDraft}
-              onChange={setDenominateurSocialDraft}
-            />
-            <SectionTextField
-              label="Porteur du risque"
-              placeholder="Entrez le nom du porteur du risque"
-              value={porteurDuRisqueDraft}
-              onChange={setPorteurDuRisqueDraft}
-            />
-            <SectionSelectField<Relation>
-              label="Relation avec ce client"
-              value={reclamantDraft.relation}
-              options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
-              onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
-            />
+            <div className="dossier-field-row">
+              <SectionTextField
+                label="Dénomination Sociale"
+                value={denominateurSocialDraft}
+                onChange={setDenominateurSocialDraft}
+              />
+              <SectionTextField
+                label="Porteur du risque"
+                placeholder="Entrez le nom du porteur du risque"
+                value={porteurDuRisqueDraft}
+                onChange={setPorteurDuRisqueDraft}
+              />
+            </div>
+            <div className="dossier-field-row">
+              <SectionSelectField<Relation>
+                label="Relation avec ce client"
+                value={reclamantDraft.relation}
+                options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
+                onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
+              />
+              <div className="dossier-field-spacer" />
+            </div>
             {reclamantDraft.relation === 'autre' && (
               <SectionTextField
                 label="Précision"
@@ -1398,7 +1407,6 @@ export default function ComplaintDetailDrawer({
             }
             open={openSections.has('suivi')}
             onToggle={() => toggleSection('suivi')}
-            headline="Ces champs peuvent être complétés à tout moment pendant le traitement du dossier — ils ne bloquent pas la complétion du dossier."
           >
             <div className="dossier-field-row">
               <SectionTextField

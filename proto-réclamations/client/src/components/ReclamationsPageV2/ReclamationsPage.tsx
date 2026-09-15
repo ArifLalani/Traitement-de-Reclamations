@@ -424,7 +424,7 @@ export default function ReclamationsPage() {
   // Brief "loading" beat shown in the same panel right after creating a
   // réclamation, before swapping to its treatment content — makes the
   // transition read as "processing" rather than an instant jump-cut.
-  const CREATING_DELAY_MS = 2000;
+  const CREATING_DELAY_MS = 3000;
   useEffect(() => {
     if (!creatingComplaint) return;
     const timeout = setTimeout(() => {

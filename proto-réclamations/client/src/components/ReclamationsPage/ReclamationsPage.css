@@ -2742,7 +2742,7 @@
      padding) so the shadow reads as one bar spanning the whole width,
      not a floating card only as wide as the segmented control. */
   margin: 0 -24px 8px;
-  padding: 24px 24px 0;
+  padding: 16px 24px;
   transition: box-shadow 0.25s ease;
 }
 
@@ -2750,15 +2750,11 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
-.scope-v1 .dossier-sticky-header > .dossier-tabs-segmented {
-  margin-bottom: 24px;
-}
-
 /* The stepper now scrolls with the tab content instead of staying sticky
    with the tabs — it's a direct child of .dossier-content, right after
    the sticky header. */
 .scope-v1 .dossier-content > .dossier-hstepper {
-  margin-top: 16px;
+  margin-top: 8px;
   margin-bottom: 8px;
 }
 
