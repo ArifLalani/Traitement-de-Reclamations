@@ -1127,7 +1127,7 @@ export default function ComplaintDetailDrawer({
     } else if (responseSent) {
       traitementActions = (
         <button type="button" className="btn-filled dossier-next-step-cta" onClick={handleCloturer}>
-          Clôturer
+          Clôturer le dossier
         </button>
       );
     } else {
