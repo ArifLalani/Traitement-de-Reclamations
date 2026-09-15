@@ -2099,7 +2099,11 @@
 
 .scope-v2 .field-label {
   position: absolute;
-  top: 50%;
+  /* Centered against .field-border's own 56px min-height, not 50% of
+     .field-outlined — that wrapper grows taller than the border box
+     whenever .field-error-text is shown below it, which would otherwise
+     pull a percentage-based center down with it. */
+  top: 28px;
   left: 12px;
   transform: translateY(-50%);
   background: transparent;
@@ -2805,6 +2809,7 @@
   flex: 1;
   overflow-x: hidden;
   overflow-y: auto;
+  scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -3330,6 +3335,13 @@
      the label box's empty margin, not its (narrower, centered) text —
      as long as the padding above stays big enough for the widest label. */
   overflow-x: hidden;
+  /* .dossier-content is a flex column, making this a flex item — and
+     overflow-x: hidden switches its automatic minimum size from
+     content-based to 0, so without this it would get squashed shorter
+     (clipping the step labels/badge) whenever a sibling below it (e.g.
+     the "Oui" branch's extra fields) makes the column tall enough to need
+     shrinking. Keep it locked to its natural content height instead. */
+  flex-shrink: 0;
 }
 
 .scope-v2 .dossier-hstepper-line {

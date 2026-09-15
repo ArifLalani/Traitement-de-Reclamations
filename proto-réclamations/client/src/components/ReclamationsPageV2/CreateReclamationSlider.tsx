@@ -92,7 +92,7 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
         </div>
 
         <div className="create-claim-body">
-          <span className="create-claim-heading">Information de la réclamation</span>
+          <span className="create-claim-heading">Informations de la réclamation</span>
           <div className="create-claim-section">
             <div className="modal-row">
               <ReadOnlyField label="Date de réception (mention)">

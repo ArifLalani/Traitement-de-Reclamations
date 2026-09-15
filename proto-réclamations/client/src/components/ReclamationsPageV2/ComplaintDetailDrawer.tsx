@@ -9,6 +9,7 @@ import {
   CONFORMITE_LABEL,
   getDossierSteps,
   INTERLOCUTEURS,
+  padFrDate,
   RELATION_LABEL,
   type Complaint,
   type DossierStep,
@@ -147,6 +148,19 @@ function buildDefaultReponseMessage(complaint: Complaint, reclamant: Reclamant):
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
   return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
+}
+
+// The "Suivi et clôture" date fields are plain text inputs — zero-pad them
+// all before they're saved, in case one was typed as "1/9/2026".
+function padSuiviDates(suivi: SuiviCloture): SuiviCloture {
+  return {
+    ...suivi,
+    dateAR: padFrDate(suivi.dateAR),
+    dateReponse: padFrDate(suivi.dateReponse),
+    actionImmediate: padFrDate(suivi.actionImmediate),
+    actionCorrective: padFrDate(suivi.actionCorrective),
+    demandeContactDate: padFrDate(suivi.demandeContactDate),
+  };
 }
 
 function ChevronIcon({ open }: { open: boolean }) {
@@ -588,6 +602,7 @@ export default function ComplaintDetailDrawer({
     if (notesDraft !== complaint.notesInternes) changed.push('Notes internes');
     onUpdate?.(complaint.id, {
       ...infoDraft,
+      dateReception: padFrDate(infoDraft.dateReception),
       sourceUrl: infoDraft.sourceUrl || undefined,
       traitement: traitementDraft,
       notesInternes: notesDraft,
@@ -612,7 +627,7 @@ export default function ComplaintDetailDrawer({
     if (reclamantDraft.adresse !== complaint.reclamant.adresse) changed.push('Adresse');
     if (reclamantDraft.relation !== complaint.reclamant.relation) changed.push('Relation avec ce client');
     if (reclamantDraft.relationAutrePrecision !== complaint.reclamant.relationAutrePrecision) changed.push('Précision');
-    if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination Sociale');
+    if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination sociale');
     if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
     onUpdate?.(complaint.id, {
       reclamant: reclamantDraft,
@@ -636,6 +651,18 @@ export default function ComplaintDetailDrawer({
   const nomMissing = showContactErrors && !reclamantDraft.nom;
   const contactMissing = showContactErrors && !reclamantDraft.email && !reclamantDraft.telephone;
 
+  // Clicking "Confirmer" can fail validation while the user is scrolled past
+  // the offending field(s) — scroll the first error back into view instead
+  // of silently flagging fields they can't currently see. Runs on every
+  // click (not just when showContactErrors flips false->true), since the
+  // user may have scrolled away again since the last failed attempt.
+  const scrollToFirstError = () => {
+    requestAnimationFrame(() => {
+      const firstError = dossierContentRef.current?.querySelector('.field-border-error, .dossier-field-input-error');
+      firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   // --- Suivi et clôture ---
   const [suiviDraft, setSuiviDraft] = useState<SuiviCloture>(complaint.suiviCloture);
   const suiviDirty = JSON.stringify(suiviDraft) !== JSON.stringify(complaint.suiviCloture);
@@ -653,7 +680,7 @@ export default function ComplaintDetailDrawer({
       changed.push("Vérification d'efficacité");
     if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponse apportée');
     onUpdate?.(complaint.id, {
-      suiviCloture: suiviDraft,
+      suiviCloture: padSuiviDates(suiviDraft),
       ...withHistory('Modification du suivi et clôture', changed),
     });
   };
@@ -681,6 +708,7 @@ export default function ComplaintDetailDrawer({
       if (notesDraft !== complaint.notesInternes) changed.push('Notes internes');
       Object.assign(updates, {
         ...infoDraft,
+        dateReception: padFrDate(infoDraft.dateReception),
         sourceUrl: infoDraft.sourceUrl || undefined,
         traitement: traitementDraft,
         notesInternes: notesDraft,
@@ -705,7 +733,7 @@ export default function ComplaintDetailDrawer({
       if (reclamantDraft.adresse !== complaint.reclamant.adresse) changed.push('Adresse');
       if (reclamantDraft.relation !== complaint.reclamant.relation) changed.push('Relation avec ce client');
       if (reclamantDraft.relationAutrePrecision !== complaint.reclamant.relationAutrePrecision) changed.push('Précision');
-      if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination Sociale');
+      if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination sociale');
       if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
       Object.assign(updates, {
         reclamant: reclamantDraft,
@@ -733,7 +761,7 @@ export default function ComplaintDetailDrawer({
       if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
         changed.push("Vérification d'efficacité");
       if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponse apportée');
-      Object.assign(updates, { suiviCloture: suiviDraft });
+      Object.assign(updates, { suiviCloture: padSuiviDates(suiviDraft) });
       if (changed.length > 0) {
         historique = [
           ...historique,
@@ -776,7 +804,7 @@ export default function ComplaintDetailDrawer({
   const handleConfirmNextStep = () => {
     const todayLabel = new Date().toLocaleDateString('fr-FR');
     if (!arSent) {
-      const dateLabel = arDateDraft || todayLabel;
+      const dateLabel = padFrDate(arDateDraft || todayLabel);
       const nextSuivi = { ...suiviDraft, dateAR: dateLabel };
       setSuiviDraft(nextSuivi);
       onUpdate?.(complaint.id, {
@@ -797,7 +825,7 @@ export default function ComplaintDetailDrawer({
         setReponseMessageDraft(buildDefaultReponseMessage(complaint, reclamantDraft));
       }
     } else {
-      const dateLabel = reponseDateDraft || todayLabel;
+      const dateLabel = padFrDate(reponseDateDraft || todayLabel);
       const nextSuivi = { ...suiviDraft, dateReponse: dateLabel };
       setSuiviDraft(nextSuivi);
       onUpdate?.(complaint.id, {
@@ -820,7 +848,7 @@ export default function ComplaintDetailDrawer({
   // dossier gets closed out via "Classer sans suite".
   const handleConfirmDemande = () => {
     const todayLabel = new Date().toLocaleDateString('fr-FR');
-    const dateLabel = demandeDateDraft || todayLabel;
+    const dateLabel = padFrDate(demandeDateDraft || todayLabel);
     const nextSuivi = { ...suiviDraft, demandeContactDate: dateLabel };
     setSuiviDraft(nextSuivi);
     onUpdate?.(complaint.id, {
@@ -880,6 +908,7 @@ export default function ComplaintDetailDrawer({
     const missing = !reclamantDraft.prenom || !reclamantDraft.nom || (!reclamantDraft.email && !reclamantDraft.telephone);
     if (missing) {
       setShowContactErrors(true);
+      scrollToFirstError();
       return;
     }
     setShowContactErrors(false);
@@ -963,14 +992,19 @@ export default function ComplaintDetailDrawer({
           onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
         />
       </div>
-      <FormField label="Dénomination sociale" value={denominateurSocialDraft} onChange={setDenominateurSocialDraft} />
-      <FormField label="Porteur du risque" value={porteurDuRisqueDraft} onChange={setPorteurDuRisqueDraft} />
-      <FormSelect<Relation>
-        label="Relation avec ce client"
-        value={reclamantDraft.relation}
-        options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
-        onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
-      />
+      <div className="modal-row">
+        <FormField label="Dénomination sociale" value={denominateurSocialDraft} onChange={setDenominateurSocialDraft} />
+        <FormField label="Porteur du risque" value={porteurDuRisqueDraft} onChange={setPorteurDuRisqueDraft} />
+      </div>
+      <div className="modal-row">
+        <FormSelect<Relation>
+          label="Relation avec ce client"
+          value={reclamantDraft.relation}
+          options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
+        />
+        <div className="dossier-field-spacer" />
+      </div>
       {reclamantDraft.relation === 'autre' && (
         <FormField
           label="Précision"
@@ -1000,7 +1034,7 @@ export default function ComplaintDetailDrawer({
 
   const renderReponseInfoFields = () => (
     <>
-      <p className="dossier-block-title">Information des actions menées</p>
+      <p className="dossier-block-title">Informations des actions menées</p>
       <div className="modal-row">
         <FormField
           label="Date de l'action immédiate"
@@ -1020,7 +1054,7 @@ export default function ComplaintDetailDrawer({
       />
       <div className="modal-row">
         <FormSelect<string>
-          label="Vérification de l'efficacité"
+          label="Vérification d'efficacité"
           value={suiviDraft.verificationEfficacite}
           options={VERIFICATION_EFFICACITE_OPTIONS}
           onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
@@ -1086,7 +1120,7 @@ export default function ComplaintDetailDrawer({
       } else if (contactAnswer === 'non') {
         traitementActions = (
           <button type="button" className="btn-filled dossier-next-step-cta" onClick={handleConfirmDemande}>
-            Confirmer la demande
+            Confirmer l'envoi de la demande de contact
           </button>
         );
       }
@@ -1181,13 +1215,13 @@ export default function ComplaintDetailDrawer({
                   <div className="dossier-alert-warning">
                     <div className="dossier-alert-warning-title-row">
                       <AlertTriangleIcon />
-                      <span className="dossier-alert-warning-title">En attente du retour client</span>
+                      <span className="dossier-alert-warning-title">En attente du retour du client</span>
                     </div>
                     <p className="dossier-alert-warning-text">
                       Demande d'information au réclamant envoyée le {complaint.suiviCloture.demandeContactDate}.
                     </p>
                     <p className="dossier-alert-warning-text">
-                      Vous pourrez classer sans suite ce dossier en cas de non réponse ou de refus de partage des
+                      Vous pourrez classer sans suite ce dossier en cas de non-réponse ou de refus de partage des
                       informations de la part du réclamant à partir du {classerSansSuiteDate}.
                     </p>
                   </div>
@@ -1365,7 +1399,7 @@ export default function ComplaintDetailDrawer({
             </div>
             <div className="dossier-field-row">
               <SectionTextField
-                label="Dénomination Sociale"
+                label="Dénomination sociale"
                 value={denominateurSocialDraft}
                 onChange={setDenominateurSocialDraft}
               />

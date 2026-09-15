@@ -317,6 +317,17 @@ function formatDateReception(daysAgo: number): string {
   return date.toLocaleDateString('fr-FR');
 }
 
+// Zero-pads a manually-typed "D/M/YYYY"-ish date string into "DD/MM/YYYY" —
+// these date fields are plain text inputs, not native date pickers, so a
+// user can type "1/9/2026" and it needs normalizing before it's stored or
+// displayed. Leaves anything that doesn't look like a date untouched.
+export function padFrDate(value: string): string {
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return value;
+  const [, day, month, year] = match;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+}
+
 function addDaysToFrDate(value: string, days: number): string {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return '';
