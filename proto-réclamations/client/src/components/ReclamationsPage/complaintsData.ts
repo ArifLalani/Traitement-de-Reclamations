@@ -30,6 +30,10 @@ export type Traitement = {
 export type SuiviCloture = {
   dateAR: string;
   dateReponse: string;
+  // Set when the "Confirmer la demande" fallback is used instead of the AR
+  // (réclamant contact info missing) — puts the dossier in the "En attente"
+  // sub-state until that info is filled in or the dossier is closed.
+  demandeContactDate: string;
   actionImmediate: string;
   actionCorrective: string;
   actionRealisee: string;
@@ -95,7 +99,7 @@ export const PRIORITE_LABEL: Record<Priorite, string> = {
   haute: 'Haute',
 };
 
-type DossierStepStatus = 'done' | 'current' | 'upcoming';
+type DossierStepStatus = 'done' | 'current' | 'upcoming' | 'skipped';
 
 export type DossierStep = {
   label: string;
@@ -111,8 +115,24 @@ export function getDossierSteps(
   complaint: Pick<Complaint, 'avancement' | 'echeanceLabel' | 'echeanceWarning' | 'suiviCloture'>,
 ): DossierStep[] {
   const { avancement, echeanceLabel, echeanceWarning, suiviCloture } = complaint;
-  const arDone = suiviCloture.dateAR !== '' || avancement === 'sans-suite' || avancement === 'cloture';
-  const reponseDone = avancement === 'sans-suite' || avancement === 'cloture';
+
+  // Sans-suite is its own terminal branch — the AR/réponse définitive steps
+  // never happened, so they're shown as skipped rather than done.
+  if (avancement === 'sans-suite') {
+    return [
+      { label: 'Réception de la mention', status: 'done', badgeLabel: 'Complété' },
+      { label: 'Création de la réclamation', status: 'done', badgeLabel: 'Complété' },
+      { label: "Confirmation de l'envoi de l'Accusé de Réception", status: 'skipped' },
+      { label: 'Confirmation de l’envoi de la Réponse Définitive', status: 'skipped' },
+      { label: 'Classement sans suite du dossier', status: 'done', badgeLabel: 'Complété' },
+    ];
+  }
+
+  const arDone = suiviCloture.dateAR !== '' || avancement === 'cloture';
+  // Clôture is now its own explicit step (see "Clôturer" in the drawer) —
+  // sending la réponse définitive no longer auto-closes the dossier, so
+  // this only depends on the date, not on avancement having advanced.
+  const reponseDone = suiviCloture.dateReponse !== '' || avancement === 'cloture';
   const clotureDone = avancement === 'cloture';
 
   return [
@@ -244,6 +264,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
     suiviCloture: {
       dateAR,
       dateReponse,
+      demandeContactDate: '',
       actionImmediate: '',
       actionCorrective: '',
       actionRealisee: '',
@@ -339,7 +360,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0044',
     requerant: 'Isabelle Renaud',
     dateReception: formatDateReception(95),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
@@ -355,7 +376,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0038',
     requerant: 'Lucas Bernard',
     dateReception: formatDateReception(110),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'sans-suite',
     conformite: 'conforme',
     canal: 'Web',
@@ -371,7 +392,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0031',
     requerant: 'Nathalie Vasseur',
     dateReception: formatDateReception(130),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'non-conforme',
     canal: 'Facebook',
@@ -387,7 +408,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0026',
     requerant: 'Arnaud Petit',
     dateReception: formatDateReception(148),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
@@ -403,7 +424,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0018',
     requerant: 'Céline Morel',
     dateReception: formatDateReception(162),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'sans-suite',
     conformite: 'conforme',
     canal: 'X',
@@ -419,7 +440,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0014',
     requerant: 'Julien Garnier',
     dateReception: formatDateReception(178),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
@@ -435,7 +456,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0011',
     requerant: 'Marie-Claire Dupuis',
     dateReception: formatDateReception(195),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Web',
@@ -451,7 +472,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0008',
     requerant: 'Thierry Blanchard',
     dateReception: formatDateReception(210),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'sans-suite',
     conformite: 'non-conforme',
     canal: 'Facebook',
@@ -467,7 +488,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0006',
     requerant: 'Sophie Aubert',
     dateReception: formatDateReception(225),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Instagram',
@@ -483,7 +504,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0004',
     requerant: 'François Lemaire',
     dateReception: formatDateReception(240),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
@@ -499,7 +520,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0010',
     requerant: 'Élise Fontaine',
     dateReception: formatDateReception(258),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'LinkedIn',
@@ -515,7 +536,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0016',
     requerant: 'Marc Girard',
     dateReception: formatDateReception(275),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'sans-suite',
     conformite: 'conforme',
     canal: 'Web',
@@ -531,7 +552,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0020',
     requerant: 'Patricia Chevalier',
     dateReception: formatDateReception(290),
-    echeanceLabel: '-',
+    echeanceLabel: '',
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
@@ -566,7 +587,7 @@ const complaintsCore: ComplaintCore[] = reclamations
       ticket: `#${String(TICKET_NUMBERS[index % TICKET_NUMBERS.length]).padStart(4, '0')}`,
       requerant: r.author,
       dateReception: formatDateReception(index * 4 + 3),
-      echeanceLabel: isClosed ? '-' : `${remainingDays} jours restants`,
+      echeanceLabel: isClosed ? '' : `${remainingDays} jours restants`,
       echeanceWarning: !isClosed && remainingDays <= 9,
       echeanceDays: isClosed ? undefined : remainingDays,
       avancement,

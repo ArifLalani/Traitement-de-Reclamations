@@ -53,21 +53,14 @@ const VERSIONS: Version[] = [
   {
     id: 'v2',
     label: 'Version 2',
-    bullets: [
-      "Plus d'alerte à la création",
-      'Le slider se ferme, une modale demande si vous voulez voir le dossier',
-      'Case "Ne plus afficher" pour mémoriser le choix',
-      'Si "Voir le dossier" : section "Informations du réclamant" dépliée',
-    ],
+    bullets: ['Copie de la Version 1, point de départ pour de prochaines itérations'],
     render: () => <ReclamationsPageV2 />,
   },
   {
     id: 'v1',
     label: 'Version 1',
     bullets: [
-      "Plus d'alerte à la création",
-      'Bascule automatique sur la page Réclamations',
-      'Ouverture directe du dossier, section "Informations du réclamant" dépliée',
+      "Le parcours de traitement du dossier est désormais guidé, pas à pas, plutôt qu'un simple formulaire",
     ],
     render: () => <ReclamationsPage />,
   },

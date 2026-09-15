@@ -5,7 +5,7 @@ import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
 import AlertSnackbar from './AlertSnackbar';
 import ComplaintCard from './ComplaintCard';
-import ComplaintDetailDrawer, { type ComplaintInformationsUpdate, type SectionKey } from './ComplaintDetailDrawer';
+import ComplaintDetailDrawer, { type ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
 import ExportMenu, { type ExportPreferences } from './ExportMenu';
 import ComplaintsFiltersPanel, {
   type ConformiteFilter,
@@ -14,7 +14,6 @@ import ComplaintsFiltersPanel, {
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
-import PostCreateDialog from './PostCreateDialog';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
   type EtatFilter,
@@ -144,18 +143,6 @@ function ResetIcon() {
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
 const REPUTATION_INTRO_SEEN_KEY = 'reputation-intro-seen-v1';
-const POST_CREATE_PREFERENCE_KEY = 'post-create-dialog-preference-v1';
-
-type PostCreatePreference = 'ask' | 'always' | 'never';
-
-function readPostCreatePreference(): PostCreatePreference {
-  try {
-    const raw = localStorage.getItem(POST_CREATE_PREFERENCE_KEY);
-    return raw === 'always' || raw === 'never' ? raw : 'ask';
-  } catch {
-    return 'ask';
-  }
-}
 
 type TabId = SidebarSection;
 
@@ -198,8 +185,6 @@ export default function ReclamationsPage() {
     onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
-  const [pendingCreatedComplaint, setPendingCreatedComplaint] = useState<Complaint | null>(null);
-  const postCreatePreference = useRef<PostCreatePreference>(readPostCreatePreference());
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
     ...initialClosedComplaints,
@@ -210,7 +195,20 @@ export default function ReclamationsPage() {
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
-  const [drawerInitialSection, setDrawerInitialSection] = useState<SectionKey | null>(null);
+  // Holds the just-created complaint while the brief loading state (in the
+  // same panel) is shown, before swapping to its treatment content.
+  const [creatingComplaint, setCreatingComplaint] = useState<Complaint | null>(null);
+  // Tracks the id of a complaint opened as a direct continuation of the
+  // create-réclamation slider, so that one drawer mount skips its entrance
+  // animation (see skipEnterAnimation below) — cleared once the drawer is
+  // closed so a later "voir le dossier" reopen animates normally.
+  const justCreatedIdRef = useRef<string | null>(null);
+  // Success toast shown after creating a réclamation — its own counter (see
+  // handleConfirmCreate) rather than depending on creatingComplaint/
+  // selectedComplaint directly, since those change mid-sequence (loading ->
+  // treatment) and would otherwise tear down the toast's timers early.
+  const [toastTrigger, setToastTrigger] = useState(0);
+  const [showCreatedToast, setShowCreatedToast] = useState(false);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
   const [selectedComplaintIds, setSelectedComplaintIds] = useState<Set<string>>(new Set());
@@ -412,7 +410,7 @@ export default function ReclamationsPage() {
   }, [exportMenuOpen]);
 
   useEffect(() => {
-    if (!createTarget && !selectedComplaint) return;
+    if (!createTarget && !selectedComplaint && !creatingComplaint) return;
     // The scrolling element is document.documentElement (html), not body —
     // locking body's overflow alone no longer blocks the page scroll now
     // that html has its own explicit overflow-x rule (see index.css).
@@ -421,7 +419,33 @@ export default function ReclamationsPage() {
     return () => {
       document.documentElement.style.overflow = previousOverflow;
     };
-  }, [createTarget, selectedComplaint]);
+  }, [createTarget, selectedComplaint, creatingComplaint]);
+
+  // Brief "loading" beat shown in the same panel right after creating a
+  // réclamation, before swapping to its treatment content — makes the
+  // transition read as "processing" rather than an instant jump-cut.
+  const CREATING_DELAY_MS = 2000;
+  useEffect(() => {
+    if (!creatingComplaint) return;
+    const timeout = setTimeout(() => {
+      setSelectedComplaint(creatingComplaint);
+      setCreatingComplaint(null);
+    }, CREATING_DELAY_MS);
+    return () => clearTimeout(timeout);
+  }, [creatingComplaint]);
+
+  // Success toast: appears 1.5s after the loading screen starts (so ~0.5s
+  // before the treatment content lands) and stays up 4s total — spanning
+  // the tail of the loading beat and the first few seconds on the dossier.
+  useEffect(() => {
+    if (toastTrigger === 0) return;
+    const showTimeout = setTimeout(() => setShowCreatedToast(true), 1500);
+    const hideTimeout = setTimeout(() => setShowCreatedToast(false), 1500 + 4000);
+    return () => {
+      clearTimeout(showTimeout);
+      clearTimeout(hideTimeout);
+    };
+  }, [toastTrigger]);
 
   const isEffectivelyNew = (r: (typeof reclamations)[number]) =>
     r.isNew && r.state !== 'mes-reclamations' && !createdIds.has(r.id) && !seenIds.has(r.id);
@@ -472,7 +496,6 @@ export default function ReclamationsPage() {
     try {
       localStorage.removeItem(SEEN_IDS_STORAGE_KEY);
       localStorage.removeItem(REPUTATION_INTRO_SEEN_KEY);
-      localStorage.removeItem(POST_CREATE_PREFERENCE_KEY);
     } catch {
       // localStorage unavailable, ignore
     }
@@ -611,7 +634,7 @@ export default function ReclamationsPage() {
       ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
       requerant,
       dateReception: formData.dateReception,
-      echeanceLabel: '-',
+      echeanceLabel: '',
       avancement: 'a-traiter',
       conformite: 'conforme',
       canal: formData.canal as Source,
@@ -623,43 +646,21 @@ export default function ReclamationsPage() {
       description: formData.description,
     });
     newComplaint.reclamant.telephone = formData.telephone;
-    newComplaint.reclamant.adresse = formData.adresse;
     newComplaint.notesInternes = formData.notesInternes;
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
+    // Rather than closing the create slider and reopening a separate detail
+    // drawer, swap what's shown inside the same panel — the réclamation was
+    // just created, so we go straight into treating it instead of making the
+    // user reopen it from the list, after a brief loading beat.
+    justCreatedIdRef.current = newComplaint.id;
     setCreateTarget(null);
-
-    if (postCreatePreference.current === 'always') {
-      openComplaintDetail(newComplaint, 'reclamant');
-    } else if (postCreatePreference.current === 'ask') {
-      setPendingCreatedComplaint(newComplaint);
-    }
-    // 'never' — stay put, no dialog, no redirect.
+    setCreatingComplaint(newComplaint);
+    setToastTrigger((t) => t + 1);
   };
 
-  const savePostCreatePreference = (preference: PostCreatePreference) => {
-    postCreatePreference.current = preference;
-    try {
-      localStorage.setItem(POST_CREATE_PREFERENCE_KEY, preference);
-    } catch {
-      // localStorage unavailable, ignore
-    }
-  };
-
-  const handlePostCreateView = (dontAskAgain: boolean) => {
-    if (dontAskAgain) savePostCreatePreference('always');
-    if (pendingCreatedComplaint) openComplaintDetail(pendingCreatedComplaint, 'reclamant');
-    setPendingCreatedComplaint(null);
-  };
-
-  const handlePostCreateDismiss = (dontAskAgain: boolean) => {
-    if (dontAskAgain) savePostCreatePreference('never');
-    setPendingCreatedComplaint(null);
-  };
-
-  const openComplaintDetail = (complaint: Complaint, initialSection?: SectionKey) => {
+  const openComplaintDetail = (complaint: Complaint) => {
     handleSelectTab('reclamations');
-    setDrawerInitialSection(initialSection ?? null);
     // Let the réclamations list finish mounting and playing its card entrance
     // animation (0.6s, see .card-list > * in ReclamationsPage.css) before the
     // detail drawer slides in, so the two animations don't overlap.
@@ -1301,10 +1302,6 @@ export default function ReclamationsPage() {
         onAction={snackbar?.variant === 'info' ? handleSnackbarUndo : undefined}
       />
 
-      {pendingCreatedComplaint && (
-        <PostCreateDialog onView={handlePostCreateView} onDismiss={handlePostCreateDismiss} />
-      )}
-
       {createTarget && (
         <CreateReclamationSlider
           reclamation={createTarget}
@@ -1313,13 +1310,35 @@ export default function ReclamationsPage() {
         />
       )}
 
+      {creatingComplaint && (
+        <div className="drawer-backdrop drawer-noenter">
+          <div className="drawer-panel dossier-panel drawer-noenter">
+            <div className="dossier-panel-loading">
+              <span className="dossier-panel-loader" />
+              <p className="dossier-panel-loading-text">Création de la réclamation…</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedComplaint && (
         <ComplaintDetailDrawer
           complaint={selectedComplaint}
-          onClose={() => setSelectedComplaint(null)}
+          onClose={() => {
+            justCreatedIdRef.current = null;
+            setSelectedComplaint(null);
+          }}
           onUpdate={handleUpdateComplaint}
-          initialOpenSection={drawerInitialSection ?? undefined}
+          skipEnterAnimation={justCreatedIdRef.current === selectedComplaint.id}
         />
+      )}
+
+      {showCreatedToast && (createTarget || creatingComplaint || selectedComplaint) && (
+        <div className="created-toast-overlay">
+          <div className="created-toast-band">
+            <div className="dossier-created-toast">Réclamation créée avec succès</div>
+          </div>
+        </div>
       )}
     </div>
   );

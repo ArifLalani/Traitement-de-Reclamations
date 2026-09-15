@@ -110,6 +110,8 @@ export default function ReclamationCard({
     setExpanded((value) => !value);
   };
 
+  const [badgeTooltipOpen, setBadgeTooltipOpen] = useState(false);
+
   const badge = STATE_BADGE[state];
   const hasActions = isMesReclamations || isDeclinee || isFlagged || canCreate;
 
@@ -176,9 +178,21 @@ export default function ReclamationCard({
 
         <div className="card-cta">
           {badge && (
-            <span className={`chip cta-badge ${badge.className}`}>
-              {isFlagged && <FlagIcon />}
-              {badge.label}
+            <span
+              className="cta-badge-wrap"
+              onMouseEnter={() => isFlagged && setBadgeTooltipOpen(true)}
+              onMouseLeave={() => setBadgeTooltipOpen(false)}
+            >
+              <span className={`chip cta-badge ${badge.className}`}>
+                {isFlagged && <FlagIcon />}
+                {badge.label}
+              </span>
+              {isFlagged && badgeTooltipOpen && (
+                <span className="cta-badge-tooltip">
+                  Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant
+                  traitement.
+                </span>
+              )}
             </span>
           )}
           {hasActions && (

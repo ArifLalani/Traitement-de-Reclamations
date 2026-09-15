@@ -92,7 +92,7 @@ export default function ComplaintCard({
     setExpanded((value) => !value);
   };
 
-  const isClosed = echeanceLabel === '-';
+  const isClosed = echeanceLabel === '';
 
   return (
     <div className="card-wrapper">

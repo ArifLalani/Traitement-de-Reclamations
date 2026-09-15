@@ -5,7 +5,7 @@ import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
 import AlertSnackbar from './AlertSnackbar';
 import ComplaintCard from './ComplaintCard';
-import ComplaintDetailDrawer, { type ComplaintInformationsUpdate, type SectionKey } from './ComplaintDetailDrawer';
+import ComplaintDetailDrawer, { type ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
 import ExportMenu, { type ExportPreferences } from './ExportMenu';
 import ComplaintsFiltersPanel, {
   type ConformiteFilter,
@@ -14,6 +14,7 @@ import ComplaintsFiltersPanel, {
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
+import ReclamationCreatedAlert from './ReclamationCreatedAlert';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
   type EtatFilter,
@@ -185,6 +186,7 @@ export default function ReclamationsPage() {
     onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
+  const [createdAlert, setCreatedAlert] = useState<{ complaint: Complaint } | null>(null);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
     ...initialClosedComplaints,
@@ -195,7 +197,6 @@ export default function ReclamationsPage() {
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
-  const [drawerInitialSection, setDrawerInitialSection] = useState<SectionKey | null>(null);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
   const [selectedComplaintIds, setSelectedComplaintIds] = useState<Set<string>>(new Set());
@@ -595,7 +596,7 @@ export default function ReclamationsPage() {
       ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
       requerant,
       dateReception: formData.dateReception,
-      echeanceLabel: '-',
+      echeanceLabel: '',
       avancement: 'a-traiter',
       conformite: 'conforme',
       canal: formData.canal as Source,
@@ -607,17 +608,19 @@ export default function ReclamationsPage() {
       description: formData.description,
     });
     newComplaint.reclamant.telephone = formData.telephone;
-    newComplaint.reclamant.adresse = formData.adresse;
     newComplaint.notesInternes = formData.notesInternes;
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     setCreateTarget(null);
-    openComplaintDetail(newComplaint, 'reclamant');
+    setCreatedAlert({ complaint: newComplaint });
   };
 
-  const openComplaintDetail = (complaint: Complaint, initialSection?: SectionKey) => {
+  const dismissCreatedAlert = () => {
+    setCreatedAlert(null);
+  };
+
+  const openComplaintDetail = (complaint: Complaint) => {
     handleSelectTab('reclamations');
-    setDrawerInitialSection(initialSection ?? null);
     // Let the réclamations list finish mounting and playing its card entrance
     // animation (0.6s, see .card-list > * in ReclamationsPage.css) before the
     // detail drawer slides in, so the two animations don't overlap.
@@ -1259,6 +1262,16 @@ export default function ReclamationsPage() {
         onAction={snackbar?.variant === 'info' ? handleSnackbarUndo : undefined}
       />
 
+      <ReclamationCreatedAlert
+        visible={!!createdAlert}
+        onView={() => {
+          if (createdAlert) openComplaintDetail(createdAlert.complaint);
+          dismissCreatedAlert();
+        }}
+        onClose={dismissCreatedAlert}
+        sidebarOpen={sidebarOpen}
+      />
+
       {createTarget && (
         <CreateReclamationSlider
           reclamation={createTarget}
@@ -1272,7 +1285,6 @@ export default function ReclamationsPage() {
           complaint={selectedComplaint}
           onClose={() => setSelectedComplaint(null)}
           onUpdate={handleUpdateComplaint}
-          initialOpenSection={drawerInitialSection ?? undefined}
         />
       )}
     </div>

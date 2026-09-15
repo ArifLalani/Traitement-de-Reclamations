@@ -1211,6 +1211,8 @@
   display: flex;
   gap: 16px;
   align-items: stretch;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  transition: box-shadow 0.2s ease;
 }
 
 .scope-v1 .card:hover {
@@ -1404,6 +1406,29 @@
   gap: 16px;
 }
 
+.scope-v1 .cta-badge-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.scope-v1 .cta-badge-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: #1a1a1a;
+  color: #fff;
+  font: var(--font-caption);
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 4px;
+  box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.2);
+  z-index: 5;
+  pointer-events: none;
+  animation: panel-fade-slide-up 0.15s ease;
+}
+
 .scope-v1 .card-actions {
   flex: 1;
   width: 100%;
@@ -1426,6 +1451,12 @@
 
 .scope-v1 .btn-text:hover {
   background: var(--color-action-hover);
+}
+
+.scope-v1 .btn-text:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+  pointer-events: none;
 }
 
 .scope-v1 .btn-outlined {
@@ -1576,6 +1607,112 @@
   background: var(--color-action-hover);
 }
 
+.scope-v1 .created-alert {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  width: 700px;
+  max-width: calc(100vw - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #edf7ed;
+  border-radius: 4px;
+  padding: 12px 16px;
+  box-shadow:
+    0 1px 8px 0 rgba(0, 0, 0, 0.12),
+    0 3px 4px 0 rgba(0, 0, 0, 0.14),
+    0 3px 3px -2px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease, left 0.25s ease;
+}
+
+.scope-v1 .created-alert-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+/* The sidebar overlays instead of pushing (see .sidebar above), so
+   left:50% centers on the full viewport rather than on the visible
+   content area when it's open — shift by half the 300px sidebar width to
+   re-center against the content instead of the page. */
+.scope-v1 .created-alert-shifted {
+  left: calc(50% + 150px);
+}
+
+.scope-v1 .created-alert-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 100px;
+  color: #1e4620;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.scope-v1 .created-alert-close:hover {
+  background: rgba(0, 0, 0, 0.04);
+  opacity: 1;
+}
+
+.scope-v1 .created-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 28px;
+  color: #1e4620;
+  font: var(--font-h6);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+}
+
+.scope-v1 .created-alert-description {
+  margin: 0;
+  padding-right: 28px;
+  color: #1e4620;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+}
+
+.scope-v1 .created-alert-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.scope-v1 .created-alert-cta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+  box-shadow:
+    0 1px 5px 0 rgba(0, 0, 0, 0.12),
+    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 3px 1px -2px rgba(0, 0, 0, 0.2);
+}
+
+.scope-v1 .created-alert-cta:hover {
+  filter: brightness(0.92);
+}
+
 /* Create reclamation modal */
 @keyframes modal-backdrop-fade-in {
   from {
@@ -1697,6 +1834,7 @@
 }
 
 .scope-v1 .confirm-dialog-paper {
+  position: relative;
   background: var(--color-white);
   border-radius: 4px;
   width: 420px;
@@ -1713,11 +1851,28 @@
 }
 
 .scope-v1 .confirm-dialog-title {
-  padding: 20px 24px 0;
+  padding: 20px 40px 0 24px;
   margin: 0;
   font: var(--font-h6);
   letter-spacing: 0.15px;
   color: var(--color-text-primary);
+}
+
+.scope-v1 .confirm-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+
+.scope-v1 .confirm-dialog-close:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .scope-v1 .confirm-dialog-body {
@@ -1894,25 +2049,31 @@
   scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
+/* Hug-content variant (FormTextareaAutoGrow) — always sized to fit its
+   value exactly, so there's never internal scroll/fade to manage. */
+.scope-v1 .field-border-textarea-autogrow textarea {
+  overflow: hidden;
+}
+
 .scope-v1 .field-fade-top textarea {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 20px, black 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, black 20px, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 36px, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 36px, black 100%);
 }
 
 .scope-v1 .field-fade-bottom textarea {
-  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%);
-  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 36px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 36px), transparent 100%);
 }
 
 .scope-v1 .field-fade-top.field-fade-bottom textarea {
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    black 20px,
-    black calc(100% - 20px),
+    black 36px,
+    black calc(100% - 36px),
     transparent 100%
   );
-  mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 36px, black calc(100% - 36px), transparent 100%);
 }
 
 .scope-v1 .field-border-textarea textarea::-webkit-scrollbar {
@@ -1966,6 +2127,22 @@
 
 .scope-v1 .field-outlined-textarea .field-label-floating {
   top: 0;
+}
+
+.scope-v1 .field-border-error {
+  border-color: #e4032e;
+}
+
+.scope-v1 .field-label-error {
+  color: #e4032e;
+}
+
+.scope-v1 .field-error-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 0.15px;
+  color: #e4032e;
 }
 
 /* Complaints table */
@@ -2514,6 +2691,12 @@
   color: var(--color-text-primary);
 }
 
+.scope-v1 .dossier-status-chip-attente {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.87);
+  color: rgba(0, 0, 0, 0.87);
+}
+
 .scope-v1 .dossier-header-spacer {
   flex: 1;
 }
@@ -2527,11 +2710,224 @@
 
 .scope-v1 .dossier-content {
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  gap: 0;
+  padding: 0 24px 24px;
+}
+
+.scope-v1 .dossier-content > .dossier-info-alert {
+  margin-bottom: 32px;
+}
+
+.scope-v1 .dossier-content > .dossier-section:not(:last-child) {
+  margin-bottom: 16px;
+}
+
+/* Tabs + stepper stay put while the tab content underneath scrolls. The
+   24px top padding normally on .dossier-content lives here instead (as
+   padding-top, not margin) so this wrapper's own white background covers
+   that space too — otherwise scrolled content would still peek through
+   the gap between the drawer header and the stuck tabs. */
+.scope-v1 .dossier-content > .dossier-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  /* Full-bleed to the drawer's edges (undoing .dossier-content's own side
+     padding) so the shadow reads as one bar spanning the whole width,
+     not a floating card only as wide as the segmented control. */
+  margin: 0 -24px 8px;
+  padding: 24px 24px 0;
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .dossier-sticky-header-stuck {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.scope-v1 .dossier-sticky-header > .dossier-tabs-segmented {
+  margin-bottom: 24px;
+}
+
+/* The stepper now scrolls with the tab content instead of staying sticky
+   with the tabs — it's a direct child of .dossier-content, right after
+   the sticky header. */
+.scope-v1 .dossier-content > .dossier-hstepper {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+/* Dossier tabs (Informations / Traitement / Historique) */
+.scope-v1 .dossier-tabs-segmented {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  background: var(--color-grey-100);
+  border-radius: 12px;
+  padding: 4px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-tabs-segment-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
+  background: var(--color-white);
+  border-radius: 8px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.04);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-v1 .dossier-tabs-segment {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  cursor: pointer;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font: var(--font-button-medium);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-tabs-segment-active {
+  color: var(--color-text-primary);
+}
+
+/* Traitement tab: guiding question flow */
+.scope-v1 .dossier-treatment-block {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  padding: 24px;
+}
+
+.scope-v1 .dossier-treatment-block > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-treatment-block > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+
+.scope-v1 .dossier-content > .dossier-info-alert-text {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-treatment-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-treatment-fields > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-treatment-fields > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(n + 5) {
+  animation-delay: 0.4s;
+}
+
+.scope-v1 .dossier-question-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-field-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.scope-v1 .dossier-ar-message-field .dossier-field-input textarea {
+  min-height: 200px;
+  white-space: pre-wrap;
+}
+
+.scope-v1 .dossier-question-text {
+  font: var(--font-subtitle1);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-block-title {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+/* Each "Informations ..." group's own fields sit 16px apart (the block's
+   base gap), but the group itself needs to read as a distinct section from
+   whatever came before it — so its title gets an extra 16px on top of that
+   gap, landing on the 32px separation used between top-level groups. */
+.scope-v1 .dossier-treatment-block > .dossier-block-title {
+  margin-top: 16px;
+}
+
+.scope-v1 .dossier-treatment-block > .dossier-block-title:first-child {
+  margin-top: 0;
+}
+
+.scope-v1 .dossier-choice-row {
+  display: flex;
+  gap: 8px;
+}
+
+.scope-v1 .dossier-toggle-btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-chip-border);
+  background: var(--color-white);
+  font: var(--font-button-medium);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.scope-v1 .dossier-toggle-btn:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .dossier-toggle-btn-active {
+  background: var(--color-primary-blue);
+  border-color: var(--color-primary-blue);
+  color: var(--color-white);
+}
+
+.scope-v1 .dossier-toggle-btn-active:hover {
+  background: var(--color-primary-blue);
 }
 
 .scope-v1 .dossier-section-meta {
@@ -2545,6 +2941,14 @@
   background: #fafafa;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-section + .dossier-section {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-section + .dossier-section + .dossier-section {
+  animation-delay: 0.1s;
 }
 
 .scope-v1 .dossier-section-collapse {
@@ -2714,6 +3118,17 @@
   min-height: 0;
 }
 
+.scope-v1 .dossier-field-input-error {
+  border-color: #e4032e;
+}
+
+.scope-v1 .dossier-field-error-text {
+  font: var(--font-body2);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: #e4032e;
+}
+
 .scope-v1 .dossier-field-adornment {
   flex-shrink: 0;
   display: flex;
@@ -2803,25 +3218,35 @@
    no card/title. The 5 dots are the flex items that space-between
    actually spaces (fixed 24px each), so spacing is decided purely by the
    dots and stays perfectly even. The container's own left/right padding
-   is set to exactly offset each edge dot's centering so the LABEL's outer
-   edge — not the dot — lands on the panel's margin: "Réception" (59.4px)
-   needs the dot pushed in by (59.4-24)/2 ≈ 17.7px to end up flush left,
-   "Clôture" (42.9px) needs (42.9-24)/2 ≈ 9.45px on the right. These are
-   hardcoded to this stepper's fixed 5 labels/font — if either label text
-   changes, re-measure and adjust. */
+   is set to offset each edge dot's centering so the LABEL's outer edge —
+   not the dot — has room to sit at the panel's margin without being
+   clipped: the wrapped first-step label's widest line, "Réception de la
+   mention" (~101px), needs the dot pushed in by (101-24)/2 ≈ 38.5px on the
+   left, rounded up to 40px; the right side uses the widest last-step label
+   across both label sets — "Clôture du dossier"'s widest line (~69px) —
+   needing (69-24)/2 ≈ 22.5px, rounded up to 24px so "sans suite" (narrower)
+   also clears it with a little room to spare. These are hardcoded to this
+   stepper's label set and font — if any label text changes, re-measure and
+   adjust (and the line/line-fill offsets below, which mirror this same
+   math). */
 .scope-v1 .dossier-hstepper {
   position: relative;
   display: flex;
   justify-content: space-between;
-  padding: 0 9.45px 56px 17.7px;
-  margin-bottom: 12px;
+  padding: 0 24px 92px 40px;
+  /* The first/last step's centered label box is wider than the space
+     between its dot and the panel edge, which otherwise creates a few
+     px of horizontal scroll on the whole tab. Clipping here only trims
+     the label box's empty margin, not its (narrower, centered) text —
+     as long as the padding above stays big enough for the widest label. */
+  overflow-x: hidden;
 }
 
 .scope-v1 .dossier-hstepper-line {
   position: absolute;
   top: 12px;
-  left: 29.7px;
-  right: 21.45px;
+  left: 52px;
+  right: 36px;
   height: 2px;
   background: #d9d9d9;
   transform: translateY(-1px);
@@ -2830,7 +3255,7 @@
 .scope-v1 .dossier-hstepper-line-fill {
   position: absolute;
   top: 12px;
-  left: 29.7px;
+  left: 52px;
   height: 2px;
   background: #2e7d32;
   transform: translateY(-1px);
@@ -2876,10 +3301,12 @@
   top: 32px;
   left: 50%;
   transform: translateX(-50%);
+  width: 104px;
   font: 500 13px/1.3 var(--font-family);
   letter-spacing: 0.1px;
   color: var(--color-text-secondary);
-  white-space: nowrap;
+  text-align: center;
+  white-space: normal;
 }
 
 .scope-v1 .dossier-hstep-current .dossier-hstep-label {
@@ -2887,16 +3314,21 @@
   font-weight: 700;
 }
 
+
 .scope-v1 .dossier-hstep-upcoming .dossier-hstep-label {
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .dossier-hstep-skipped .dossier-hstep-label {
   color: var(--color-text-disabled);
 }
 
 .scope-v1 .dossier-hstep-badge {
   position: absolute;
-  top: 50px;
+  top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  font: 700 12px/1.2 var(--font-family);
+  font: 500 12px/1.2 var(--font-family);
   letter-spacing: 0.2px;
   color: var(--color-lightblue-text);
   white-space: nowrap;
@@ -2931,15 +3363,6 @@
   animation-delay: 0.2s;
 }
 
-.scope-v1 .dossier-history-dot {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  margin-top: 6px;
-  border-radius: 100px;
-  background: #2196f3;
-}
-
 .scope-v1 .dossier-history-content {
   flex: 1;
   display: flex;
@@ -2965,33 +3388,109 @@
   color: var(--color-text-disabled);
 }
 
+/* Buttons-only footer — the info text that used to live here moved to
+   .dossier-info-alert, right under the stepper (see markup). */
 .scope-v1 .dossier-next-step {
-  background: var(--color-info-selected-bg);
-  border: 1px solid rgba(33, 150, 243, 0.5);
-  border-radius: 8px;
+  background: var(--color-white);
   box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
-  margin: 16px 24px;
-  padding: 16px;
+  padding: 20px 16px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   position: sticky;
   bottom: 0;
   z-index: 2;
 }
 
-.scope-v1 .dossier-next-step-title {
-  align-self: flex-start;
-  font: 700 14px/1 var(--font-family);
-  letter-spacing: 1px;
-  text-transform: uppercase;
+.scope-v1 .dossier-info-alert {
+  background: rgba(33, 150, 243, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-info-alert-text {
+  margin: 0;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
   color: var(--color-primary-blue);
 }
 
-.scope-v1 .dossier-next-step-text {
-  align-self: flex-start;
-  font: var(--font-body2);
-  letter-spacing: 0.17px;
+.scope-v1 .dossier-done-text {
+  margin: 0;
+  max-width: 578px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
   color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.scope-v1 .dossier-alert-warning {
+  background: var(--color-alert-bg);
+  border: 1px solid var(--color-alert-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-alert-warning-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-warning-main);
+}
+
+.scope-v1 .dossier-alert-warning-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-warning-main);
+}
+
+.scope-v1 .dossier-alert-warning-text {
+  margin: 0;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-warning-dark);
+}
+
+.scope-v1 .dossier-treatment-block-centered {
+  align-items: center;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.scope-v1 .dossier-treatment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Sticky footer for the Traitement tab's primary action(s) — sits outside
+   the scrolling .dossier-content so it's always reachable. A drop shadow
+   (not a gradient) separates it from whatever scrolls up behind it.
+   Buttons hug their own content (row flex, no stretch) instead of filling
+   the width. */
+.scope-v1 .dossier-traitement-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 20px 24px;
+  background: var(--color-white);
+  position: relative;
+  z-index: 2;
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .dossier-traitement-footer-shadow {
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
 }
