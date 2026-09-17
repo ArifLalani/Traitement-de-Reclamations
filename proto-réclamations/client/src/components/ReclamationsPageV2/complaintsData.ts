@@ -37,6 +37,7 @@ export type SuiviCloture = {
   actionImmediate: string;
   actionCorrective: string;
   actionRealisee: string;
+  actionsCorrectives: string;
   verificationEfficacite: string;
   reponseApportee: string;
 };
@@ -54,6 +55,7 @@ export type Complaint = {
   ticket: string;
   requerant: string;
   dateReception: string;
+  dateCloture?: string;
   echeanceLabel: string;
   echeanceWarning?: boolean;
   echeanceDays?: number;
@@ -204,6 +206,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   const reponseDone = c.avancement === 'sans-suite' || c.avancement === 'cloture';
   const dateAR = arDone ? addDaysToFrDate(c.dateReception, 3) : '';
   const dateReponse = reponseDone ? addDaysToFrDate(c.dateReception, 25) : '';
+  const dateCloture = c.avancement === 'cloture' ? addDaysToFrDate(dateReponse, 5) : undefined;
   const interlocuteur = arDone ? INTERLOCUTEURS[index % INTERLOCUTEURS.length] : '';
   // Only a subset of dossiers get the extra activity — not every progressed
   // dossier had a manual edit or an internal note logged against it.
@@ -244,6 +247,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
 
   return {
     ...c,
+    dateCloture,
     reclamant: {
       prenom,
       nom,
@@ -268,6 +272,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
       actionImmediate: '',
       actionCorrective: '',
       actionRealisee: '',
+      actionsCorrectives: '',
       verificationEfficacite: '',
       reponseApportee: '',
     },

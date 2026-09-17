@@ -945,7 +945,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
       <p className="dossier-block-title">Informations du réclamant</p>
       <div className="modal-row">
         <FormField
-          label="Nom"
+          label="Nom du réclamant"
           required
           placeholder="Entrez le nom du réclamant"
           value={reclamantDraft.nom}
@@ -954,7 +954,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
           onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
         />
         <FormField
-          label="Prénom"
+          label="Prénom du réclamant"
           required
           placeholder="Entrez le prénom du réclamant"
           value={reclamantDraft.prenom}
@@ -1239,6 +1239,10 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                 </div>
               ) : responseSent ? (
                 <div className="dossier-treatment-block">
+                  <div className="dossier-alert-info">
+                    Vérifiez que les informations du dossier ont bien été renseignées dans leur globalité avant de
+                    clôturer définitivement le dossier.
+                  </div>
                   {renderReclamantFields()}
                   {renderArInfoFields()}
                   {renderReponseInfoFields()}
@@ -1348,7 +1352,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
           >
             <div className="dossier-field-row">
               <SectionTextField
-                label="Prénom"
+                label="Prénom du réclamant"
                 required
                 placeholder="Entrez le prénom du réclamant"
                 value={reclamantDraft.prenom}
@@ -1357,7 +1361,7 @@ export default function ComplaintDetailDrawer({ complaint, onClose, onUpdate }: 
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, prenom: v }))}
               />
               <SectionTextField
-                label="Nom"
+                label="Nom du réclamant"
                 required
                 placeholder="Entrez le nom du réclamant"
                 value={reclamantDraft.nom}

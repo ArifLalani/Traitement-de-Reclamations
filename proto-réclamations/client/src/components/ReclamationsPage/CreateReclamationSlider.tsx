@@ -112,8 +112,8 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
           <span className="create-claim-heading">Informations du réclamant</span>
           <div className="create-claim-section">
             <div className="modal-row">
-              <FormField label="Nom" value={nom} onChange={setNom} />
-              <FormField label="Prénom" value={prenom} onChange={setPrenom} />
+              <FormField label="Nom du réclamant" value={nom} onChange={setNom} />
+              <FormField label="Prénom du réclamant" value={prenom} onChange={setPrenom} />
             </div>
             <div className="modal-row">
               <FormField label="Email" value={email} onChange={setEmail} />

@@ -3055,6 +3055,10 @@
   color: #e4032e;
 }
 
+.scope-v1 .field-required {
+  color: #e4032e;
+}
+
 .scope-v1 .dossier-field-input {
   background: var(--color-white);
   border: 1px solid rgba(0, 0, 0, 0.23);
@@ -3117,6 +3121,7 @@
 
 .scope-v1 .dossier-field-input-readonly textarea {
   min-height: 0;
+  field-sizing: content;
 }
 
 .scope-v1 .dossier-field-input-error {
@@ -3446,6 +3451,19 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
+}
+
+.scope-v1 .dossier-alert-info {
+  background: rgba(33, 150, 243, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  width: 100%;
+  font: 400 14px/1.43 var(--font-family);
+  letter-spacing: 0.17px;
+  color: var(--color-primary-blue);
+  /* .dossier-treatment-block's 16px gap is generous for this alert
+     specifically — pull its neighbors closer on both sides. */
+  margin: -8px 0;
 }
 
 .scope-v1 .dossier-alert-warning-title-row {

@@ -39,7 +39,7 @@ export function FormField({ label, required, value, onChange, placeholder, error
       </div>
       <span className={`field-label ${floating ? 'field-label-floating' : ''} ${error ? 'field-label-error' : ''}`}>
         {label}
-        {required ? '*' : ''}
+        {required && <span className="field-required">*</span>}
       </span>
       {error && errorText && <span className="field-error-text">{errorText}</span>}
     </div>
@@ -101,7 +101,7 @@ export function FormSelect<T extends string>({ label, required, value, options, 
       </div>
       <span className={`field-label ${floating ? 'field-label-floating' : ''}`}>
         {label}
-        {required ? '*' : ''}
+        {required && <span className="field-required">*</span>}
       </span>
       {open && (
         <div ref={menuRef} className="field-dropdown-menu" style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}>
@@ -165,7 +165,7 @@ export function FormTextarea({ label, required, value, onChange }: FormFieldProp
       </div>
       <span className={`field-label ${floating ? 'field-label-floating' : ''}`}>
         {label}
-        {required ? '*' : ''}
+        {required && <span className="field-required">*</span>}
       </span>
     </div>
   );
@@ -200,7 +200,7 @@ export function FormTextareaAutoGrow({ label, required, value, onChange }: FormF
       </div>
       <span className={`field-label ${floating ? 'field-label-floating' : ''}`}>
         {label}
-        {required ? '*' : ''}
+        {required && <span className="field-required">*</span>}
       </span>
     </div>
   );

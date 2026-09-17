@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import drawerClose from '../../assets/figma/drawer-close.svg';
-import { FormField, FormTextareaAutoGrow, ReadOnlyField } from './FormFields';
+import { FormField, FormSelect, FormTextareaAutoGrow, ReadOnlyField } from './FormFields';
+import { RELATION_LABEL, type Relation } from './complaintsData';
 import type { Reclamation } from './data';
 
 function formatDateFR(dateLabel: string) {
@@ -33,6 +34,9 @@ export type ReclamationFormData = {
   dateReception: string;
   email: string;
   telephone: string;
+  denominationSociale: string;
+  porteurDuRisque: string;
+  relation: Relation | '';
   objet: string;
   notesInternes: string;
   description: string;
@@ -53,6 +57,9 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
   const dateReception = formatDateFR(reclamation.date);
   const [email, setEmail] = useState('');
   const [telephone, setTelephone] = useState('');
+  const [denominationSociale, setDenominationSociale] = useState('');
+  const [porteurDuRisque, setPorteurDuRisque] = useState('');
+  const [relation, setRelation] = useState<Relation | ''>('');
   const [objet, setObjet] = useState(() => suggestObjet(reclamation.text));
   const [notesInternes, setNotesInternes] = useState('');
   const [closing, setClosing] = useState(false);
@@ -75,6 +82,9 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
       dateReception,
       email,
       telephone,
+      denominationSociale,
+      porteurDuRisque,
+      relation,
       objet,
       notesInternes,
       description: reclamation.text,
@@ -110,12 +120,25 @@ export default function CreateReclamationSlider({ reclamation, onClose, onSubmit
           <span className="create-claim-heading">Informations du réclamant</span>
           <div className="create-claim-section">
             <div className="modal-row">
-              <FormField label="Nom" value={nom} onChange={setNom} />
-              <FormField label="Prénom" value={prenom} onChange={setPrenom} />
+              <FormField label="Nom du réclamant" value={nom} onChange={setNom} />
+              <FormField label="Prénom du réclamant" value={prenom} onChange={setPrenom} />
             </div>
             <div className="modal-row">
               <FormField label="Email" value={email} onChange={setEmail} />
               <FormField label="Téléphone" value={telephone} onChange={setTelephone} />
+            </div>
+            <div className="modal-row">
+              <FormField label="Dénomination sociale" value={denominationSociale} onChange={setDenominationSociale} />
+              <FormField label="Porteur du risque" value={porteurDuRisque} onChange={setPorteurDuRisque} />
+            </div>
+            <div className="modal-row">
+              <FormSelect<Relation>
+                label="Relation avec ce client"
+                value={relation}
+                options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
+                onChange={setRelation}
+              />
+              <div className="dossier-field-spacer" />
             </div>
             <FormField label="Objet de la réclamation" required value={objet} onChange={setObjet} />
             <FormTextareaAutoGrow label="Notes internes" value={notesInternes} onChange={setNotesInternes} />

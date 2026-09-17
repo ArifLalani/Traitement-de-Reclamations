@@ -2986,11 +2986,13 @@
    base gap), but the group itself needs to read as a distinct section from
    whatever came before it — so its title gets an extra 16px on top of that
    gap, landing on the 32px separation used between top-level groups. */
-.scope-v2 .dossier-treatment-block > .dossier-block-title {
+.scope-v2 .dossier-treatment-block > .dossier-block-title,
+.scope-v2 .dossier-treatment-fields > .dossier-block-title {
   margin-top: 16px;
 }
 
-.scope-v2 .dossier-treatment-block > .dossier-block-title:first-child {
+.scope-v2 .dossier-treatment-block > .dossier-block-title:first-child,
+.scope-v2 .dossier-treatment-fields > .dossier-block-title:first-child {
   margin-top: 0;
 }
 
@@ -3149,6 +3151,10 @@
   color: #e4032e;
 }
 
+.scope-v2 .field-required {
+  color: #e4032e;
+}
+
 .scope-v2 .dossier-field-input {
   background: var(--color-white);
   border: 1px solid rgba(0, 0, 0, 0.23);
@@ -3211,6 +3217,7 @@
 
 .scope-v2 .dossier-field-input-readonly textarea {
   min-height: 0;
+  field-sizing: content;
 }
 
 .scope-v2 .dossier-field-input-error {
@@ -3540,6 +3547,19 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
+}
+
+.scope-v2 .dossier-alert-info {
+  background: rgba(33, 150, 243, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  width: 100%;
+  font: 400 14px/1.43 var(--font-family);
+  letter-spacing: 0.17px;
+  color: var(--color-primary-blue);
+  /* .dossier-treatment-block's 16px gap is generous for this alert
+     specifically — pull its neighbors closer on both sides. */
+  margin: -8px 0;
 }
 
 .scope-v2 .dossier-alert-warning-title-row {

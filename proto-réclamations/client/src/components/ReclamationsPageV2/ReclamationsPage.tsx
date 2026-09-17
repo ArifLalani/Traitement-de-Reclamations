@@ -639,13 +639,15 @@ export default function ReclamationsPage() {
       conformite: 'conforme',
       canal: formData.canal as Source,
       sourceUrl: createTarget.url.replace(/\.{3}$/, ''),
-      denominateurSocial: 'Non renseigné',
+      denominateurSocial: formData.denominationSociale || 'Non renseigné',
       assureur: 'Non renseigné',
       email: formData.email,
       objet: formData.objet,
       description: formData.description,
     });
     newComplaint.reclamant.telephone = formData.telephone;
+    newComplaint.reclamant.relation = formData.relation;
+    newComplaint.classification.porteurDuRisque = formData.porteurDuRisque;
     newComplaint.notesInternes = formData.notesInternes;
     setComplaintsList((prev) => [newComplaint, ...prev]);
 

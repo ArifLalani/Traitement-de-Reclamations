@@ -675,10 +675,11 @@ export default function ComplaintDetailDrawer({
       changed.push("Date de l'action immédiate");
     if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
       changed.push("Date de l'action corrective");
-    if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Action réalisée');
+    if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Actions engagées');
+    if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives) changed.push('Actions correctives');
     if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
       changed.push("Vérification d'efficacité");
-    if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponse apportée');
+    if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponses apportées');
     onUpdate?.(complaint.id, {
       suiviCloture: padSuiviDates(suiviDraft),
       ...withHistory('Modification du suivi et clôture', changed),
@@ -757,10 +758,12 @@ export default function ComplaintDetailDrawer({
         changed.push("Date de l'action immédiate");
       if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
         changed.push("Date de l'action corrective");
-      if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Action réalisée');
+      if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Actions engagées');
+      if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives)
+        changed.push('Actions correctives');
       if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
         changed.push("Vérification d'efficacité");
-      if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponse apportée');
+      if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponses apportées');
       Object.assign(updates, { suiviCloture: padSuiviDates(suiviDraft) });
       if (changed.length > 0) {
         historique = [
@@ -896,6 +899,7 @@ export default function ComplaintDetailDrawer({
     onUpdate?.(complaint.id, {
       ...getReclamantPatch(),
       avancement: 'cloture',
+      dateCloture: padFrDate(new Date().toLocaleDateString('fr-FR')),
       historique: [...complaint.historique, buildHistoryEntry('Clôture du dossier', 'Dossier clôturé.')],
     });
   };
@@ -954,7 +958,7 @@ export default function ComplaintDetailDrawer({
       <p className="dossier-block-title">Informations du réclamant</p>
       <div className="modal-row">
         <FormField
-          label="Nom"
+          label="Nom du réclamant"
           required
           placeholder="Entrez le nom du réclamant"
           value={reclamantDraft.nom}
@@ -963,7 +967,7 @@ export default function ComplaintDetailDrawer({
           onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
         />
         <FormField
-          label="Prénom"
+          label="Prénom du réclamant"
           required
           placeholder="Entrez le prénom du réclamant"
           value={reclamantDraft.prenom}
@@ -1048,9 +1052,14 @@ export default function ComplaintDetailDrawer({
         />
       </div>
       <FormTextareaAutoGrow
-        label="Action réalisée"
+        label="Actions engagées"
         value={suiviDraft.actionRealisee}
         onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
+      />
+      <FormTextareaAutoGrow
+        label="Actions correctives"
+        value={suiviDraft.actionsCorrectives}
+        onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
       />
       <div className="modal-row">
         <FormSelect<string>
@@ -1251,6 +1260,10 @@ export default function ComplaintDetailDrawer({
                 </div>
               ) : responseSent ? (
                 <div className="dossier-treatment-block">
+                  <div className="dossier-alert-info">
+                    Vérifiez que les informations du dossier ont bien été renseignées dans leur globalité avant de
+                    clôturer définitivement le dossier.
+                  </div>
                   {renderReclamantFields()}
                   {renderArInfoFields()}
                   {renderReponseInfoFields()}
@@ -1293,12 +1306,15 @@ export default function ComplaintDetailDrawer({
             </div>
             <div className="dossier-field-row">
               <SectionTextField
-                label="Date de réception"
+                label="Date de réception (mention)"
                 value={infoDraft.dateReception}
-                required
-                onChange={(v) => setInfoDraft((d) => ({ ...d, dateReception: v }))}
+                readOnly
               />
-              <div className="dossier-field-spacer" />
+              {complaint.avancement === 'cloture' ? (
+                <SectionTextField label="Date de clôture" value={complaint.dateCloture ?? ''} readOnly />
+              ) : (
+                <div className="dossier-field-spacer" />
+              )}
             </div>
             <SectionTextField
               label="Objet de la réclamation"
@@ -1360,22 +1376,22 @@ export default function ComplaintDetailDrawer({
           >
             <div className="dossier-field-row">
               <SectionTextField
-                label="Prénom"
-                required
-                placeholder="Entrez le prénom du réclamant"
-                value={reclamantDraft.prenom}
-                error={prenomMissing}
-                errorText={prenomMissing ? 'Champ requis' : undefined}
-                onChange={(v) => setReclamantDraft((d) => ({ ...d, prenom: v }))}
-              />
-              <SectionTextField
-                label="Nom"
+                label="Nom du réclamant"
                 required
                 placeholder="Entrez le nom du réclamant"
                 value={reclamantDraft.nom}
                 error={nomMissing}
                 errorText={nomMissing ? 'Champ requis' : undefined}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
+              />
+              <SectionTextField
+                label="Prénom du réclamant"
+                required
+                placeholder="Entrez le prénom du réclamant"
+                value={reclamantDraft.prenom}
+                error={prenomMissing}
+                errorText={prenomMissing ? 'Champ requis' : undefined}
+                onChange={(v) => setReclamantDraft((d) => ({ ...d, prenom: v }))}
               />
             </div>
             <div className="dossier-field-row">
@@ -1389,7 +1405,8 @@ export default function ComplaintDetailDrawer({
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
               />
               <SectionTextField
-                label="Téléphone (optionnel)"
+                label="Téléphone"
+                required
                 placeholder="Entrez le numéro de téléphone"
                 value={reclamantDraft.telephone}
                 error={contactMissing}
@@ -1471,19 +1488,24 @@ export default function ComplaintDetailDrawer({
               />
             </div>
             <SectionTextField
-              label="Action réalisée"
+              label="Actions engagées"
               value={suiviDraft.actionRealisee}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
+            />
+            <SectionTextField
+              label="Actions correctives"
+              value={suiviDraft.actionsCorrectives}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
+            />
+            <SectionTextField
+              label="Réponses apportées"
+              value={suiviDraft.reponseApportee}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, reponseApportee: v }))}
             />
             <SectionTextField
               label="Vérification d'efficacité"
               value={suiviDraft.verificationEfficacite}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
-            />
-            <SectionTextField
-              label="Réponse apportée"
-              value={suiviDraft.reponseApportee}
-              onChange={(v) => setSuiviDraft((d) => ({ ...d, reponseApportee: v }))}
             />
             <SaveButton disabled={!suiviDirty} onClick={saveSuivi} />
           </AccordionSection>

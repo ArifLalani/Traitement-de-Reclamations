@@ -18,13 +18,13 @@ const COLUMNS: Column[] = [
   { label: 'Interlocuteur en charge', width: 22, value: () => '' },
   { label: 'Action immédiate - date', width: 20, value: () => '' },
   { label: 'Action corrective - date', width: 20, value: () => '' },
-  { label: 'Action réalisée', width: 16, value: () => '' },
+  { label: 'Actions engagées', width: 16, value: () => '' },
   { label: "Vérification d'efficacité", width: 20, value: () => '' },
   { label: 'Date de la réponse / clôture', width: 20, value: () => '' },
   { label: 'Année de réponse', width: 14, value: () => '' },
   { label: 'Respect réponse 2 mois', width: 18, value: () => '' },
   { label: 'Statut', width: 14, value: (c) => AVANCEMENT_LABEL[c.avancement] },
-  { label: 'Réponse apportée', width: 30, value: () => '' },
+  { label: 'Réponses apportées', width: 30, value: () => '' },
   { label: 'Revue annuelle / enseignements', width: 30, value: () => '' },
 ];
 

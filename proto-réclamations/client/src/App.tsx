@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import ReclamationsPage from './components/ReclamationsPage/ReclamationsPage';
 import ReclamationsPageV2 from './components/ReclamationsPageV2/ReclamationsPage';
-import ReclamationsPageV3 from './components/ReclamationsPageV3/ReclamationsPage';
-import ReclamationsPageV4 from './components/ReclamationsPageV4/ReclamationsPage';
-import ReclamationsPageV5 from './components/ReclamationsPageV5/ReclamationsPage';
 
 type Version = {
   id: string;
@@ -13,43 +10,6 @@ type Version = {
 };
 
 const VERSIONS: Version[] = [
-  {
-    id: 'v5',
-    label: 'Version 5',
-    bullets: [
-      'Dossier réorganisé en onglets : Informations / Traitement / Historique',
-      'Onglets et stepper restent affichés en haut (sticky) pendant le scroll',
-      "Onglet Traitement : question guidée « Avez-vous les coordonnées du réclamant ? »",
-      "Si Oui : formulaire de contact + message d'accusé de réception pré-rempli et modifiable",
-      "Si Non : demande d'information au réclamant, dossier passe en « En attente »",
-      'Étape Réponse définitive avec message pré-rempli, puis récapitulatif complet à la Clôture',
-      'Dossier classé sans suite réouvrable à tout moment',
-    ],
-    render: () => <ReclamationsPageV5 />,
-  },
-  {
-    id: 'v4',
-    label: 'Version 4',
-    bullets: [
-      'Stepper horizontal du dossier toujours visible (retiré de son accordéon)',
-      'Section "Informations de la réclamation" consolidée (statuts, interlocuteur, notes)',
-      'Réordonnancement de "Informations du réclamant" (porteur du risque, relation client)',
-      'Clôture du dossier désormais une étape manuelle et explicite, distincte de la réponse définitive',
-      'Modale "modifications non sauvegardées" : CTA principal "Sauvegarder", croix pour annuler',
-    ],
-    render: () => <ReclamationsPageV4 />,
-  },
-  {
-    id: 'v3',
-    label: 'Version 3',
-    bullets: [
-      "L'alerte reste affichée",
-      'Recentrée par rapport au contenu (pas à l\'écran)',
-      'Couleur verte (succès) au lieu de bleu',
-      'Le survol met en pause le délai de 8s avant disparition',
-    ],
-    render: () => <ReclamationsPageV3 />,
-  },
   {
     id: 'v2',
     label: 'Version 2',
