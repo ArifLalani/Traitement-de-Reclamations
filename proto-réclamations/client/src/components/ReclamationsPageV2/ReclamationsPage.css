@@ -3036,7 +3036,7 @@
 
 .scope-v2 .dossier-section {
   background: #fafafa;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid #f5f5f5;
   border-radius: 8px;
   animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
