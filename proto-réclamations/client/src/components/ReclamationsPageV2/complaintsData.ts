@@ -117,12 +117,6 @@ export const STATUT_CLIENT_DESCRIPTION: Record<StatutClient, string> = {
   tiers: 'Une personne extérieure au contrat, mais concernée par un sinistre ou impliquée dans la situation.',
 };
 
-export const PRIORITE_LABEL: Record<Priorite, string> = {
-  basse: 'Basse',
-  normale: 'Normale',
-  haute: 'Haute',
-};
-
 type DossierStepStatus = 'done' | 'current' | 'upcoming' | 'skipped';
 
 export type DossierStep = {
@@ -188,14 +182,6 @@ function splitName(fullName: string): [string, string] {
   if (parts.length <= 1) return [parts[0] ?? '', ''];
   return [parts[0], parts.slice(1).join(' ')];
 }
-
-export const TYPES_SINISTRE = [
-  'Sinistre auto',
-  'Sinistre habitation',
-  'Sinistre santé',
-  'Sinistre responsabilité civile',
-  'Litige contractuel',
-];
 
 export const INTERLOCUTEURS = ['Julien Fontaine', 'Claire Martin', 'Marc Dubois', 'Sophie Leroy'];
 
