@@ -1,5 +1,4 @@
-import { useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
-import expandMore from '../../assets/figma/expand-more.svg';
+import { useState, type MouseEvent } from 'react';
 import ArrowUpRight from './ArrowUpRight';
 import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
@@ -31,8 +30,6 @@ type ReclamationCardProps = {
   selected?: boolean;
   onToggleSelect?: () => void;
   onCreate: () => void;
-  onDisqualify: () => void;
-  onFollow: () => void;
 };
 
 export default function ReclamationCard({
@@ -42,8 +39,6 @@ export default function ReclamationCard({
   selected = false,
   onToggleSelect,
   onCreate,
-  onDisqualify,
-  onFollow,
 }: ReclamationCardProps) {
   const { state, source, date, url, author, text } = reclamation;
   const isDeclinee = state === 'declinee';
@@ -53,62 +48,6 @@ export default function ReclamationCard({
   // never hides the create-complaint action, only an already-open or
   // already-declined mention has no "Créer une réclamation" action left.
   const canCreate = !isMesReclamations && !isDeclinee;
-
-  const [expanded, setExpanded] = useState(false);
-  const [overflowing, setOverflowing] = useState(false);
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const fromHeight = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-    setOverflowing(el.scrollHeight - el.clientHeight > 1);
-  }, [text]);
-
-  useLayoutEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper || fromHeight.current === null) return;
-    const from = fromHeight.current;
-    fromHeight.current = null;
-
-    wrapper.style.transition = 'none';
-    wrapper.style.height = 'auto';
-    const to = wrapper.getBoundingClientRect().height;
-
-    if (Math.abs(to - from) < 1) {
-      wrapper.style.height = '';
-      return;
-    }
-
-    wrapper.style.height = `${from}px`;
-    wrapper.style.overflow = 'hidden';
-    wrapper.getBoundingClientRect();
-
-    const raf = requestAnimationFrame(() => {
-      wrapper.style.transition = 'height 0.3s ease';
-      wrapper.style.height = `${to}px`;
-    });
-
-    const handleEnd = (e: TransitionEvent) => {
-      if (e.propertyName !== 'height') return;
-      wrapper.style.height = '';
-      wrapper.style.overflow = '';
-      wrapper.style.transition = '';
-    };
-    wrapper.addEventListener('transitionend', handleEnd);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      wrapper.removeEventListener('transitionend', handleEnd);
-    };
-  }, [expanded]);
-
-  const toggleExpanded = () => {
-    const wrapper = wrapperRef.current;
-    if (wrapper) fromHeight.current = wrapper.getBoundingClientRect().height;
-    setExpanded((value) => !value);
-  };
 
   const [badgeTooltipOpen, setBadgeTooltipOpen] = useState(false);
 
@@ -147,30 +86,9 @@ export default function ReclamationCard({
               <SentimentIcon text={text} />
               <span className="card-author">{author}</span>
             </div>
-            <div className="card-text-wrapper" ref={wrapperRef}>
-              <p ref={textRef} className={`card-text ${expanded ? '' : 'card-text-clamped'}`}>
-                {text}
-              </p>
+            <div className="card-text-wrapper">
+              <p className="card-text card-text-clamped">{text}</p>
             </div>
-            {overflowing && (
-              <button
-                type="button"
-                className="btn-link"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleExpanded();
-                }}
-              >
-                {expanded ? 'Voir moins' : 'Voir plus'}
-                <img
-                  src={expandMore}
-                  alt=""
-                  width={12}
-                  height={7.4}
-                  className={expanded ? 'btn-link-icon btn-link-icon-flipped' : 'btn-link-icon'}
-                />
-              </button>
-            )}
           </div>
         </div>
 
@@ -197,56 +115,16 @@ export default function ReclamationCard({
           )}
           {hasActions && (
             <div className="card-actions">
-              {isMesReclamations ? (
-                <button
-                  type="button"
-                  className="btn-text"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFollow();
-                  }}
-                >
-                  Voir la réclamation
-                </button>
-              ) : isDeclinee ? (
-                <button
-                  type="button"
-                  className="btn-text"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCreate();
-                  }}
-                >
-                  Traiter cette réclamation
-                </button>
-              ) : (
-                <>
-                  {isFlagged && (
-                    <button
-                      type="button"
-                      className="btn-text"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDisqualify();
-                      }}
-                    >
-                      Écarter
-                    </button>
-                  )}
-                  {canCreate && (
-                    <button
-                      type="button"
-                      className={isFlagged ? 'btn-filled' : 'btn-text'}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCreate();
-                      }}
-                    >
-                      Traiter cette réclamation
-                    </button>
-                  )}
-                </>
-              )}
+              <button
+                type="button"
+                className="btn-text"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreate();
+                }}
+              >
+                Voir les détails
+              </button>
             </div>
           )}
         </div>

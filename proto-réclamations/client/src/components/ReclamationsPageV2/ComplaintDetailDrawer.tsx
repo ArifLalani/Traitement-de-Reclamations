@@ -1,24 +1,44 @@
-import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import drawerClose from '../../assets/figma/drawer-close.svg';
 import ArrowUpRight from './ArrowUpRight';
 import ExportMenu, { type ExportPreferences } from './ExportMenu';
 import { FormField, FormSelect, FormTextareaAutoGrow } from './FormFields';
-import { exportComplaintsToCsv, exportComplaintsToPdf } from './exportComplaints';
+import HoverTooltip from './HoverTooltip';
+import { exportComplaintsToCsv } from './exportComplaints';
 import {
   AVANCEMENT_LABEL,
   CONFORMITE_LABEL,
   getDossierSteps,
   INTERLOCUTEURS,
   padFrDate,
-  RELATION_LABEL,
+  STATUT_CLIENT_DESCRIPTION,
+  STATUT_CLIENT_LABEL,
   type Complaint,
   type DossierStep,
   type HistoriqueEntry,
   type Reclamant,
-  type Relation,
+  type StatutClient,
   type SuiviCloture,
   type Traitement,
 } from './complaintsData';
+
+// A single field's new value, tracked alongside its label so a "Modification
+// de ..." history entry can show what was actually chosen, not just which
+// fields changed — the shape is generic enough to cover any input type
+// (text, date, select, toggle) as long as the value is stringified first.
+type ChangedField = { label: string; value: string };
+
+// History entries whose title matches one of the dossier's core stepper
+// milestones — flagged in the "Historique" tab so they stand out from
+// routine edits (field changes, reassignments, etc.).
+const KEY_HISTORY_STEPS = new Set([
+  'Réception de la mention',
+  'Création de la réclamation',
+  "Confirmation de l'envoi de l'Accusé de Réception",
+  'Confirmation de l’envoi de la Réponse Définitive',
+  'Clôture du dossier',
+]);
 
 // Placeholder options pending the real business list for this field.
 const VERIFICATION_EFFICACITE_OPTIONS = [
@@ -223,6 +243,14 @@ function CalendarCheckIcon() {
   );
 }
 
+function FlagIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width={14} height={14} fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 17V3.5c0-.3.2-.5.5-.5H15l-2.5 4L15 11H4.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function AlertTriangleIcon() {
   return (
     <svg viewBox="0 0 16 16" width={20} height={20} fill="currentColor">
@@ -241,6 +269,12 @@ type TextFieldProps = {
   plain?: boolean;
   error?: boolean;
   errorText?: string;
+  helpText?: string;
+  // Which way the tooltip should open from the "?" icon — 'left' (default)
+  // extends rightward, 'right' extends leftward instead, for a field that
+  // otherwise has its tooltip clipped by the drawer's edge (e.g. the
+  // right-hand field of a two-column row).
+  helpAlign?: 'left' | 'right';
   onChange?: (value: string) => void;
   endAdornment?: React.ReactNode;
 };
@@ -255,6 +289,8 @@ function SectionTextField({
   plain,
   error,
   errorText,
+  helpText,
+  helpAlign = 'left',
   onChange,
   endAdornment,
 }: TextFieldProps) {
@@ -262,22 +298,27 @@ function SectionTextField({
     <div className="dossier-field">
       <span className="dossier-field-label">
         {label} {required && <span className="dossier-field-required">*</span>}
+        {helpText && (
+          <HoverTooltip text={helpText} align={helpAlign} className="dossier-field-help">
+            <span className="dossier-field-help-icon">?</span>
+          </HoverTooltip>
+        )}
       </span>
       <div
         className={`dossier-field-input ${readOnly || plain ? 'dossier-field-input-readonly' : ''} ${error ? 'dossier-field-input-error' : ''}`}
       >
         {multiline ? (
           <textarea
-            value={value}
-            placeholder={placeholder}
+            value={readOnly && value === '' ? '-' : value}
+            placeholder={readOnly ? undefined : placeholder}
             readOnly={readOnly}
             onChange={(e) => onChange?.(e.target.value)}
           />
         ) : (
           <input
             type="text"
-            value={value}
-            placeholder={placeholder}
+            value={readOnly && value === '' ? '-' : value}
+            placeholder={readOnly ? undefined : placeholder}
             readOnly={readOnly}
             onChange={(e) => onChange?.(e.target.value)}
           />
@@ -295,30 +336,105 @@ function SectionSelectField<T extends string>({
   required,
   options,
   onChange,
+  disabled,
 }: {
   label: string;
   value: T | '';
   required?: boolean;
   options: { id: T; label: string }[];
   onChange: (value: T) => void;
+  disabled?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({ top: 0, left: 0, width: 0 });
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const selected = options.find((option) => option.id === value);
+
+  useLayoutEffect(() => {
+    if (!open || !fieldRef.current) return;
+    const rect = fieldRef.current.getBoundingClientRect();
+    setMenuStyle({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      close();
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  if (disabled) {
+    const selectedLabel = selected?.label || '-';
+    return (
+      <div className="dossier-field">
+        <span className="dossier-field-label">
+          {label} {required && <span className="dossier-field-required">*</span>}
+        </span>
+        <div className="dossier-field-input dossier-field-input-readonly">
+          <input type="text" value={selectedLabel} readOnly />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dossier-field">
       <span className="dossier-field-label">
         {label} {required && <span className="dossier-field-required">*</span>}
       </span>
-      <div className="dossier-field-input">
-        <select value={value} onChange={(e) => onChange(e.target.value as T)}>
-          <option value="" disabled>
-            Sélectionner...
-          </option>
-          {options.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      <div ref={fieldRef} className="dossier-field-input">
+        <button type="button" className="field-dropdown-trigger" onClick={() => setOpen((v) => !v)}>
+          <span className={`field-dropdown-value ${!selected ? 'field-dropdown-value-placeholder' : ''}`}>
+            {selected?.label ?? 'Sélectionner...'}
+          </span>
+        </button>
+        <svg
+          viewBox="0 0 24 24"
+          width={20}
+          height={20}
+          fill="currentColor"
+          className={`field-caret ${open ? 'field-caret-open' : ''}`}
+        >
+          <path d="M7 10l5 5 5-5z" />
+        </svg>
       </div>
+      {open &&
+        createPortal(
+          <div className="scope-v2">
+            <div
+              ref={menuRef}
+              className="field-dropdown-menu"
+              style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+            >
+              {options.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`field-dropdown-item ${option.id === value ? 'field-dropdown-item-selected' : ''}`}
+                  onClick={() => {
+                    onChange(option.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="field-dropdown-item-label">{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -410,9 +526,22 @@ function DossierTabsControl({ value, onChange }: { value: TabKey; onChange: (tab
   );
 }
 
-function ChoiceToggle({ value, onChange }: { value: 'oui' | 'non' | null; onChange: (value: 'oui' | 'non') => void }) {
+function ChoiceToggle({
+  value,
+  onChange,
+  error,
+  disabled,
+}: {
+  value: 'oui' | 'non' | null;
+  onChange: (value: 'oui' | 'non') => void;
+  error?: boolean;
+  disabled?: boolean;
+}) {
+  if (disabled) {
+    return <span className="dossier-choice-answer">{value === 'oui' ? 'Oui' : value === 'non' ? 'Non' : '-'}</span>;
+  }
   return (
-    <div className="dossier-choice-row">
+    <div className={`dossier-choice-row ${error ? 'dossier-choice-row-error' : ''}`}>
       <button
         type="button"
         className={`dossier-toggle-btn ${value === 'oui' ? 'dossier-toggle-btn-active' : ''}`}
@@ -477,26 +606,26 @@ export default function ComplaintDetailDrawer({
   // known), since sending an AR requires more than what we had until then.
   // Left blank by default while "en attente" — the fields aren't expected
   // to be filled in until the réclamant's info actually comes back.
-  const [arDateDraft, setArDateDraft] = useState('');
-  const [arMessageDraft, setArMessageDraft] = useState('');
+  const [arDateDraft, setArDateDraft] = useState(() => complaint.suiviCloture.dateAR);
+  const [arMessageDraft, setArMessageDraft] = useState(() =>
+    complaint.suiviCloture.dateAR !== '' ? buildDefaultArMessage(complaint, complaint.reclamant) : '',
+  );
   // Réponse définitive date + message — same idea, one step later.
   // Date de demande d'information — shown once the guiding question is
   // answered "Non" (no contact info available yet).
-  const [demandeDateDraft, setDemandeDateDraft] = useState('');
-  const [reponseDateDraft, setReponseDateDraft] = useState(() =>
-    complaint.suiviCloture.dateAR !== '' && complaint.suiviCloture.dateReponse === ''
-      ? new Date().toLocaleDateString('fr-FR')
-      : '',
-  );
+  const [demandeDateDraft, setDemandeDateDraft] = useState(() => complaint.suiviCloture.demandeContactDate);
+  const [reponseDateDraft, setReponseDateDraft] = useState(() => {
+    if (complaint.suiviCloture.dateReponse !== '') return complaint.suiviCloture.dateReponse;
+    return complaint.suiviCloture.dateAR !== '' ? new Date().toLocaleDateString('fr-FR') : '';
+  });
   const [reponseMessageDraft, setReponseMessageDraft] = useState(() =>
-    complaint.suiviCloture.dateAR !== '' && complaint.suiviCloture.dateReponse === ''
-      ? buildDefaultReponseMessage(complaint, complaint.reclamant)
-      : '',
+    complaint.suiviCloture.dateAR !== '' ? buildDefaultReponseMessage(complaint, complaint.reclamant) : '',
   );
   const [headerStuck, setHeaderStuck] = useState(false);
   const [tabsStuck, setTabsStuck] = useState(false);
   const [footerShadow, setFooterShadow] = useState(false);
   const dossierContentRef = useRef<HTMLDivElement>(null);
+  const dossierContentInnerRef = useRef<HTMLDivElement>(null);
 
   // The footer's drop-shadow should only show when content actually scrolls
   // underneath it — a short screen (e.g. "Rouvrir le dossier" with no fields
@@ -507,15 +636,19 @@ export default function ComplaintDetailDrawer({
 
   useEffect(() => {
     const el = dossierContentRef.current;
-    if (!el) return;
+    const inner = dossierContentInnerRef.current;
+    if (!el || !inner) return;
     updateFooterShadow(el);
+    // Observing the inner wrapper (not the outer flex:1/overflow:auto
+    // container) so a field revealed by user interaction — not just a
+    // window resize — also triggers a recheck: the outer container's own
+    // box never resizes from its content growing, only this wrapper's does.
     const observer = new ResizeObserver(() => updateFooterShadow(el));
-    observer.observe(el);
+    observer.observe(inner);
     return () => observer.disconnect();
   }, [activeTab]);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportPreferences, setExportPreferences] = useState<ExportPreferences>({
-    format: 'csv',
     period: 'mois',
     from: '',
     to: '',
@@ -534,11 +667,7 @@ export default function ComplaintDetailDrawer({
   }, [exportMenuOpen]);
 
   const handleExportComplaint = () => {
-    if (exportPreferences.format === 'csv') {
-      exportComplaintsToCsv([complaint]);
-    } else {
-      exportComplaintsToPdf([complaint]);
-    }
+    exportComplaintsToCsv([complaint]);
     setExportMenuOpen(false);
   };
 
@@ -576,19 +705,24 @@ export default function ComplaintDetailDrawer({
   }, []);
 
   // --- Historique ---
-  const buildHistoryEntry = (title: string, description: string): HistoriqueEntry => {
+  const buildHistoryEntry = (
+    title: string,
+    description: string,
+    changes?: ChangedField[],
+  ): HistoriqueEntry => {
     const now = new Date();
     return {
       title,
       description,
+      changes,
       date: `${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
       author: 'Joe Bleau',
     };
   };
-  const withHistory = (title: string, changedLabels: string[]): Pick<Complaint, 'historique'> | Record<string, never> => {
-    if (changedLabels.length === 0) return {};
-    const description = `Champs modifiés : ${changedLabels.join(', ')}.`;
-    return { historique: [...complaint.historique, buildHistoryEntry(title, description)] };
+  const withHistory = (title: string, changed: ChangedField[]): Pick<Complaint, 'historique'> | Record<string, never> => {
+    if (changed.length === 0) return {};
+    const description = `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`;
+    return { historique: [...complaint.historique, buildHistoryEntry(title, description, changed)] };
   };
 
   // --- Informations de la réclamation --- (also owns the "Interlocuteur en
@@ -611,13 +745,17 @@ export default function ComplaintDetailDrawer({
     traitementDraft.interlocuteur !== complaint.traitement.interlocuteur ||
     notesDraft !== complaint.notesInternes;
   const saveInfo = () => {
-    const changed: string[] = [];
-    if (infoDraft.dateReception !== complaint.dateReception) changed.push('Date de réception');
-    if (infoDraft.objet !== complaint.objet) changed.push('Objet de la réclamation');
-    if (infoDraft.description !== complaint.description) changed.push('Description');
-    if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? '')) changed.push('Lien de la source');
-    if (traitementDraft.interlocuteur !== complaint.traitement.interlocuteur) changed.push('Interlocuteur en charge');
-    if (notesDraft !== complaint.notesInternes) changed.push('Notes internes');
+    const changed: ChangedField[] = [];
+    if (infoDraft.dateReception !== complaint.dateReception)
+      changed.push({ label: 'Date de réception', value: padFrDate(infoDraft.dateReception) || '-' });
+    if (infoDraft.objet !== complaint.objet) changed.push({ label: 'Objet de la réclamation', value: infoDraft.objet || '-' });
+    if (infoDraft.description !== complaint.description)
+      changed.push({ label: 'Description', value: infoDraft.description || '-' });
+    if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? ''))
+      changed.push({ label: 'Lien de la source', value: infoDraft.sourceUrl || '-' });
+    if (traitementDraft.interlocuteur !== complaint.traitement.interlocuteur)
+      changed.push({ label: 'Interlocuteur en charge', value: traitementDraft.interlocuteur || '-' });
+    if (notesDraft !== complaint.notesInternes) changed.push({ label: 'Notes internes', value: notesDraft || '-' });
     onUpdate?.(complaint.id, {
       ...infoDraft,
       dateReception: padFrDate(infoDraft.dateReception),
@@ -637,16 +775,30 @@ export default function ComplaintDetailDrawer({
     denominateurSocialDraft !== complaint.denominateurSocial ||
     porteurDuRisqueDraft !== complaint.classification.porteurDuRisque;
   const saveReclamant = () => {
-    const changed: string[] = [];
-    if (reclamantDraft.prenom !== complaint.reclamant.prenom) changed.push('Prénom');
-    if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push('Nom');
-    if (reclamantDraft.email !== complaint.reclamant.email) changed.push('Email');
-    if (reclamantDraft.telephone !== complaint.reclamant.telephone) changed.push('Téléphone');
-    if (reclamantDraft.adresse !== complaint.reclamant.adresse) changed.push('Adresse');
-    if (reclamantDraft.relation !== complaint.reclamant.relation) changed.push('Relation avec ce client');
-    if (reclamantDraft.relationAutrePrecision !== complaint.reclamant.relationAutrePrecision) changed.push('Précision');
-    if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination sociale');
-    if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
+    const changed: ChangedField[] = [];
+    if (reclamantDraft.prenom !== complaint.reclamant.prenom)
+      changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
+    if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
+    if (reclamantDraft.email !== complaint.reclamant.email)
+      changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
+    if (reclamantDraft.telephone !== complaint.reclamant.telephone)
+      changed.push({ label: 'Téléphone', value: reclamantDraft.telephone || '-' });
+    if (reclamantDraft.adresse !== complaint.reclamant.adresse)
+      changed.push({ label: 'Adresse', value: reclamantDraft.adresse || '-' });
+    if (reclamantDraft.rattacheContrat !== complaint.reclamant.rattacheContrat)
+      changed.push({
+        label: 'Rattachement à un contrat',
+        value: reclamantDraft.rattacheContrat === 'oui' ? 'Oui' : reclamantDraft.rattacheContrat === 'non' ? 'Non' : '-',
+      });
+    if (reclamantDraft.statutClient !== complaint.reclamant.statutClient)
+      changed.push({
+        label: 'Statut du client',
+        value: reclamantDraft.statutClient ? STATUT_CLIENT_LABEL[reclamantDraft.statutClient] : '-',
+      });
+    if (denominateurSocialDraft !== complaint.denominateurSocial)
+      changed.push({ label: 'Dénomination sociale', value: denominateurSocialDraft || '-' });
+    if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque)
+      changed.push({ label: 'Assureur / Porteur du risque', value: porteurDuRisqueDraft || '-' });
     onUpdate?.(complaint.id, {
       reclamant: reclamantDraft,
       denominateurSocial: denominateurSocialDraft,
@@ -654,13 +806,6 @@ export default function ComplaintDetailDrawer({
       ...withHistory('Modification des informations du réclamant', changed),
     });
   };
-  const reclamantMissing = [
-    reclamantDraft.prenom,
-    reclamantDraft.nom,
-    reclamantDraft.email,
-    ...(reclamantDraft.relation === 'autre' ? [reclamantDraft.relationAutrePrecision] : []),
-  ].filter((v) => !v).length;
-
   // Highlights the specific missing fields in "Informations du réclamant"
   // once the user has tried (and failed) to confirm the accusé de
   // réception — clears itself per-field as soon as that field is filled.
@@ -668,6 +813,9 @@ export default function ComplaintDetailDrawer({
   const prenomMissing = showContactErrors && !reclamantDraft.prenom;
   const nomMissing = showContactErrors && !reclamantDraft.nom;
   const contactMissing = showContactErrors && !reclamantDraft.email && !reclamantDraft.telephone;
+  const rattacheContratMissing = showContactErrors && !reclamantDraft.rattacheContrat;
+  const statutClientMissing =
+    showContactErrors && reclamantDraft.rattacheContrat === 'oui' && !reclamantDraft.statutClient;
 
   // Clicking "Confirmer" can fail validation while the user is scrolled past
   // the offending field(s) — scroll the first error back into view instead
@@ -676,7 +824,9 @@ export default function ComplaintDetailDrawer({
   // user may have scrolled away again since the last failed attempt.
   const scrollToFirstError = () => {
     requestAnimationFrame(() => {
-      const firstError = dossierContentRef.current?.querySelector('.field-border-error, .dossier-field-input-error');
+      const firstError = dossierContentRef.current?.querySelector(
+        '.field-border-error, .dossier-field-input-error, .dossier-choice-row-error',
+      );
       firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   };
@@ -685,26 +835,26 @@ export default function ComplaintDetailDrawer({
   const [suiviDraft, setSuiviDraft] = useState<SuiviCloture>(complaint.suiviCloture);
   const suiviDirty = JSON.stringify(suiviDraft) !== JSON.stringify(complaint.suiviCloture);
   const saveSuivi = () => {
-    const changed: string[] = [];
-    if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR) changed.push("Date d'envoi de l'accusé de réception");
+    const changed: ChangedField[] = [];
+    if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR)
+      changed.push({ label: "Date d'envoi de l'accusé de réception", value: padFrDate(suiviDraft.dateAR) || '-' });
     if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse)
-      changed.push("Date d'envoi de la réponse intermédiaire");
+      changed.push({ label: "Date d'envoi de la réponse définitive", value: padFrDate(suiviDraft.dateReponse) || '-' });
     if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate)
-      changed.push("Date de l'action immédiate");
+      changed.push({ label: "Date de l'action immédiate", value: padFrDate(suiviDraft.actionImmediate) || '-' });
     if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
-      changed.push("Date de l'action corrective");
-    if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Actions engagées');
-    if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives) changed.push('Actions correctives');
+      changed.push({ label: "Date de l'action corrective", value: padFrDate(suiviDraft.actionCorrective) || '-' });
+    if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee)
+      changed.push({ label: 'Actions réalisées', value: suiviDraft.actionRealisee || '-' });
+    if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives)
+      changed.push({ label: 'Réponses apportées', value: suiviDraft.actionsCorrectives || '-' });
     if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
-      changed.push("Vérification d'efficacité");
-    if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponses apportées');
+      changed.push({ label: "Vérification d'efficacité", value: suiviDraft.verificationEfficacite || '-' });
     onUpdate?.(complaint.id, {
       suiviCloture: padSuiviDates(suiviDraft),
       ...withHistory('Modification du suivi et clôture', changed),
     });
   };
-  const suiviMissing = Object.values(suiviDraft).filter((v) => !v).length;
-
   const hasUnsavedChanges = infoDirty || reclamantDirty || suiviDirty;
 
   // Saves every dirty section in one go (used by the "Sauvegarder" CTA in
@@ -718,13 +868,17 @@ export default function ComplaintDetailDrawer({
     let historique = complaint.historique;
 
     if (infoDirty) {
-      const changed: string[] = [];
-      if (infoDraft.dateReception !== complaint.dateReception) changed.push('Date de réception');
-      if (infoDraft.objet !== complaint.objet) changed.push('Objet de la réclamation');
-      if (infoDraft.description !== complaint.description) changed.push('Description');
-      if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? '')) changed.push('Lien de la source');
-      if (traitementDraft.interlocuteur !== complaint.traitement.interlocuteur) changed.push('Interlocuteur en charge');
-      if (notesDraft !== complaint.notesInternes) changed.push('Notes internes');
+      const changed: ChangedField[] = [];
+      if (infoDraft.dateReception !== complaint.dateReception)
+        changed.push({ label: 'Date de réception', value: padFrDate(infoDraft.dateReception) || '-' });
+      if (infoDraft.objet !== complaint.objet) changed.push({ label: 'Objet de la réclamation', value: infoDraft.objet || '-' });
+      if (infoDraft.description !== complaint.description)
+        changed.push({ label: 'Description', value: infoDraft.description || '-' });
+      if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? ''))
+        changed.push({ label: 'Lien de la source', value: infoDraft.sourceUrl || '-' });
+      if (traitementDraft.interlocuteur !== complaint.traitement.interlocuteur)
+        changed.push({ label: 'Interlocuteur en charge', value: traitementDraft.interlocuteur || '-' });
+      if (notesDraft !== complaint.notesInternes) changed.push({ label: 'Notes internes', value: notesDraft || '-' });
       Object.assign(updates, {
         ...infoDraft,
         dateReception: padFrDate(infoDraft.dateReception),
@@ -737,23 +891,38 @@ export default function ComplaintDetailDrawer({
           ...historique,
           buildHistoryEntry(
             'Modification des informations de la réclamation',
-            `Champs modifiés : ${changed.join(', ')}.`,
+            `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
+            changed,
           ),
         ];
       }
     }
 
     if (reclamantDirty) {
-      const changed: string[] = [];
-      if (reclamantDraft.prenom !== complaint.reclamant.prenom) changed.push('Prénom');
-      if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push('Nom');
-      if (reclamantDraft.email !== complaint.reclamant.email) changed.push('Email');
-      if (reclamantDraft.telephone !== complaint.reclamant.telephone) changed.push('Téléphone');
-      if (reclamantDraft.adresse !== complaint.reclamant.adresse) changed.push('Adresse');
-      if (reclamantDraft.relation !== complaint.reclamant.relation) changed.push('Relation avec ce client');
-      if (reclamantDraft.relationAutrePrecision !== complaint.reclamant.relationAutrePrecision) changed.push('Précision');
-      if (denominateurSocialDraft !== complaint.denominateurSocial) changed.push('Dénomination sociale');
-      if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque) changed.push('Porteur du risque');
+      const changed: ChangedField[] = [];
+      if (reclamantDraft.prenom !== complaint.reclamant.prenom)
+        changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
+      if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
+      if (reclamantDraft.email !== complaint.reclamant.email)
+        changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
+      if (reclamantDraft.telephone !== complaint.reclamant.telephone)
+        changed.push({ label: 'Téléphone', value: reclamantDraft.telephone || '-' });
+      if (reclamantDraft.adresse !== complaint.reclamant.adresse)
+        changed.push({ label: 'Adresse', value: reclamantDraft.adresse || '-' });
+      if (reclamantDraft.rattacheContrat !== complaint.reclamant.rattacheContrat)
+        changed.push({
+          label: 'Rattachement à un contrat',
+          value: reclamantDraft.rattacheContrat === 'oui' ? 'Oui' : reclamantDraft.rattacheContrat === 'non' ? 'Non' : '-',
+        });
+      if (reclamantDraft.statutClient !== complaint.reclamant.statutClient)
+        changed.push({
+          label: 'Statut du client',
+          value: reclamantDraft.statutClient ? STATUT_CLIENT_LABEL[reclamantDraft.statutClient] : '-',
+        });
+      if (denominateurSocialDraft !== complaint.denominateurSocial)
+        changed.push({ label: 'Dénomination sociale', value: denominateurSocialDraft || '-' });
+      if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque)
+        changed.push({ label: 'Assureur / Porteur du risque', value: porteurDuRisqueDraft || '-' });
       Object.assign(updates, {
         reclamant: reclamantDraft,
         denominateurSocial: denominateurSocialDraft,
@@ -762,31 +931,40 @@ export default function ComplaintDetailDrawer({
       if (changed.length > 0) {
         historique = [
           ...historique,
-          buildHistoryEntry('Modification des informations du réclamant', `Champs modifiés : ${changed.join(', ')}.`),
+          buildHistoryEntry(
+            'Modification des informations du réclamant',
+            `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
+            changed,
+          ),
         ];
       }
     }
 
     if (suiviDirty) {
-      const changed: string[] = [];
-      if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR) changed.push("Date d'envoi de l'accusé de réception");
+      const changed: ChangedField[] = [];
+      if (suiviDraft.dateAR !== complaint.suiviCloture.dateAR)
+        changed.push({ label: "Date d'envoi de l'accusé de réception", value: padFrDate(suiviDraft.dateAR) || '-' });
       if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse)
-        changed.push("Date d'envoi de la réponse intermédiaire");
+        changed.push({ label: "Date d'envoi de la réponse définitive", value: padFrDate(suiviDraft.dateReponse) || '-' });
       if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate)
-        changed.push("Date de l'action immédiate");
+        changed.push({ label: "Date de l'action immédiate", value: padFrDate(suiviDraft.actionImmediate) || '-' });
       if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
-        changed.push("Date de l'action corrective");
-      if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee) changed.push('Actions engagées');
+        changed.push({ label: "Date de l'action corrective", value: padFrDate(suiviDraft.actionCorrective) || '-' });
+      if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee)
+        changed.push({ label: 'Actions réalisées', value: suiviDraft.actionRealisee || '-' });
       if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives)
-        changed.push('Actions correctives');
+        changed.push({ label: 'Réponses apportées', value: suiviDraft.actionsCorrectives || '-' });
       if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
-        changed.push("Vérification d'efficacité");
-      if (suiviDraft.reponseApportee !== complaint.suiviCloture.reponseApportee) changed.push('Réponses apportées');
+        changed.push({ label: "Vérification d'efficacité", value: suiviDraft.verificationEfficacite || '-' });
       Object.assign(updates, { suiviCloture: padSuiviDates(suiviDraft) });
       if (changed.length > 0) {
         historique = [
           ...historique,
-          buildHistoryEntry('Modification du suivi et clôture', `Champs modifiés : ${changed.join(', ')}.`),
+          buildHistoryEntry(
+            'Modification du suivi et clôture',
+            `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
+            changed,
+          ),
         ];
       }
     }
@@ -806,6 +984,9 @@ export default function ComplaintDetailDrawer({
   const enAttente =
     complaint.avancement === 'a-traiter' && !arSent && complaint.suiviCloture.demandeContactDate !== '';
   const responseSent = complaint.suiviCloture.dateReponse !== '';
+  // Once a dossier is clôturé, its Informations tab becomes a read-only
+  // record of the case instead of an editable form.
+  const isClosed = complaint.avancement === 'cloture';
 
   // Every "Confirmer ..." action on the Traitement tab doubles as a save —
   // the réclamant fields shown alongside these confirmations (Prénom, Nom,
@@ -927,7 +1108,12 @@ export default function ComplaintDetailDrawer({
   // click with those fields empty opens "Informations du réclamant" and
   // flags exactly which ones are missing.
   const handleConfirmAR = () => {
-    const missing = !reclamantDraft.prenom || !reclamantDraft.nom || (!reclamantDraft.email && !reclamantDraft.telephone);
+    const missing =
+      !reclamantDraft.prenom ||
+      !reclamantDraft.nom ||
+      (!reclamantDraft.email && !reclamantDraft.telephone) ||
+      !reclamantDraft.rattacheContrat ||
+      (reclamantDraft.rattacheContrat === 'oui' && !reclamantDraft.statutClient);
     if (missing) {
       setShowContactErrors(true);
       scrollToFirstError();
@@ -974,6 +1160,15 @@ export default function ComplaintDetailDrawer({
   const renderReclamantFields = () => (
     <>
       <p className="dossier-block-title">Informations du réclamant</p>
+      {renderReclamantFieldsBody()}
+    </>
+  );
+
+  // Same fields, without the leading title — used where the title is
+  // rendered separately (e.g. above the "Avez-vous les coordonnées du
+  // réclamant ?" question it now sits alongside).
+  const renderReclamantFieldsBody = () => (
+    <>
       <div className="modal-row">
         <FormField
           label="Nom du réclamant"
@@ -1001,81 +1196,143 @@ export default function ComplaintDetailDrawer({
           placeholder="Entrez une adresse email"
           value={reclamantDraft.email}
           error={contactMissing}
-          errorText={contactMissing ? 'Un email ou un téléphone est requis' : undefined}
+          errorText={contactMissing ? 'Un email ou un numéro de téléphone est requis' : undefined}
           onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
         />
         <FormField
-          label="Téléphone"
+          label="Numéro de téléphone"
           required
           placeholder="Entrez le numéro de téléphone"
           value={reclamantDraft.telephone}
           error={contactMissing}
-          errorText={contactMissing ? 'Un email ou un téléphone est requis' : undefined}
+          errorText={contactMissing ? 'Un email ou un numéro de téléphone est requis' : undefined}
           onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
         />
       </div>
       <div className="modal-row">
-        <FormField label="Dénomination sociale" value={denominateurSocialDraft} onChange={setDenominateurSocialDraft} />
-        <FormField label="Porteur du risque" value={porteurDuRisqueDraft} onChange={setPorteurDuRisqueDraft} />
-      </div>
-      <div className="modal-row">
-        <FormSelect<Relation>
-          label="Relation avec ce client"
-          value={reclamantDraft.relation}
-          options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
-          onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
-        />
-        <div className="dossier-field-spacer" />
-      </div>
-      {reclamantDraft.relation === 'autre' && (
         <FormField
-          label="Précision"
-          required
-          placeholder="Précisez la relation avec le réclamant"
-          value={reclamantDraft.relationAutrePrecision ?? ''}
-          onChange={(v) => setReclamantDraft((d) => ({ ...d, relationAutrePrecision: v }))}
+          label="Dénomination sociale"
+          placeholder="Entrez la dénomination sociale"
+          value={denominateurSocialDraft}
+          onChange={setDenominateurSocialDraft}
         />
+        <FormField
+          label="Assureur / Porteur du risque"
+          placeholder="Entrez le porteur du risque"
+          value={porteurDuRisqueDraft}
+          onChange={setPorteurDuRisqueDraft}
+        />
+      </div>
+      <div className="dossier-question-row">
+        <span className="dossier-question-text">
+          Le réclamant est-il rattaché à un contrat ?<span className="field-required">*</span>
+        </span>
+        <ChoiceToggle
+          value={reclamantDraft.rattacheContrat || null}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, rattacheContrat: v }))}
+          error={rattacheContratMissing}
+        />
+      </div>
+      {reclamantDraft.rattacheContrat === 'oui' && (
+        <div className="modal-row dossier-contract-row">
+          <FormSelect<StatutClient>
+            label="Statut du client"
+            required
+            value={reclamantDraft.statutClient}
+            options={(Object.keys(STATUT_CLIENT_LABEL) as StatutClient[]).map((id) => ({
+              id,
+              label: STATUT_CLIENT_LABEL[id],
+              description: STATUT_CLIENT_DESCRIPTION[id],
+            }))}
+            placeholder="Sélectionnez le statut du client"
+            error={statutClientMissing}
+            errorText={statutClientMissing ? 'Champ requis' : undefined}
+            onChange={(v) => setReclamantDraft((d) => ({ ...d, statutClient: v }))}
+          />
+          <div className="dossier-field-spacer" />
+        </div>
       )}
     </>
   );
 
-  const renderArInfoFields = () => (
+  const renderArDateField = () => (
+    <div className="modal-row">
+      <FormField
+        label="Date d'envoi de l'accusé de réception"
+        required
+        placeholder="JJ/MM/AAAA"
+        value={arDateDraft}
+        onChange={setArDateDraft}
+      />
+      <div className="dossier-field-spacer" />
+    </div>
+  );
+
+  // hideAlert: the "clôturer le dossier" review step already carries its own
+  // single "vérifiez que tout est renseigné" alert covering every field
+  // below it, so this field's own instructional alert would be redundant
+  // there.
+  const renderArInfoFields = (hideAlert = false) => (
     <>
       <p className="dossier-block-title">Informations de l'accusé de réception</p>
-      <div className="modal-row">
-        <FormField label="Date d'envoi de l'accusé de réception" required value={arDateDraft} onChange={setArDateDraft} />
-        <div className="dossier-field-spacer" />
-      </div>
-      <FormTextareaAutoGrow
-        label="Message de l'accusé de réception"
-        value={arMessageDraft}
-        onChange={setArMessageDraft}
-      />
+      {hideAlert ? (
+        renderArDateField()
+      ) : (
+        <div className="dossier-alert-field-group">
+          <div className="dossier-alert-info">
+            <p>
+              L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Une fois
+              l'envoi effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
+            </p>
+            <p>En cas de contrôle, un justificatif pourra être demandé.</p>
+          </div>
+          {renderArDateField()}
+        </div>
+      )}
     </>
   );
 
-  const renderReponseInfoFields = () => (
+  const renderReponseDateField = () => (
+    <div className="modal-row">
+      <FormField
+        label="Date d'envoi de la réponse définitive"
+        required
+        placeholder="JJ/MM/AAAA"
+        value={reponseDateDraft}
+        onChange={setReponseDateDraft}
+      />
+      <div className="dossier-field-spacer" />
+    </div>
+  );
+
+  // hideAlert: see renderArInfoFields — same reasoning for the "clôturer le
+  // dossier" review step.
+  const renderReponseInfoFields = (hideAlert = false) => (
     <>
       <p className="dossier-block-title">Informations des actions menées</p>
       <div className="modal-row">
         <FormField
           label="Date de l'action immédiate"
+          placeholder="JJ/MM/AAAA"
           value={suiviDraft.actionImmediate}
           onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
         />
         <FormField
           label="Date de l'action corrective"
+          placeholder="JJ/MM/AAAA"
           value={suiviDraft.actionCorrective}
           onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
         />
       </div>
       <FormTextareaAutoGrow
-        label="Actions engagées"
+        label="Actions réalisées"
+        placeholder="Décrivez les actions réalisées"
         value={suiviDraft.actionRealisee}
         onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
       />
       <FormTextareaAutoGrow
-        label="Actions correctives"
+        label="Réponses apportées"
+        placeholder="Décrivez les réponses apportées"
         value={suiviDraft.actionsCorrectives}
         onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
       />
@@ -1084,31 +1341,32 @@ export default function ComplaintDetailDrawer({
           label="Vérification d'efficacité"
           value={suiviDraft.verificationEfficacite}
           options={VERIFICATION_EFFICACITE_OPTIONS}
+          placeholder="Sélectionnez une vérification d'efficacité"
           onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
         />
         <div className="dossier-field-spacer" />
       </div>
       <p className="dossier-block-title">Informations de la réponse définitive</p>
-      <div className="modal-row">
-        <FormField
-          label="Date d'envoi de la réponse définitive"
-          required
-          value={reponseDateDraft}
-          onChange={setReponseDateDraft}
-        />
-        <div className="dossier-field-spacer" />
-      </div>
-      <FormTextareaAutoGrow
-        label="Message de la réponse définitive"
-        value={reponseMessageDraft}
-        onChange={setReponseMessageDraft}
-      />
+      {hideAlert ? (
+        renderReponseDateField()
+      ) : (
+        <div className="dossier-alert-field-group">
+          <div className="dossier-alert-info">
+            <p>
+              La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Une fois
+              l'envoi effectué, renseignez ci-dessous la date à laquelle elle a été envoyée.
+            </p>
+            <p>En cas de contrôle, un justificatif pourra être demandé.</p>
+          </div>
+          {renderReponseDateField()}
+        </div>
+      )}
     </>
   );
 
   const renderContactOuiFields = () => (
     <div className="dossier-treatment-fields">
-      {renderReclamantFields()}
+      {renderReclamantFieldsBody()}
       {renderArInfoFields()}
     </div>
   );
@@ -1133,7 +1391,7 @@ export default function ComplaintDetailDrawer({
             Classer sans suite
           </button>
           <button type="button" className="btn-filled dossier-next-step-cta" onClick={handleConfirmAR}>
-            Confirmer l'envoi de l'accusé de réception
+            Confirmer
           </button>
         </>
       );
@@ -1141,13 +1399,13 @@ export default function ComplaintDetailDrawer({
       if (contactAnswer === 'oui') {
         traitementActions = (
           <button type="button" className="btn-filled dossier-next-step-cta" onClick={handleConfirmAR}>
-            Confirmer l'envoi de l'accusé de réception
+            Confirmer
           </button>
         );
       } else if (contactAnswer === 'non') {
         traitementActions = (
           <button type="button" className="btn-filled dossier-next-step-cta" onClick={handleConfirmDemande}>
-            Confirmer l'envoi de la demande de contact
+            Confirmer
           </button>
         );
       }
@@ -1160,7 +1418,7 @@ export default function ComplaintDetailDrawer({
     } else {
       traitementActions = (
         <button type="button" className="btn-filled dossier-next-step-cta" onClick={handleConfirmNextStep}>
-          Confirmer l’envoi de la Réponse Définitive
+          Confirmer
         </button>
       );
     }
@@ -1218,6 +1476,13 @@ export default function ComplaintDetailDrawer({
             updateFooterShadow(e.currentTarget);
           }}
         >
+          {/* The outer .dossier-content is flex:1 + overflow:auto, so its own
+              box size never changes when children mount/grow — only this
+              inner wrapper's natural height does. Observing it (rather than
+              the outer container) is what lets the footer shadow react to
+              content revealed by user interaction (e.g. answering a
+              guiding question), not just to window resizes. */}
+          <div ref={dossierContentInnerRef}>
           <div className={`dossier-sticky-header ${tabsStuck ? 'dossier-sticky-header-stuck' : ''}`}>
             <DossierTabsControl value={activeTab} onChange={setActiveTab} />
           </div>
@@ -1257,21 +1522,31 @@ export default function ComplaintDetailDrawer({
                 </div>
               ) : !arSent ? (
                 <div className="dossier-treatment-block">
+                  <p className="dossier-block-title">Informations du réclamant</p>
                   <div className="dossier-question-row">
-                    <span className="dossier-question-text">Avez-vous les coordonnées du réclamant ?</span>
+                    <span className="dossier-question-text">
+                      Avez-vous les coordonnées du réclamant ?<span className="field-required">*</span>
+                    </span>
                     <ChoiceToggle value={contactAnswer} onChange={handleContactAnswer} />
                   </div>
                   {contactAnswer === 'oui' && renderContactOuiFields()}
                   {contactAnswer === 'non' && (
                     <div className="dossier-treatment-fields">
-                      <div className="modal-row">
-                        <FormField
-                          label="Date de demande d'information"
-                          required
-                          value={demandeDateDraft}
-                          onChange={setDemandeDateDraft}
-                        />
-                        <div className="dossier-field-spacer" />
+                      <div className="dossier-alert-field-group">
+                        <div className="dossier-alert-info">
+                          La demande de coordonnées doit être envoyée au réclamant de votre côté. Renseignez la date
+                          d'envoi ci-dessous, le dossier passera en attente.
+                        </div>
+                        <div className="modal-row">
+                          <FormField
+                            label="Date de demande d'information"
+                            required
+                            placeholder="JJ/MM/AAAA"
+                            value={demandeDateDraft}
+                            onChange={setDemandeDateDraft}
+                          />
+                          <div className="dossier-field-spacer" />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1283,8 +1558,8 @@ export default function ComplaintDetailDrawer({
                     clôturer définitivement le dossier.
                   </div>
                   {renderReclamantFields()}
-                  {renderArInfoFields()}
-                  {renderReponseInfoFields()}
+                  {renderArInfoFields(true)}
+                  {renderReponseInfoFields(true)}
                 </div>
               ) : (
                 <div className="dossier-treatment-block">{renderReponseInfoFields()}</div>
@@ -1297,7 +1572,6 @@ export default function ComplaintDetailDrawer({
           <AccordionSection
             icon={<FileTextIcon />}
             title="Informations de la réclamation"
-            badge={{ label: 'Complété', className: 'chip-mes-reclamations' }}
             open={openSections.has('informations')}
             onToggle={() => toggleSection('informations')}
           >
@@ -1338,6 +1612,7 @@ export default function ComplaintDetailDrawer({
               label="Objet de la réclamation"
               value={infoDraft.objet}
               required
+              readOnly={isClosed}
               onChange={(v) => setInfoDraft((d) => ({ ...d, objet: v }))}
             />
             <SectionTextField
@@ -1346,6 +1621,7 @@ export default function ComplaintDetailDrawer({
               multiline
               plain
               required
+              readOnly={isClosed}
               onChange={(v) => setInfoDraft((d) => ({ ...d, description: v }))}
             />
             {complaint.sourceUrl && (
@@ -1354,6 +1630,7 @@ export default function ComplaintDetailDrawer({
                 value={infoDraft.sourceUrl}
                 plain
                 required
+                readOnly={isClosed}
                 onChange={(v) => setInfoDraft((d) => ({ ...d, sourceUrl: v }))}
                 endAdornment={
                   <a href={toHref(infoDraft.sourceUrl)} target="_blank" rel="noopener noreferrer">
@@ -1367,6 +1644,7 @@ export default function ComplaintDetailDrawer({
                 label="Interlocuteur en charge"
                 value={traitementDraft.interlocuteur}
                 options={INTERLOCUTEURS.map((label) => ({ id: label, label }))}
+                disabled={isClosed}
                 onChange={(v) => setTraitementDraft((d) => ({ ...d, interlocuteur: v }))}
               />
               <div className="dossier-field-spacer" />
@@ -1376,6 +1654,7 @@ export default function ComplaintDetailDrawer({
               multiline
               placeholder="Ajouter des informations supplémentaires..."
               value={notesDraft}
+              readOnly={isClosed}
               onChange={setNotesDraft}
             />
             <SaveButton disabled={!infoDirty} onClick={saveInfo} />
@@ -1384,11 +1663,6 @@ export default function ComplaintDetailDrawer({
           <AccordionSection
             icon={<UserIcon />}
             title="Informations du réclamant"
-            badge={
-              reclamantMissing > 0
-                ? { label: `${reclamantMissing} manquante${reclamantMissing > 1 ? 's' : ''}`, className: 'chip-possible' }
-                : { label: 'Complété', className: 'chip-mes-reclamations' }
-            }
             open={openSections.has('reclamant')}
             onToggle={() => toggleSection('reclamant')}
           >
@@ -1400,6 +1674,7 @@ export default function ComplaintDetailDrawer({
                 value={reclamantDraft.nom}
                 error={nomMissing}
                 errorText={nomMissing ? 'Champ requis' : undefined}
+                readOnly={isClosed}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
               />
               <SectionTextField
@@ -1409,6 +1684,7 @@ export default function ComplaintDetailDrawer({
                 value={reclamantDraft.prenom}
                 error={prenomMissing}
                 errorText={prenomMissing ? 'Champ requis' : undefined}
+                readOnly={isClosed}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, prenom: v }))}
               />
             </div>
@@ -1419,16 +1695,18 @@ export default function ComplaintDetailDrawer({
                 placeholder="Entrez une adresse email"
                 value={reclamantDraft.email}
                 error={contactMissing}
-                errorText={contactMissing ? 'Un email ou un téléphone est requis' : undefined}
+                errorText={contactMissing ? 'Un email ou un numéro de téléphone est requis' : undefined}
+                readOnly={isClosed}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
               />
               <SectionTextField
-                label="Téléphone"
+                label="Numéro de téléphone"
                 required
                 placeholder="Entrez le numéro de téléphone"
                 value={reclamantDraft.telephone}
                 error={contactMissing}
-                errorText={contactMissing ? 'Un email ou un téléphone est requis' : undefined}
+                errorText={contactMissing ? 'Un email ou un numéro de téléphone est requis' : undefined}
+                readOnly={isClosed}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
               />
             </div>
@@ -1436,32 +1714,42 @@ export default function ComplaintDetailDrawer({
               <SectionTextField
                 label="Dénomination sociale"
                 value={denominateurSocialDraft}
+                readOnly={isClosed}
                 onChange={setDenominateurSocialDraft}
               />
               <SectionTextField
-                label="Porteur du risque"
+                label="Assureur / Porteur du risque"
                 placeholder="Entrez le nom du porteur du risque"
                 value={porteurDuRisqueDraft}
+                readOnly={isClosed}
                 onChange={setPorteurDuRisqueDraft}
               />
             </div>
-            <div className="dossier-field-row">
-              <SectionSelectField<Relation>
-                label="Relation avec ce client"
-                value={reclamantDraft.relation}
-                options={(Object.keys(RELATION_LABEL) as Relation[]).map((id) => ({ id, label: RELATION_LABEL[id] }))}
-                onChange={(v) => setReclamantDraft((d) => ({ ...d, relation: v }))}
+            <div className="dossier-question-row">
+              <span className="dossier-question-text">
+                Le réclamant est-il rattaché à un contrat ?<span className="dossier-field-required">*</span>
+              </span>
+              <ChoiceToggle
+                value={reclamantDraft.rattacheContrat || null}
+                disabled={isClosed}
+                onChange={(v) => setReclamantDraft((d) => ({ ...d, rattacheContrat: v }))}
               />
-              <div className="dossier-field-spacer" />
             </div>
-            {reclamantDraft.relation === 'autre' && (
-              <SectionTextField
-                label="Précision"
-                required
-                placeholder="Précisez la relation avec le réclamant"
-                value={reclamantDraft.relationAutrePrecision ?? ''}
-                onChange={(v) => setReclamantDraft((d) => ({ ...d, relationAutrePrecision: v }))}
-              />
+            {reclamantDraft.rattacheContrat === 'oui' && (
+              <div className="dossier-field-row">
+                <SectionSelectField<StatutClient>
+                  label="Statut du client"
+                  required
+                  value={reclamantDraft.statutClient}
+                  disabled={isClosed}
+                  options={(Object.keys(STATUT_CLIENT_LABEL) as StatutClient[]).map((id) => ({
+                    id,
+                    label: STATUT_CLIENT_LABEL[id],
+                  }))}
+                  onChange={(v) => setReclamantDraft((d) => ({ ...d, statutClient: v }))}
+                />
+                <div className="dossier-field-spacer" />
+              </div>
             )}
             <SaveButton disabled={!reclamantDirty} onClick={saveReclamant} />
           </AccordionSection>
@@ -1469,11 +1757,6 @@ export default function ComplaintDetailDrawer({
           <AccordionSection
             icon={<CalendarCheckIcon />}
             title="Suivi et clôture"
-            badge={
-              suiviMissing > 0
-                ? { label: `${suiviMissing} à vérifier`, className: 'chip-declinee' }
-                : { label: 'Complété', className: 'chip-mes-reclamations' }
-            }
             open={openSections.has('suivi')}
             onToggle={() => toggleSection('suivi')}
           >
@@ -1482,12 +1765,17 @@ export default function ComplaintDetailDrawer({
                 label="Date d'envoi de l'accusé de réception"
                 value={suiviDraft.dateAR}
                 placeholder="Ex: 05/05/2026"
+                readOnly={isClosed}
+                helpText="L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Renseignez ici la date à laquelle il a été envoyé. En cas de contrôle, un justificatif pourra être demandé."
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateAR: v }))}
               />
               <SectionTextField
-                label="Date d'envoi de la réponse intermédiaire"
+                label="Date d'envoi de la réponse définitive"
                 value={suiviDraft.dateReponse}
                 placeholder="Ex: 05/05/2026"
+                readOnly={isClosed}
+                helpText="La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Renseignez ici la date à laquelle elle a été envoyée. En cas de contrôle, un justificatif pourra être demandé."
+                helpAlign="right"
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateReponse: v }))}
               />
             </div>
@@ -1496,35 +1784,39 @@ export default function ComplaintDetailDrawer({
                 label="Date de l'action immédiate"
                 value={suiviDraft.actionImmediate}
                 placeholder="Ex: 05/05/2026"
+                readOnly={isClosed}
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, actionImmediate: v }))}
               />
               <SectionTextField
                 label="Date de l'action corrective"
                 value={suiviDraft.actionCorrective}
                 placeholder="Ex: 05/05/2026"
+                readOnly={isClosed}
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
               />
             </div>
             <SectionTextField
-              label="Actions engagées"
+              label="Actions réalisées"
               value={suiviDraft.actionRealisee}
+              readOnly={isClosed}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
             />
             <SectionTextField
-              label="Actions correctives"
+              label="Réponses apportées"
               value={suiviDraft.actionsCorrectives}
+              readOnly={isClosed}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
             />
-            <SectionTextField
-              label="Réponses apportées"
-              value={suiviDraft.reponseApportee}
-              onChange={(v) => setSuiviDraft((d) => ({ ...d, reponseApportee: v }))}
-            />
-            <SectionTextField
-              label="Vérification d'efficacité"
-              value={suiviDraft.verificationEfficacite}
-              onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
-            />
+            <div className="dossier-field-row">
+              <SectionSelectField<string>
+                label="Vérification d'efficacité"
+                value={suiviDraft.verificationEfficacite}
+                disabled={isClosed}
+                options={VERIFICATION_EFFICACITE_OPTIONS}
+                onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
+              />
+              <div className="dossier-field-spacer" />
+            </div>
             <SaveButton disabled={!suiviDirty} onClick={saveSuivi} />
           </AccordionSection>
           </>
@@ -1535,8 +1827,29 @@ export default function ComplaintDetailDrawer({
               {[...complaint.historique].reverse().map((entry, index) => (
                 <div key={index} className="dossier-history-item">
                   <div className="dossier-history-content">
-                    <span className="dossier-history-title">{entry.title}</span>
+                    <span className="dossier-history-title">
+                      {KEY_HISTORY_STEPS.has(entry.title) && (
+                        <HoverTooltip
+                          text="Étape clé du dossier"
+                          align="left"
+                          className="dossier-history-flag"
+                        >
+                          <FlagIcon />
+                        </HoverTooltip>
+                      )}
+                      {entry.title}
+                    </span>
                     <span className="dossier-history-description">{entry.description}</span>
+                    {entry.changes && entry.changes.length > 0 && (
+                      <div className="dossier-history-changes">
+                        {entry.changes.map((change, changeIndex) => (
+                          <div key={changeIndex} className="dossier-history-change-row">
+                            <span className="dossier-history-change-label">{change.label}</span>
+                            <span className="dossier-history-change-value">{change.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <span className="dossier-history-meta">
                       {entry.date} · par {entry.author}
                     </span>
@@ -1545,6 +1858,7 @@ export default function ComplaintDetailDrawer({
               ))}
             </div>
           )}
+          </div>
         </div>
 
         {traitementActions && (

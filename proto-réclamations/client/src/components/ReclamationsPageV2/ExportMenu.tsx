@@ -1,10 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 
-export type ExportFormat = 'csv' | 'pdf';
 export type ExportPeriod = 'mois' | 'annees' | 'custom';
 
 export type ExportPreferences = {
-  format: ExportFormat;
   period: ExportPeriod;
   from: string;
   to: string;
@@ -34,36 +32,6 @@ function CalendarIcon() {
       <rect x="3.5" y="5" width="17" height="16" rx="2" />
       <path d="M3.5 9.5h17M8 3v3.2M16 3v3.2" strokeLinecap="round" />
     </svg>
-  );
-}
-
-type SegmentedControlProps<T extends string> = {
-  value: T;
-  options: { id: T; label: string }[];
-  onChange: (value: T) => void;
-};
-
-function SegmentedControl<T extends string>({ value, options, onChange }: SegmentedControlProps<T>) {
-  const index = Math.max(0, options.findIndex((option) => option.id === value));
-  const style = { '--segment-count': options.length } as CSSProperties;
-
-  return (
-    <div className="export-menu-segmented" style={style}>
-      <div
-        className="export-menu-segment-indicator"
-        style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
-      />
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          className={`export-menu-segment ${value === option.id ? 'export-menu-segment-active' : ''}`}
-          onClick={() => onChange(option.id)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -147,18 +115,6 @@ export default function ExportMenu({ open, preferences, onChange, onExport, sele
             {selectionCount} réclamation{selectionCount > 1 ? 's' : ''} sélectionnée{selectionCount > 1 ? 's' : ''}
           </p>
         )}
-
-        <div className="export-menu-section">
-          <span className="export-menu-label">Format du fichier</span>
-          <SegmentedControl<ExportFormat>
-            value={localPreferences.format}
-            options={[
-              { id: 'csv', label: 'CSV' },
-              { id: 'pdf', label: 'PDF' },
-            ]}
-            onChange={(format) => update({ format })}
-          />
-        </div>
 
         {!hasSelection && (
           <>

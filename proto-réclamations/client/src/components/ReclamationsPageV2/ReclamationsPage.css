@@ -1211,12 +1211,11 @@
   display: flex;
   gap: 16px;
   align-items: stretch;
-  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-  transition: box-shadow 0.2s ease;
+  transition: background 0.4s ease-out;
 }
 
 .scope-v2 .card:hover {
-  box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2);
+  background: var(--color-info-selected-bg);
 }
 
 .scope-v2 .card-selected {
@@ -1337,7 +1336,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 800px;
 }
 
 .scope-v2 .card-author-row {
@@ -1360,6 +1358,7 @@
   font: var(--font-body1);
   letter-spacing: 0.15px;
   color: var(--color-text-secondary);
+  min-height: 72px;
 }
 
 .scope-v2 .card-text-clamped {
@@ -1945,6 +1944,19 @@
   position: relative;
 }
 
+/* Clicking into a field should visibly show it as selected — a thicker,
+   accent-colored border (via box-shadow so it doesn't shift layout) plus a
+   matching label color, mirroring the floating-label pattern used when the
+   field has an error. */
+.scope-v2 .field-border:focus-within {
+  border-color: var(--color-primary-blue);
+  box-shadow: 0 0 0 1px var(--color-primary-blue);
+}
+
+.scope-v2 .field-outlined:focus-within .field-label {
+  color: var(--color-primary-blue);
+}
+
 .scope-v2 .field-border input {
   flex: 1;
   min-width: 0;
@@ -1958,7 +1970,7 @@
 }
 
 .scope-v2 .field-border input::placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.38);
 }
 
 .scope-v2 .field-dropdown-trigger {
@@ -1979,6 +1991,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+}
+
+.scope-v2 .field-dropdown-value-placeholder {
+  color: rgba(0, 0, 0, 0.38);
 }
 
 .scope-v2 .field-caret {
@@ -2004,11 +2021,17 @@
     0 8px 10px 1px rgba(0, 0, 0, 0.14),
     0 3px 14px 2px rgba(0, 0, 0, 0.12);
   z-index: 40;
+  max-height: 300px;
+  overflow-y: auto;
   animation: panel-fade-slide-up 0.15s ease backwards;
 }
 
 .scope-v2 .field-dropdown-item {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   border: none;
   background: none;
   cursor: pointer;
@@ -2017,6 +2040,9 @@
   font: var(--font-body1);
   letter-spacing: 0.15px;
   color: var(--color-text-primary);
+}
+
+.scope-v2 .field-dropdown-item-label {
   white-space: nowrap;
 }
 
@@ -2026,6 +2052,20 @@
 
 .scope-v2 .field-dropdown-item-selected {
   background: rgba(16, 45, 105, 0.08);
+}
+
+.scope-v2 .field-dropdown-item-help-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .scope-v2 .field-border-textarea {
@@ -2094,7 +2134,7 @@
 }
 
 .scope-v2 .field-border-textarea textarea::placeholder {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.38);
 }
 
 .scope-v2 .field-label {
@@ -2270,8 +2310,9 @@
 
 .scope-v2 .complaint-cta-label {
   font: var(--font-subtitle2);
+  font-weight: 400;
   letter-spacing: 0.1px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
 }
 
 .scope-v2 .complaint-echeance {
@@ -2778,19 +2819,16 @@
 
 .scope-v2 .dossier-status-chip {
   background: #e5f6fd;
-  border: 1px solid var(--color-primary-blue);
   color: var(--color-primary-blue);
 }
 
 .scope-v2 .dossier-status-chip-closed {
   background: var(--color-chip-selected-bg);
-  border-color: transparent;
   color: var(--color-text-primary);
 }
 
 .scope-v2 .dossier-status-chip-attente {
   background: rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 0, 0, 0.87);
   color: rgba(0, 0, 0, 0.87);
 }
 
@@ -2816,11 +2854,11 @@
   padding: 0 24px 24px;
 }
 
-.scope-v2 .dossier-content > .dossier-info-alert {
+.scope-v2 .dossier-content .dossier-info-alert {
   margin-bottom: 32px;
 }
 
-.scope-v2 .dossier-content > .dossier-section:not(:last-child) {
+.scope-v2 .dossier-content .dossier-section:not(:last-child) {
   margin-bottom: 16px;
 }
 
@@ -2829,7 +2867,7 @@
    padding-top, not margin) so this wrapper's own white background covers
    that space too — otherwise scrolled content would still peek through
    the gap between the drawer header and the stuck tabs. */
-.scope-v2 .dossier-content > .dossier-sticky-header {
+.scope-v2 .dossier-content .dossier-sticky-header {
   position: sticky;
   top: 0;
   z-index: 3;
@@ -2848,14 +2886,6 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
-
-/* The stepper now scrolls with the tab content instead of staying sticky
-   with the tabs — it's a direct child of .dossier-content, right after
-   the sticky header. */
-.scope-v2 .dossier-content > .dossier-hstepper {
-  margin-top: 8px;
-  margin-bottom: 8px;
-}
 
 /* Dossier tabs (Informations / Traitement / Historique) */
 .scope-v2 .dossier-tabs-segmented {
@@ -2925,7 +2955,11 @@
   animation-delay: 0.2s;
 }
 
-.scope-v2 .dossier-content > .dossier-info-alert-text {
+.scope-v2 .dossier-treatment-block > .dossier-contract-row {
+  animation-delay: 0s;
+}
+
+.scope-v2 .dossier-content .dossier-info-alert-text {
   animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
@@ -2955,6 +2989,14 @@
   animation-delay: 0.4s;
 }
 
+/* This row only ever mounts on its own (revealed by the "rattaché à un
+   contrat ?" toggle after everything else is already visible), so it should
+   animate in immediately like the other question's revealed content,
+   instead of inheriting the entrance stagger delay from its DOM position. */
+.scope-v2 .dossier-treatment-fields > .dossier-contract-row {
+  animation-delay: 0s;
+}
+
 .scope-v2 .dossier-question-row {
   display: flex;
   align-items: center;
@@ -2973,6 +3015,13 @@
 
 .scope-v2 .dossier-question-text {
   font: var(--font-subtitle1);
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.scope-v2 .dossier-choice-answer {
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
   color: var(--color-text-primary);
 }
 
@@ -2980,6 +3029,11 @@
   font: var(--font-h6);
   letter-spacing: 0.15px;
   color: var(--color-text-primary);
+  /* font-h6's 1.6 line-height reserves a taller box than the glyphs
+     actually need, so the gap after this title reads as bigger than the
+     same nominal gap after other, tighter-lined elements — pull the box's
+     own bottom edge in to cancel that leftover leading. */
+  margin-bottom: -8px;
 }
 
 /* Each "Informations ..." group's own fields sit 16px apart (the block's
@@ -2999,6 +3053,10 @@
 .scope-v2 .dossier-choice-row {
   display: flex;
   gap: 8px;
+}
+
+.scope-v2 .dossier-choice-row-error .dossier-toggle-btn {
+  border-color: #e4032e;
 }
 
 .scope-v2 .dossier-toggle-btn {
@@ -3036,7 +3094,6 @@
 
 .scope-v2 .dossier-section {
   background: #fafafa;
-  border: 1px solid #f5f5f5;
   border-radius: 8px;
   animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
@@ -3147,6 +3204,26 @@
   color: var(--color-text-primary);
 }
 
+.scope-v2 .dossier-field-help {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.scope-v2 .dossier-field-help-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+}
+
 .scope-v2 .dossier-field-required {
   color: #e4032e;
 }
@@ -3163,6 +3240,12 @@
   align-items: center;
   gap: 4px;
   padding: 0 12px;
+  position: relative;
+}
+
+.scope-v2 .dossier-field-input:focus-within {
+  border-color: var(--color-primary-blue);
+  box-shadow: 0 0 0 1px var(--color-primary-blue);
 }
 
 .scope-v2 .dossier-field-input input, .scope-v2 .dossier-field-input select {
@@ -3195,7 +3278,7 @@
 }
 
 .scope-v2 .dossier-field-input input[readonly], .scope-v2 .dossier-field-input textarea[readonly] {
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   cursor: default;
 }
 
@@ -3204,6 +3287,10 @@
   border: none;
   border-radius: 0;
   padding: 0;
+}
+
+.scope-v2 .dossier-field-input-readonly:focus-within {
+  box-shadow: none;
 }
 
 .scope-v2 .dossier-field-input-readonly input, .scope-v2 .dossier-field-input-readonly textarea {
@@ -3335,19 +3422,20 @@
   position: relative;
   display: flex;
   justify-content: space-between;
-  padding: 0 24px 92px 40px;
-  /* The first/last step's centered label box is wider than the space
-     between its dot and the panel edge, which otherwise creates a few
-     px of horizontal scroll on the whole tab. Clipping here only trims
-     the label box's empty margin, not its (narrower, centered) text —
-     as long as the padding above stays big enough for the widest label. */
-  overflow-x: hidden;
+  padding: 0 24px 80px 40px;
+  /* overflow-x: hidden used to sit here to trim a few px of horizontal
+     scroll from the first/last label's margin, but per the CSS overflow
+     spec, pairing a non-"visible" overflow-x with a "visible" overflow-y
+     forces the latter to compute as "auto" too — silently clipping the
+     current step's dot halo (box-shadow) at the container's top edge.
+     The side padding above is already tuned to fit the widest wrapped
+     label, so dropping this is safe. */
   /* .dossier-content is a flex column, making this a flex item — and
-     overflow-x: hidden switches its automatic minimum size from
+     overflow-x: hidden used to switch its automatic minimum size from
      content-based to 0, so without this it would get squashed shorter
      (clipping the step labels/badge) whenever a sibling below it (e.g.
      the "Oui" branch's extra fields) makes the column tall enough to need
-     shrinking. Keep it locked to its natural content height instead. */
+     shrinking. flex-shrink: 0 guards against that directly instead. */
   flex-shrink: 0;
 }
 
@@ -3366,7 +3454,7 @@
   top: 12px;
   left: 52px;
   height: 2px;
-  background: #2e7d32;
+  background: var(--color-primary-blue);
   transform: translateY(-1px);
   transition: width 0.3s ease;
 }
@@ -3395,14 +3483,14 @@
 }
 
 .scope-v2 .dossier-hstep-done .dossier-hstep-dot {
-  background: #2e7d32;
+  background: var(--color-primary-blue);
   color: #fff;
 }
 
 .scope-v2 .dossier-hstep-current .dossier-hstep-dot {
-  background: var(--color-lightblue-text);
+  background: var(--color-primary-blue);
   color: #fff;
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+  box-shadow: 0 0 0 3px rgba(16, 45, 105, 0.2);
 }
 
 .scope-v2 .dossier-hstep-label {
@@ -3485,10 +3573,54 @@
   color: var(--color-text-primary);
 }
 
+.scope-v2 .dossier-history-flag {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 6px;
+  margin-top: -2px;
+  color: var(--color-text-primary);
+}
+
 .scope-v2 .dossier-history-description {
   font: var(--font-body2);
   letter-spacing: 0.17px;
   color: var(--color-text-secondary);
+}
+
+/* Generic "what was actually chosen" list under a "Modification de ..."
+   entry — works for any field type (text, date, select, toggle) since it's
+   just label/value rows, laid out in a light card to set it apart from the
+   entry's own description text above it. */
+.scope-v2 .dossier-history-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.scope-v2 .dossier-history-change-row {
+  display: flex;
+  gap: 8px;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+}
+
+.scope-v2 .dossier-history-change-label {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.scope-v2 .dossier-history-change-label::after {
+  content: ' :';
+}
+
+.scope-v2 .dossier-history-change-value {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  word-break: break-word;
 }
 
 .scope-v2 .dossier-history-meta {
@@ -3540,7 +3672,6 @@
 
 .scope-v2 .dossier-alert-warning {
   background: var(--color-alert-bg);
-  border: 1px solid var(--color-alert-border);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -3554,12 +3685,33 @@
   border-radius: 8px;
   padding: 16px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font: 400 14px/1.43 var(--font-family);
   letter-spacing: 0.17px;
   color: var(--color-primary-blue);
   /* .dossier-treatment-block's 16px gap is generous for this alert
      specifically — pull its neighbors closer on both sides. */
   margin: -8px 0;
+}
+
+.scope-v2 .dossier-alert-info p {
+  margin: 0;
+}
+
+/* Groups an alert with the field it directly instructs (e.g. the AR/contact
+   date), so the gap between them is a deliberate, explicit value instead of
+   inheriting the same -8px-off-16px hack used for a lone alert sitting
+   between unrelated siblings. */
+.scope-v2 .dossier-alert-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v2 .dossier-alert-field-group .dossier-alert-info {
+  margin: 0;
 }
 
 .scope-v2 .dossier-alert-warning-title-row {

@@ -32,7 +32,7 @@ import {
   closedComplaints as initialClosedComplaints,
   type Complaint,
 } from './complaintsData';
-import { exportComplaintsToCsv, exportComplaintsToPdf, filterComplaintsByRange } from './exportComplaints';
+import { exportComplaintsToCsv, filterComplaintsByRange } from './exportComplaints';
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
 
@@ -149,13 +149,7 @@ type TabId = SidebarSection;
 const PAGE_SIZE = 20;
 
 export default function ReclamationsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
-    try {
-      return localStorage.getItem(REPUTATION_INTRO_SEEN_KEY) ? 'mentions' : 'reputation-intro';
-    } catch {
-      return 'mentions';
-    }
-  });
+  const [activeTab, setActiveTab] = useState<TabId>('mentions');
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
@@ -214,7 +208,6 @@ export default function ReclamationsPage() {
   const [selectedComplaintIds, setSelectedComplaintIds] = useState<Set<string>>(new Set());
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportPreferences, setExportPreferences] = useState<ExportPreferences>({
-    format: 'csv',
     period: 'mois',
     from: 'Août 2026',
     to: 'Août 2026',
@@ -576,11 +569,7 @@ export default function ReclamationsPage() {
       ? complaintsList.filter((c) => selectedComplaintIds.has(c.id))
       : filterComplaintsByRange(complaintsList, exportPreferences);
 
-    if (exportPreferences.format === 'csv') {
-      exportComplaintsToCsv(scoped);
-    } else {
-      exportComplaintsToPdf(scoped);
-    }
+    exportComplaintsToCsv(scoped);
 
     setExportMenuOpen(false);
     if (hasSelection) handleCancelComplaintsSelection();
@@ -639,14 +628,13 @@ export default function ReclamationsPage() {
       conformite: 'conforme',
       canal: formData.canal as Source,
       sourceUrl: createTarget.url.replace(/\.{3}$/, ''),
-      denominateurSocial: formData.denominationSociale || 'Non renseigné',
-      assureur: 'Non renseigné',
+      denominateurSocial: formData.denominationSociale,
+      assureur: '',
       email: formData.email,
       objet: formData.objet,
       description: formData.description,
     });
     newComplaint.reclamant.telephone = formData.telephone;
-    newComplaint.reclamant.relation = formData.relation;
     newComplaint.classification.porteurDuRisque = formData.porteurDuRisque;
     newComplaint.notesInternes = formData.notesInternes;
     setComplaintsList((prev) => [newComplaint, ...prev]);
@@ -661,6 +649,11 @@ export default function ReclamationsPage() {
     setToastTrigger((t) => t + 1);
   };
 
+  const handleUpdateComplaint = (id: string, updates: ComplaintInformationsUpdate) => {
+    setComplaintsList((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+    setSelectedComplaint((prev) => (prev && prev.id === id ? { ...prev, ...updates } : prev));
+  };
+
   const openComplaintDetail = (complaint: Complaint) => {
     handleSelectTab('reclamations');
     // Let the réclamations list finish mounting and playing its card entrance
@@ -669,17 +662,14 @@ export default function ReclamationsPage() {
     setTimeout(() => setSelectedComplaint(complaint), 650);
   };
 
-  const handleFollowReclamation = (reclamationId: string) => {
+  const handleViewComplaintFromMention = (reclamationId: string) => {
+    setCreateTarget(null);
     const complaint = complaintsList.find((c) => c.sourceReclamationId === reclamationId);
     if (complaint) openComplaintDetail(complaint);
   };
 
-  const handleUpdateComplaint = (id: string, updates: ComplaintInformationsUpdate) => {
-    setComplaintsList((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
-    setSelectedComplaint((prev) => (prev && prev.id === id ? { ...prev, ...updates } : prev));
-  };
-
-  const handleDisqualify = (id: string) => {
+  const handleDismissMention = (id: string) => {
+    setCreateTarget(null);
     prevTops.current = measureTops();
     setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
     setSnackbar({
@@ -774,7 +764,7 @@ export default function ReclamationsPage() {
   const matchesReclamationsFacet = (r: (typeof effectiveReclamations)[number]) => {
     switch (reclamationsFacet) {
       case 'tous':
-        return r.state !== 'declinee';
+        return true;
       case 'potentielles':
         return r.state === 'possible';
       case 'confirmees':
@@ -1129,8 +1119,6 @@ export default function ReclamationsPage() {
                         selected={selectedIds.has(reclamation.id)}
                         onToggleSelect={() => toggleSelectId(reclamation.id)}
                         onCreate={() => handleRequestCreate(reclamation)}
-                        onDisqualify={() => handleDisqualify(reclamation.id)}
-                        onFollow={() => handleFollowReclamation(reclamation.id)}
                       />
                     </div>
                   ))}
@@ -1309,6 +1297,8 @@ export default function ReclamationsPage() {
           reclamation={createTarget}
           onClose={() => setCreateTarget(null)}
           onSubmit={handleConfirmCreate}
+          onDismiss={() => handleDismissMention(createTarget.id)}
+          onViewComplaint={() => handleViewComplaintFromMention(createTarget.id)}
         />
       )}
 

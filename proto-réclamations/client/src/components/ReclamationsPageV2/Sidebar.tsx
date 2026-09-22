@@ -118,7 +118,7 @@ export default function Sidebar({ active, onSelect, open = true }: SidebarProps)
               onClick={() => onSelect('mentions')}
             >
               <ChatIcon />
-              <span>Mes Mentions</span>
+              <span>Mes mentions web</span>
             </button>
             <button
               type="button"
@@ -126,7 +126,7 @@ export default function Sidebar({ active, onSelect, open = true }: SidebarProps)
               onClick={() => onSelect('reclamations')}
             >
               <SmileySadIcon />
-              <span>Réclamations</span>
+              <span>Mes réclamations</span>
             </button>
           </div>
         </nav>

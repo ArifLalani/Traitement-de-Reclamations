@@ -3,7 +3,13 @@ import { reclamations } from './data';
 
 export type Avancement = 'a-traiter' | 'sans-suite' | 'cloture';
 export type Conformite = 'conforme' | 'non-conforme';
-export type Relation = 'assure-principal' | 'beneficiaire' | 'mandataire' | 'tiers' | 'autre';
+export type StatutClient =
+  | 'souscripteur'
+  | 'assure'
+  | 'utilisateur'
+  | 'beneficiaire'
+  | 'representant'
+  | 'tiers';
 export type Priorite = 'basse' | 'normale' | 'haute';
 
 export type Reclamant = {
@@ -12,8 +18,10 @@ export type Reclamant = {
   email: string;
   telephone: string;
   adresse: string;
-  relation: Relation | '';
-  relationAutrePrecision?: string;
+  // Whether the réclamant is attached to a contract — gates the statut
+  // field below, which only makes sense once "oui".
+  rattacheContrat: 'oui' | 'non' | '';
+  statutClient: StatutClient | '';
 };
 
 export type Classification = {
@@ -39,7 +47,6 @@ export type SuiviCloture = {
   actionRealisee: string;
   actionsCorrectives: string;
   verificationEfficacite: string;
-  reponseApportee: string;
 };
 
 export type HistoriqueEntry = {
@@ -47,6 +54,11 @@ export type HistoriqueEntry = {
   description: string;
   date: string;
   author: string;
+  // The individual field → new value pairs behind a "Modification de ..."
+  // entry, when known — lets the history show what was actually chosen
+  // instead of just which fields changed. Any input type works here since
+  // it's just a label + its stringified value.
+  changes?: { label: string; value: string }[];
 };
 
 export type Complaint = {
@@ -87,12 +99,22 @@ export const CONFORMITE_LABEL: Record<Conformite, string> = {
   'non-conforme': 'Non conforme',
 };
 
-export const RELATION_LABEL: Record<Relation, string> = {
-  'assure-principal': 'Assuré principal',
+export const STATUT_CLIENT_LABEL: Record<StatutClient, string> = {
+  souscripteur: 'Souscripteur',
+  assure: 'Assuré',
+  utilisateur: 'Utilisateur',
   beneficiaire: 'Bénéficiaire',
-  mandataire: 'Mandataire',
+  representant: 'Représentant éventuel',
   tiers: 'Tiers',
-  autre: 'Autre',
+};
+
+export const STATUT_CLIENT_DESCRIPTION: Record<StatutClient, string> = {
+  souscripteur: "La personne qui a signé le contrat d'assurance.",
+  assure: 'La personne couverte par le contrat, qui peut être différente du souscripteur.',
+  utilisateur: "La personne qui se sert concrètement du bien ou du service assuré, sans être signataire du contrat.",
+  beneficiaire: "La personne désignée pour recevoir l'indemnisation en cas de sinistre.",
+  representant: "Une personne mandatée pour agir au nom de l'assuré ou du souscripteur (tuteur, mandataire, avocat...).",
+  tiers: 'Une personne extérieure au contrat, mais concernée par un sinistre ou impliquée dans la situation.',
 };
 
 export const PRIORITE_LABEL: Record<Priorite, string> = {
@@ -177,6 +199,20 @@ export const TYPES_SINISTRE = [
 
 export const INTERLOCUTEURS = ['Julien Fontaine', 'Claire Martin', 'Marc Dubois', 'Sophie Leroy'];
 
+// The "Confirmer l'envoi de l'accusé de réception" step can't be validated
+// in the live app without rattacheContrat (and statutClient, once "oui")
+// being answered first, so a mock dossier that has already passed that step
+// needs those fields filled in too — otherwise reopening it shows required
+// fields as unexpectedly empty.
+const STATUT_CLIENT_CYCLE: StatutClient[] = [
+  'souscripteur',
+  'assure',
+  'utilisateur',
+  'beneficiaire',
+  'representant',
+  'tiers',
+];
+
 export type ComplaintCore = Omit<
   Complaint,
   'reclamant' | 'classification' | 'traitement' | 'suiviCloture' | 'notesInternes' | 'historique'
@@ -198,7 +234,7 @@ const EDIT_ENTRIES: { title: string; description: string }[] = [
 
 export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   const [prenom, nom] = splitName(c.requerant);
-  const porteurDuRisque = c.assureur && c.assureur !== 'Non renseigné' ? c.assureur : '';
+  const porteurDuRisque = c.assureur;
   // A dossier can't reach these stages in the live app without the underlying
   // step being completed first, so the mock data has to reflect that instead
   // of leaving downstream fields blank on an already-advanced dossier.
@@ -208,6 +244,8 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   const dateReponse = reponseDone ? addDaysToFrDate(c.dateReception, 25) : '';
   const dateCloture = c.avancement === 'cloture' ? addDaysToFrDate(dateReponse, 5) : undefined;
   const interlocuteur = arDone ? INTERLOCUTEURS[index % INTERLOCUTEURS.length] : '';
+  const rattacheContrat = arDone ? 'oui' : '';
+  const statutClient = arDone ? STATUT_CLIENT_CYCLE[index % STATUT_CLIENT_CYCLE.length] : '';
   // Only a subset of dossiers get the extra activity — not every progressed
   // dossier had a manual edit or an internal note logged against it.
   const enriched = arDone && index % 3 === 0;
@@ -254,7 +292,8 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
       email: c.email,
       telephone: '',
       adresse: '',
-      relation: '',
+      rattacheContrat,
+      statutClient,
     },
     classification: {
       porteurDuRisque,
@@ -274,7 +313,6 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
       actionRealisee: '',
       actionsCorrectives: '',
       verificationEfficacite: '',
-      reponseApportee: '',
     },
     notesInternes: enriched ? NOTES_TEMPLATES[index % NOTES_TEMPLATES.length] : '',
     historique,
@@ -380,8 +418,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'isabelle.renaud@gmail.com',
     objet: 'Remboursement sinistre automobile',
     description:
@@ -396,8 +434,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'sans-suite',
     conformite: 'conforme',
     canal: 'Web',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'lucas.bernard@gmail.com',
     objet: 'Contestation de résiliation de contrat',
     description:
@@ -412,8 +450,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'non-conforme',
     canal: 'Facebook',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'nathalie.vasseur@gmail.com',
     objet: 'Erreur de facturation sur prime annuelle',
     description:
@@ -428,8 +466,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'arnaud.petit@gmail.com',
     objet: 'Délai de traitement excessif — dossier sinistre',
     description:
@@ -444,8 +482,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'sans-suite',
     conformite: 'conforme',
     canal: 'X',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'celine.morel@gmail.com',
     objet: 'Absence de réponse du service client',
     description:
@@ -460,8 +498,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'julien.garnier@gmail.com',
     objet: 'Litige sur un devis de réparation',
     description:
@@ -476,8 +514,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Web',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'mariec.dupuis@gmail.com',
     objet: 'Retard de remboursement frais médicaux',
     description:
@@ -492,8 +530,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'sans-suite',
     conformite: 'non-conforme',
     canal: 'Facebook',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'thierry.blanchard@gmail.com',
     objet: 'Demande de résiliation de contrat',
     description:
@@ -508,8 +546,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Instagram',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'sophie.aubert@gmail.com',
     objet: 'Suivi de dossier sinistre vol',
     description:
@@ -524,8 +562,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'francois.lemaire@gmail.com',
     objet: 'Erreur de facturation — doublon de cotisation',
     description:
@@ -540,8 +578,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'LinkedIn',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'elise.fontaine@gmail.com',
     objet: 'Délai de traitement excessif — expertise',
     description:
@@ -556,8 +594,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'sans-suite',
     conformite: 'conforme',
     canal: 'Web',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'marc.girard@gmail.com',
     objet: "Contestation clause d'exclusion",
     description:
@@ -572,8 +610,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     avancement: 'cloture',
     conformite: 'conforme',
     canal: 'Google',
-    denominateurSocial: 'Non renseigné',
-    assureur: 'Non renseigné',
+    denominateurSocial: '',
+    assureur: '',
     email: 'patricia.chevalier@gmail.com',
     objet: 'Absence de réponse — renouvellement contrat',
     description:
@@ -610,8 +648,8 @@ const complaintsCore: ComplaintCore[] = reclamations
       conformite: index === 9 ? 'non-conforme' : 'conforme',
       canal: r.source,
       sourceUrl: r.url.replace(/\.{3}$/, ''),
-      denominateurSocial: 'Non renseigné',
-      assureur: 'Non renseigné',
+      denominateurSocial: '',
+      assureur: '',
       email,
       objet: suggestObjet(description),
       description,

@@ -48,7 +48,7 @@ export default function ReputationIntro({
 
       <div className="reputation-intro-cards">
         <button type="button" className="reputation-intro-card" onClick={onSelectMentions}>
-          <span className="reputation-intro-card-title">Mes Mentions</span>
+          <span className="reputation-intro-card-title">Mes mentions web</span>
           <span className="reputation-intro-card-text">
             Retrouvez ici toutes les mentions de votre entreprise détectées sur les réseaux sociaux et plateformes
             d&apos;avis, et identifiez rapidement celles à traiter en priorité.

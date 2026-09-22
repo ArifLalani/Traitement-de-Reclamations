@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import HoverTooltip from './HoverTooltip';
 
 const TEXTAREA_MIN_HEIGHT = 120;
 const TEXTAREA_MAX_HEIGHT = 152;
@@ -23,21 +25,17 @@ export type FormFieldProps = {
 };
 
 export function FormField({ label, required, value, onChange, placeholder, error, errorText }: FormFieldProps) {
-  const [focused, setFocused] = useState(false);
-  const floating = focused || value.length > 0;
   return (
     <div className="field-outlined">
       <div className={`field-border ${error ? 'field-border-error' : ''}`}>
         <input
           type="text"
           value={value}
-          placeholder={focused ? placeholder : undefined}
+          placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
         />
       </div>
-      <span className={`field-label ${floating ? 'field-label-floating' : ''} ${error ? 'field-label-error' : ''}`}>
+      <span className={`field-label field-label-floating ${error ? 'field-label-error' : ''}`}>
         {label}
         {required && <span className="field-required">*</span>}
       </span>
@@ -46,7 +44,7 @@ export function FormField({ label, required, value, onChange, placeholder, error
   );
 }
 
-export type FormSelectOption<T extends string> = { id: T; label: string };
+export type FormSelectOption<T extends string> = { id: T; label: string; description?: string };
 
 type FormSelectProps<T extends string> = {
   label: string;
@@ -54,40 +52,69 @@ type FormSelectProps<T extends string> = {
   value: T | '';
   options: FormSelectOption<T>[];
   onChange: (value: T) => void;
+  placeholder?: string;
+  error?: boolean;
+  errorText?: string;
 };
 
-export function FormSelect<T extends string>({ label, required, value, options, onChange }: FormSelectProps<T>) {
+export function FormSelect<T extends string>({
+  label,
+  required,
+  value,
+  options,
+  onChange,
+  placeholder,
+  error,
+  errorText,
+}: FormSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Anchored to the bordered field itself (not the inner button), so the
+  // menu's width/left match the field's visible outer edge instead of its
+  // padded-in content box.
+  const fieldRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const selected = options.find((o) => o.id === value);
-  const floating = open || value !== '';
+
+  // Recomputed every time the menu opens (not just on click) so it stays
+  // correct even if something else moved the trigger between renders, and
+  // closed on scroll/resize instead of tracked, since the trigger can live
+  // inside a scrollable drawer panel.
+  useLayoutEffect(() => {
+    if (!open || !fieldRef.current) return;
+    const rect = fieldRef.current.getBoundingClientRect();
+    setMenuStyle({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
+    const close = () => setOpen(false);
     const handlePointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
-      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      setOpen(false);
+      if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [open]);
-
-  const toggleOpen = () => {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setMenuStyle({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-    setOpen((v) => !v);
-  };
 
   return (
     <div className="field-outlined">
-      <div className="field-border">
-        <button ref={triggerRef} type="button" className="field-dropdown-trigger" onClick={toggleOpen}>
-          <span className="field-dropdown-value">{selected?.label ?? ''}</span>
+      <div ref={fieldRef} className={`field-border ${error ? 'field-border-error' : ''}`}>
+        <button
+          type="button"
+          className="field-dropdown-trigger"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className={`field-dropdown-value ${!selected ? 'field-dropdown-value-placeholder' : ''}`}>
+            {selected?.label ?? placeholder ?? 'Sélectionnez une option'}
+          </span>
         </button>
         <svg
           viewBox="0 0 24 24"
@@ -99,34 +126,51 @@ export function FormSelect<T extends string>({ label, required, value, options, 
           <path d="M7 10l5 5 5-5z" />
         </svg>
       </div>
-      <span className={`field-label ${floating ? 'field-label-floating' : ''}`}>
+      <span className={`field-label field-label-floating ${error ? 'field-label-error' : ''}`}>
         {label}
         {required && <span className="field-required">*</span>}
       </span>
-      {open && (
-        <div ref={menuRef} className="field-dropdown-menu" style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}>
-          {options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`field-dropdown-item ${option.id === value ? 'field-dropdown-item-selected' : ''}`}
-              onClick={() => {
-                onChange(option.id);
-                setOpen(false);
-              }}
+      {error && errorText && <span className="field-error-text">{errorText}</span>}
+      {open &&
+        createPortal(
+          <div className="scope-v2">
+            <div
+              ref={menuRef}
+              className="field-dropdown-menu"
+              style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
             >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
+              {options.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`field-dropdown-item ${option.id === value ? 'field-dropdown-item-selected' : ''}`}
+                  onClick={() => {
+                    onChange(option.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="field-dropdown-item-label">{option.label}</span>
+                  {option.description && (
+                    <HoverTooltip text={option.description} align="left" className="field-dropdown-item-help">
+                      <span
+                        className="field-dropdown-item-help-icon"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        ?
+                      </span>
+                    </HoverTooltip>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
 
-export function FormTextarea({ label, required, value, onChange }: FormFieldProps) {
-  const [focused, setFocused] = useState(false);
-  const floating = focused || value.length > 0;
+export function FormTextarea({ label, required, value, onChange, placeholder }: FormFieldProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [fadeTop, setFadeTop] = useState(false);
   const [fadeBottom, setFadeBottom] = useState(false);
@@ -157,13 +201,12 @@ export function FormTextarea({ label, required, value, onChange }: FormFieldProp
         <textarea
           ref={textareaRef}
           value={value}
+          placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           onScroll={updateFades}
         />
       </div>
-      <span className={`field-label ${floating ? 'field-label-floating' : ''}`}>
+      <span className="field-label field-label-floating">
         {label}
         {required && <span className="field-required">*</span>}
       </span>
@@ -175,9 +218,7 @@ export function FormTextarea({ label, required, value, onChange }: FormFieldProp
 // min/max height with an internal scroll + fade — it just grows to fit
 // everything, no matter how long. Kept as a separate component (rather
 // than a prop toggle) so both height behaviors stay independently usable.
-export function FormTextareaAutoGrow({ label, required, value, onChange }: FormFieldProps) {
-  const [focused, setFocused] = useState(false);
-  const floating = focused || value.length > 0;
+export function FormTextareaAutoGrow({ label, required, value, onChange, placeholder }: FormFieldProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -193,12 +234,11 @@ export function FormTextareaAutoGrow({ label, required, value, onChange }: FormF
         <textarea
           ref={textareaRef}
           value={value}
+          placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
         />
       </div>
-      <span className={`field-label ${floating ? 'field-label-floating' : ''}`}>
+      <span className="field-label field-label-floating">
         {label}
         {required && <span className="field-required">*</span>}
       </span>
