@@ -205,6 +205,8 @@ export default function ReclamationsPage() {
   const [showCreatedToast, setShowCreatedToast] = useState(false);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
+  const [complaintsSelectionModeClosing, setComplaintsSelectionModeClosing] = useState(false);
+  const complaintsSelectionModeCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedComplaintIds, setSelectedComplaintIds] = useState<Set<string>>(new Set());
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportPreferences, setExportPreferences] = useState<ExportPreferences>({
@@ -319,8 +321,10 @@ export default function ReclamationsPage() {
       setSelectionModeClosing(false);
       setSelectedIds(new Set());
     }
-    if (complaintsSelectionMode) {
+    if (complaintsSelectionMode || complaintsSelectionModeClosing) {
+      if (complaintsSelectionModeCloseTimeout.current) clearTimeout(complaintsSelectionModeCloseTimeout.current);
       setComplaintsSelectionMode(false);
+      setComplaintsSelectionModeClosing(false);
       setSelectedComplaintIds(new Set());
     }
   };
@@ -534,11 +538,22 @@ export default function ReclamationsPage() {
     exitSelectionMode();
   };
 
+  const exitComplaintsSelectionMode = () => {
+    setComplaintsSelectionModeClosing(true);
+    if (complaintsSelectionModeCloseTimeout.current) clearTimeout(complaintsSelectionModeCloseTimeout.current);
+    complaintsSelectionModeCloseTimeout.current = setTimeout(() => {
+      setComplaintsSelectionMode(false);
+      setSelectedComplaintIds(new Set());
+      setComplaintsSelectionModeClosing(false);
+    }, 220);
+  };
+
   const toggleComplaintsSelectionMode = () => {
-    setComplaintsSelectionMode((value) => {
-      if (value) setSelectedComplaintIds(new Set());
-      return !value;
-    });
+    if (complaintsSelectionMode) {
+      exitComplaintsSelectionMode();
+    } else {
+      setComplaintsSelectionMode(true);
+    }
     setComplaintsMoreMenuOpen(false);
   };
 
@@ -549,18 +564,20 @@ export default function ReclamationsPage() {
   };
 
   const toggleSelectComplaintId = (id: string) => {
-    setSelectedComplaintIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setComplaintsSelectionMode(true);
+    const next = new Set(selectedComplaintIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    if (next.size === 0) {
+      setSelectedComplaintIds(next);
+      exitComplaintsSelectionMode();
+    } else {
+      setSelectedComplaintIds(next);
+      setComplaintsSelectionMode(true);
+    }
   };
 
   const handleCancelComplaintsSelection = () => {
-    setComplaintsSelectionMode(false);
-    setSelectedComplaintIds(new Set());
+    exitComplaintsSelectionMode();
   };
 
   const handleExportWithPreferences = () => {
@@ -1136,8 +1153,10 @@ export default function ReclamationsPage() {
               </div>
             ) : (
               <div className="panel-body">
-                {complaintsSelectionMode ? (
-                  <div className={`mentions-selection-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
+                {complaintsSelectionMode || complaintsSelectionModeClosing ? (
+                  <div
+                    className={`mentions-selection-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''} ${complaintsSelectionModeClosing ? 'mentions-selection-toolbar-closing' : ''}`}
+                  >
                     <div className="mentions-selection-heading">
                       <button
                         type="button"
