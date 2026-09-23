@@ -30,9 +30,13 @@ type HoverTooltipProps = {
   text: string;
   className?: string;
   align?: 'left' | 'right';
+  // 'top' (default) opens the tooltip above the trigger — but a trigger
+  // near the top of the viewport (e.g. the drawer header) would have that
+  // tooltip clipped off-screen, so 'bottom' opens it below instead.
+  side?: 'top' | 'bottom';
 };
 
-export default function HoverTooltip({ children, text, className, align = 'right' }: HoverTooltipProps) {
+export default function HoverTooltip({ children, text, className, align = 'right', side = 'top' }: HoverTooltipProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
@@ -49,9 +53,16 @@ export default function HoverTooltip({ children, text, className, align = 'right
           <span
             style={{
               ...TOOLTIP_STYLE,
-              top: rect.top - 8,
+              top: side === 'bottom' ? rect.bottom + 8 : rect.top - 8,
               left: align === 'right' ? rect.right : rect.left,
-              transform: align === 'right' ? 'translate(-100%, -100%)' : 'translateY(-100%)',
+              transform:
+                side === 'bottom'
+                  ? align === 'right'
+                    ? 'translateX(-100%)'
+                    : undefined
+                  : align === 'right'
+                    ? 'translate(-100%, -100%)'
+                    : 'translateY(-100%)',
             }}
           >
             {text}

@@ -2649,6 +2649,11 @@
   color: var(--color-text-primary);
 }
 
+.scope-v2 .dossier-field-chip-wrap {
+  display: inline-flex;
+  align-self: flex-start;
+}
+
 .scope-v2 .dossier-field-help {
   display: inline-flex;
   vertical-align: middle;
@@ -2899,7 +2904,7 @@
   transform: translateX(-50%);
   font: 500 12px/1.2 var(--font-family);
   letter-spacing: 0.2px;
-  color: var(--color-lightblue-text);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
@@ -2917,6 +2922,47 @@
   display: flex;
   gap: 12px;
   animation: panel-fade-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v2 .dossier-history-marker {
+  position: relative;
+  width: 24px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.scope-v2 .dossier-history-dot {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-grey-100);
+  color: var(--color-text-primary);
+  z-index: 1;
+}
+
+.scope-v2 .dossier-history-line {
+  position: absolute;
+  top: 0;
+  bottom: -16px;
+  left: 10px;
+  width: 2px;
+  overflow: hidden;
+}
+
+.scope-v2 .dossier-history-line svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scope-v2 .dossier-history-line line {
+  stroke: var(--color-grey-200);
 }
 
 .scope-v2 .dossier-history-item:nth-child(1) {
@@ -2942,14 +2988,6 @@
 .scope-v2 .dossier-history-title {
   font: 500 16px/1.2 var(--font-family);
   letter-spacing: 0.15px;
-  color: var(--color-text-primary);
-}
-
-.scope-v2 .dossier-history-flag {
-  display: inline-flex;
-  vertical-align: middle;
-  margin-right: 6px;
-  margin-top: -2px;
   color: var(--color-text-primary);
 }
 
@@ -3086,7 +3124,7 @@
   margin: 0;
   font: var(--font-body1);
   letter-spacing: 0.15px;
-  color: var(--color-warning-dark);
+  color: var(--color-warning-main);
 }
 
 .scope-v2 .dossier-treatment-block-centered {

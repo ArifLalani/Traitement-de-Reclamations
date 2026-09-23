@@ -1,7 +1,14 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import expandMore from '../../assets/figma/expand-more.svg';
 import ArrowUpRight from './ArrowUpRight';
-import { AVANCEMENT_LABEL, CONFORMITE_LABEL, type Complaint } from './complaintsData';
+import HoverTooltip from './HoverTooltip';
+import {
+  AVANCEMENT_LABEL,
+  AVANCEMENT_TOOLTIP,
+  CONFORMITE_LABEL,
+  getConformiteTooltip,
+  type Complaint,
+} from './complaintsData';
 
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
@@ -164,11 +171,15 @@ export default function ComplaintCard({
           <div className="complaint-cta-status">
             <div className="complaint-cta-row">
               <span className="complaint-cta-label">Statut de progression</span>
-              <span className={`chip complaints-chip-avancement-${avancement}`}>{AVANCEMENT_LABEL[avancement]}</span>
+              <HoverTooltip text={AVANCEMENT_TOOLTIP[avancement]} align="right">
+                <span className={`chip complaints-chip-avancement-${avancement}`}>{AVANCEMENT_LABEL[avancement]}</span>
+              </HoverTooltip>
             </div>
             <div className="complaint-cta-row">
               <span className="complaint-cta-label">Statut de conformité</span>
-              <span className={`chip complaints-chip-conformite-${conformite}`}>{CONFORMITE_LABEL[conformite]}</span>
+              <HoverTooltip text={getConformiteTooltip(complaint)} align="right">
+                <span className={`chip complaints-chip-conformite-${conformite}`}>{CONFORMITE_LABEL[conformite]}</span>
+              </HoverTooltip>
             </div>
             <div className="complaint-cta-row">
               <span className="complaint-cta-label">Échéance</span>

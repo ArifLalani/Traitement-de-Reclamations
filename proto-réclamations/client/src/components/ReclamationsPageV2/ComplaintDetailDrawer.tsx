@@ -8,7 +8,10 @@ import HoverTooltip from './HoverTooltip';
 import { exportComplaintsToCsv } from './exportComplaints';
 import {
   AVANCEMENT_LABEL,
+  AVANCEMENT_TOOLTIP,
   CONFORMITE_LABEL,
+  EN_ATTENTE_TOOLTIP,
+  getConformiteTooltip,
   getDossierSteps,
   INTERLOCUTEURS,
   padFrDate,
@@ -35,6 +38,7 @@ type ChangedField = { label: string; value: string };
 const KEY_HISTORY_STEPS = new Set([
   'Réception de la mention',
   'Création de la réclamation',
+  'Confirmation de la demande de contact',
   "Confirmation de l'envoi de l'Accusé de Réception",
   'Confirmation de l’envoi de la Réponse Définitive',
   'Clôture du dossier',
@@ -1104,6 +1108,7 @@ export default function ComplaintDetailDrawer({
   })();
 
   const statusChipLabel = enAttente ? 'En attente' : AVANCEMENT_LABEL[complaint.avancement];
+  const statusChipTooltip = enAttente ? EN_ATTENTE_TOOLTIP : AVANCEMENT_TOOLTIP[complaint.avancement];
   const statusChipClassName = `chip dossier-status-chip ${
     enAttente ? 'dossier-status-chip-attente' : complaint.avancement !== 'a-traiter' ? 'dossier-status-chip-closed' : ''
   }`;
@@ -1390,7 +1395,9 @@ export default function ComplaintDetailDrawer({
       >
         <div className={`dossier-header ${headerStuck ? 'dossier-header-stuck' : ''}`}>
           <span className="dossier-title">Dossier {complaint.ticket}</span>
-          <span className={statusChipClassName}>{statusChipLabel}</span>
+          <HoverTooltip text={statusChipTooltip} align="left" side="bottom">
+            <span className={statusChipClassName}>{statusChipLabel}</span>
+          </HoverTooltip>
           <div className="dossier-header-spacer" />
           <div className="export-menu-wrap" ref={exportMenuRef}>
             <button
@@ -1536,18 +1543,21 @@ export default function ComplaintDetailDrawer({
             <div className="dossier-field-row">
               <div className="dossier-field">
                 <span className="dossier-field-label">Statut de progression</span>
-                <span className={statusChipClassName} style={{ alignSelf: 'flex-start' }}>
-                  {statusChipLabel}
-                </span>
+                <HoverTooltip text={statusChipTooltip} align="left" className="dossier-field-chip-wrap">
+                  <span className={statusChipClassName}>{statusChipLabel}</span>
+                </HoverTooltip>
               </div>
               <div className="dossier-field">
                 <span className="dossier-field-label">Statut de conformité</span>
-                <span
-                  className={`chip complaints-chip-conformite-${complaint.conformite}`}
-                  style={{ alignSelf: 'flex-start' }}
+                <HoverTooltip
+                  text={getConformiteTooltip(complaint)}
+                  align="left"
+                  className="dossier-field-chip-wrap"
                 >
-                  {CONFORMITE_LABEL[complaint.conformite]}
-                </span>
+                  <span className={`chip complaints-chip-conformite-${complaint.conformite}`}>
+                    {CONFORMITE_LABEL[complaint.conformite]}
+                  </span>
+                </HoverTooltip>
               </div>
             </div>
             <div className="dossier-field-row">
@@ -1780,21 +1790,28 @@ export default function ComplaintDetailDrawer({
 
           {activeTab === 'historique' && (
             <div className="dossier-history">
-              {[...complaint.historique].reverse().map((entry, index) => (
+              {[...complaint.historique].reverse().map((entry, index, arr) => (
                 <div key={index} className="dossier-history-item">
-                  <div className="dossier-history-content">
-                    {KEY_HISTORY_STEPS.has(entry.title) && (
-                      <span className="dossier-history-title">
-                        <HoverTooltip
-                          text="Étape clé du dossier"
-                          align="left"
-                          className="dossier-history-flag"
-                        >
-                          <FlagIcon />
-                        </HoverTooltip>
-                        {entry.title}
-                      </span>
+                  <div className="dossier-history-marker">
+                    {index !== arr.length - 1 && (
+                      <div className="dossier-history-line">
+                        <svg width="100%" height="100%" preserveAspectRatio="none">
+                          <line x1="1" y1="0" x2="1" y2="2000" strokeWidth="2" strokeDasharray="4 9" strokeLinecap="round" />
+                        </svg>
+                      </div>
                     )}
+                    {KEY_HISTORY_STEPS.has(entry.title) && (
+                      <HoverTooltip
+                        text="Étape clé du dossier"
+                        align="left"
+                        className="dossier-history-dot"
+                      >
+                        <FlagIcon />
+                      </HoverTooltip>
+                    )}
+                  </div>
+                  <div className="dossier-history-content">
+                    <span className="dossier-history-title">{entry.title}</span>
                     <span className="dossier-history-description">{entry.description}</span>
                     {entry.changes && entry.changes.length > 0 && (
                       <div className="dossier-history-changes">

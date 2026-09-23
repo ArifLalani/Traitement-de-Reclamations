@@ -94,10 +94,70 @@ export const AVANCEMENT_LABEL: Record<Avancement, string> = {
   cloture: 'Clôturé',
 };
 
+export const AVANCEMENT_TOOLTIP: Record<Avancement, string> = {
+  'a-traiter': 'Le dossier est en cours de traitement.',
+  'sans-suite': 'Dossier classé sans suite, faute de réponse du réclamant.',
+  cloture: 'Dossier traité : la réponse définitive a été envoyée au réclamant.',
+};
+
+// The "En attente" chip is a UI-only sub-state of 'a-traiter' (see
+// `enAttente` in ComplaintDetailDrawer) — not a real Avancement value, so it
+// needs its own tooltip text rather than living in AVANCEMENT_TOOLTIP.
+export const EN_ATTENTE_TOOLTIP = "En attente d'une réponse du réclamant suite à une demande de contact.";
+
 export const CONFORMITE_LABEL: Record<Conformite, string> = {
   conforme: 'Conforme',
   'non-conforme': 'Non conforme',
 };
+
+// Tolerant of both "D/M/YYYY" and zero-padded "DD/MM/YYYY" (and any
+// single-char separator) — Date#toLocaleDateString('fr-FR') doesn't format
+// identically across JS engines, so a strict "DD/MM/YYYY" match silently
+// failed to parse dates produced by some browsers.
+function parseFrDateLoose(value: string): Date | null {
+  const match = value.match(/^(\d{1,2}).(\d{1,2}).(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+function daysBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+}
+
+// Explains the "Conforme" / "Non conforme" chip on hover — conforme just
+// restates the two regulatory deadlines, non-conforme names which one was
+// missed and by how many days, computed from the dossier's actual dates
+// rather than hardcoded, so it stays accurate as the mock data changes.
+export function getConformiteTooltip(
+  complaint: Pick<Complaint, 'conformite' | 'dateReception' | 'suiviCloture'>,
+): string {
+  if (complaint.conformite === 'conforme') {
+    return 'Dans les délais réglementaires.';
+  }
+
+  const { dateReception, suiviCloture } = complaint;
+  const reception = parseFrDateLoose(dateReception);
+  if (reception) {
+    const ar = parseFrDateLoose(suiviCloture.dateAR);
+    const daysToAR = daysBetween(reception, ar ?? new Date());
+    if (daysToAR > 10) {
+      const overrun = daysToAR - 10;
+      return `Accusé de réception envoyé ${daysToAR} jours après la réception, soit ${overrun} jour${overrun > 1 ? 's' : ''} au-delà du délai réglementaire de 10 jours ouvrables.`;
+    }
+
+    if (ar) {
+      const reponse = parseFrDateLoose(suiviCloture.dateReponse);
+      const daysToReponse = daysBetween(reception, reponse ?? new Date());
+      if (daysToReponse > 60) {
+        const overrun = daysToReponse - 60;
+        return `Réponse définitive envoyée ${daysToReponse} jours après la réception, soit ${overrun} jour${overrun > 1 ? 's' : ''} au-delà du délai réglementaire de 2 mois.`;
+      }
+    }
+  }
+
+  return 'Délai réglementaire dépassé pour ce dossier.';
+}
 
 export const STATUT_CLIENT_LABEL: Record<StatutClient, string> = {
   souscripteur: 'Souscripteur',
@@ -226,8 +286,17 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   // of leaving downstream fields blank on an already-advanced dossier.
   const arDone = c.avancement !== 'a-traiter';
   const reponseDone = c.avancement === 'sans-suite' || c.avancement === 'cloture';
-  const dateAR = arDone ? addDaysToFrDate(c.dateReception, 3) : '';
-  const dateReponse = reponseDone ? addDaysToFrDate(c.dateReception, 25) : '';
+  // toLocaleDateString('fr-FR') doesn't reliably zero-pad the day/month
+  // (e.g. "9/6/2026"), but addDaysToFrDate below requires a strict 2-digit
+  // format and silently returns '' otherwise — pad it first so dateAR/
+  // dateReponse/dateCloture actually get computed.
+  const dateReception = padFrDate(c.dateReception);
+  // A "non-conforme" dossier needs an actual overrun in its dates, not just
+  // the label — otherwise the conformité tooltip (which explains the
+  // overrun from these dates) has nothing to point to and falls back to a
+  // generic message.
+  const dateAR = arDone ? addDaysToFrDate(dateReception, c.conformite === 'non-conforme' ? 14 : 3) : '';
+  const dateReponse = reponseDone ? addDaysToFrDate(dateReception, 25) : '';
   const dateCloture = c.avancement === 'cloture' ? addDaysToFrDate(dateReponse, 5) : undefined;
   const interlocuteur = arDone ? INTERLOCUTEURS[index % INTERLOCUTEURS.length] : '';
   const rattacheContrat = arDone ? 'oui' : '';
@@ -240,7 +309,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
     {
       title: 'Création de la réclamation',
       description: `Créée depuis une mention ${c.canal} — « ${c.objet} »`,
-      date: c.dateReception,
+      date: dateReception,
       author: 'Système',
     },
   ];
@@ -271,6 +340,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
 
   return {
     ...c,
+    dateReception,
     dateCloture,
     reclamant: {
       prenom,

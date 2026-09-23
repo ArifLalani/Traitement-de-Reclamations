@@ -10,6 +10,11 @@ const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; classNa
   'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
 };
 
+const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
+  possible: 'Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant traitement.',
+  'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
+};
+
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
   return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
@@ -52,6 +57,7 @@ export default function ReclamationCard({
   const [badgeTooltipOpen, setBadgeTooltipOpen] = useState(false);
 
   const badge = STATE_BADGE[state];
+  const badgeTooltipText = BADGE_TOOLTIP[state];
   const hasActions = isMesReclamations || isDeclinee || isFlagged || canCreate;
 
   const handleLinkClick = (e: MouseEvent) => {
@@ -76,18 +82,15 @@ export default function ReclamationCard({
             {badge && (
               <span
                 className="cta-badge-wrap"
-                onMouseEnter={() => isFlagged && setBadgeTooltipOpen(true)}
+                onMouseEnter={() => badgeTooltipText && setBadgeTooltipOpen(true)}
                 onMouseLeave={() => setBadgeTooltipOpen(false)}
               >
                 <span className={`chip cta-badge ${badge.className}`}>
                   {isFlagged && <FlagIcon />}
                   {badge.label}
                 </span>
-                {isFlagged && badgeTooltipOpen && (
-                  <span className="cta-badge-tooltip">
-                    Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant
-                    traitement.
-                  </span>
+                {badgeTooltipText && badgeTooltipOpen && (
+                  <span className="cta-badge-tooltip">{badgeTooltipText}</span>
                 )}
               </span>
             )}
