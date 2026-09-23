@@ -8,7 +8,10 @@ import HoverTooltip from './HoverTooltip';
 import { exportComplaintsToCsv } from './exportComplaints';
 import {
   AVANCEMENT_LABEL,
+  AVANCEMENT_TOOLTIP,
   CONFORMITE_LABEL,
+  EN_ATTENTE_TOOLTIP,
+  getConformiteTooltip,
   getDossierSteps,
   INTERLOCUTEURS,
   padFrDate,
@@ -1105,6 +1108,7 @@ export default function ComplaintDetailDrawer({
   })();
 
   const statusChipLabel = enAttente ? 'En attente' : AVANCEMENT_LABEL[complaint.avancement];
+  const statusChipTooltip = enAttente ? EN_ATTENTE_TOOLTIP : AVANCEMENT_TOOLTIP[complaint.avancement];
   const statusChipClassName = `chip dossier-status-chip ${
     enAttente ? 'dossier-status-chip-attente' : complaint.avancement !== 'a-traiter' ? 'dossier-status-chip-closed' : ''
   }`;
@@ -1391,7 +1395,9 @@ export default function ComplaintDetailDrawer({
       >
         <div className={`dossier-header ${headerStuck ? 'dossier-header-stuck' : ''}`}>
           <span className="dossier-title">Dossier {complaint.ticket}</span>
-          <span className={statusChipClassName}>{statusChipLabel}</span>
+          <HoverTooltip text={statusChipTooltip} align="left" side="bottom">
+            <span className={statusChipClassName}>{statusChipLabel}</span>
+          </HoverTooltip>
           <div className="dossier-header-spacer" />
           <div className="export-menu-wrap" ref={exportMenuRef}>
             <button
@@ -1537,18 +1543,21 @@ export default function ComplaintDetailDrawer({
             <div className="dossier-field-row">
               <div className="dossier-field">
                 <span className="dossier-field-label">Statut de progression</span>
-                <span className={statusChipClassName} style={{ alignSelf: 'flex-start' }}>
-                  {statusChipLabel}
-                </span>
+                <HoverTooltip text={statusChipTooltip} align="left" className="dossier-field-chip-wrap">
+                  <span className={statusChipClassName}>{statusChipLabel}</span>
+                </HoverTooltip>
               </div>
               <div className="dossier-field">
                 <span className="dossier-field-label">Statut de conformité</span>
-                <span
-                  className={`chip complaints-chip-conformite-${complaint.conformite}`}
-                  style={{ alignSelf: 'flex-start' }}
+                <HoverTooltip
+                  text={getConformiteTooltip(complaint)}
+                  align="left"
+                  className="dossier-field-chip-wrap"
                 >
-                  {CONFORMITE_LABEL[complaint.conformite]}
-                </span>
+                  <span className={`chip complaints-chip-conformite-${complaint.conformite}`}>
+                    {CONFORMITE_LABEL[complaint.conformite]}
+                  </span>
+                </HoverTooltip>
               </div>
             </div>
             <div className="dossier-field-row">

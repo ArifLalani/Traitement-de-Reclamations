@@ -2649,6 +2649,11 @@
   color: var(--color-text-primary);
 }
 
+.scope-v2 .dossier-field-chip-wrap {
+  display: inline-flex;
+  align-self: flex-start;
+}
+
 .scope-v2 .dossier-field-help {
   display: inline-flex;
   vertical-align: middle;
@@ -2899,7 +2904,7 @@
   transform: translateX(-50%);
   font: 500 12px/1.2 var(--font-family);
   letter-spacing: 0.2px;
-  color: var(--color-lightblue-text);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
