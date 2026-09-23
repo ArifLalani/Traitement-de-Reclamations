@@ -130,41 +130,6 @@ function addDaysToFrDate(dateStr: string, days: number): string {
   return date.toLocaleDateString('fr-FR');
 }
 
-function buildDefaultArMessage(complaint: Complaint, reclamant: Reclamant): string {
-  const deadline = addDaysToFrDate(complaint.dateReception, 60);
-  return [
-    `Bonjour ${reclamant.prenom} ${reclamant.nom},`,
-    '',
-    `Nous accusons réception de votre réclamation du ${complaint.dateReception}, concernant : ${complaint.objet}.`,
-    '',
-    `Votre dossier a bien été enregistré sous la référence ${complaint.ticket}. Nous vous apporterons une réponse définitive dans un délai maximal de 60 jours à compter de la réception de votre réclamation${deadline ? `, soit au plus tard le ${deadline}` : ''}.`,
-    '',
-    "Si nous avons besoin d'informations complémentaires pour instruire votre dossier, nous reviendrons vers vous directement.",
-    '',
-    'Nous vous remercions de votre confiance et restons à votre disposition pour toute question.',
-    '',
-    'Cordialement,',
-    'Joe Bleau',
-    'Service Réclamations',
-  ].join('\n');
-}
-
-function buildDefaultReponseMessage(complaint: Complaint, reclamant: Reclamant): string {
-  return [
-    `Bonjour ${reclamant.prenom} ${reclamant.nom},`,
-    '',
-    `Nous faisons suite à votre réclamation du ${complaint.dateReception} concernant : ${complaint.objet}.`,
-    '',
-    'Après examen approfondi de votre dossier, nous vous apportons ci-après notre réponse définitive : [à compléter].',
-    '',
-    'Nous vous remercions de votre confiance et restons à votre disposition pour toute question.',
-    '',
-    'Cordialement,',
-    'Joe Bleau',
-    'Service Réclamations',
-  ].join('\n');
-}
-
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
   return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
@@ -601,16 +566,13 @@ export default function ComplaintDetailDrawer({
   const [contactAnswer, setContactAnswer] = useState<'oui' | 'non' | null>(() =>
     complaint.suiviCloture.demandeContactDate !== '' ? 'non' : null,
   );
-  // Accusé de réception date + message — only asked for once the guiding
-  // question above is answered "Oui" (the réclamant's contact info is
-  // known), since sending an AR requires more than what we had until then.
-  // Left blank by default while "en attente" — the fields aren't expected
-  // to be filled in until the réclamant's info actually comes back.
+  // Accusé de réception date — only asked for once the guiding question
+  // above is answered "Oui" (the réclamant's contact info is known), since
+  // sending an AR requires more than what we had until then. Left blank by
+  // default while "en attente" — the field isn't expected to be filled in
+  // until the réclamant's info actually comes back.
   const [arDateDraft, setArDateDraft] = useState(() => complaint.suiviCloture.dateAR);
-  const [arMessageDraft, setArMessageDraft] = useState(() =>
-    complaint.suiviCloture.dateAR !== '' ? buildDefaultArMessage(complaint, complaint.reclamant) : '',
-  );
-  // Réponse définitive date + message — same idea, one step later.
+  // Réponse définitive date — same idea, one step later.
   // Date de demande d'information — shown once the guiding question is
   // answered "Non" (no contact info available yet).
   const [demandeDateDraft, setDemandeDateDraft] = useState(() => complaint.suiviCloture.demandeContactDate);
@@ -618,9 +580,6 @@ export default function ComplaintDetailDrawer({
     if (complaint.suiviCloture.dateReponse !== '') return complaint.suiviCloture.dateReponse;
     return complaint.suiviCloture.dateAR !== '' ? new Date().toLocaleDateString('fr-FR') : '';
   });
-  const [reponseMessageDraft, setReponseMessageDraft] = useState(() =>
-    complaint.suiviCloture.dateAR !== '' ? buildDefaultReponseMessage(complaint, complaint.reclamant) : '',
-  );
   const [headerStuck, setHeaderStuck] = useState(false);
   const [tabsStuck, setTabsStuck] = useState(false);
   const [footerShadow, setFooterShadow] = useState(false);
@@ -1016,16 +975,13 @@ export default function ComplaintDetailDrawer({
           ...complaint.historique,
           buildHistoryEntry(
             "Confirmation de l'envoi de l'Accusé de Réception",
-            arMessageDraft || 'Accusé de réception envoyé au réclamant.',
+            'Accusé de réception envoyé au réclamant.',
           ),
         ],
       });
-      // Pre-fill the next step's (réponse définitive) date + message now,
-      // the same way arMessageDraft was pre-filled when this step started.
-      if (reponseMessageDraft === '') {
-        setReponseDateDraft(todayLabel);
-        setReponseMessageDraft(buildDefaultReponseMessage(complaint, reclamantDraft));
-      }
+      // Pre-fill the next step's (réponse définitive) date now, the same
+      // way arDateDraft was pre-filled when this step started.
+      if (reponseDateDraft === '') setReponseDateDraft(todayLabel);
     } else {
       const dateLabel = padFrDate(reponseDateDraft || todayLabel);
       const nextSuivi = { ...suiviDraft, dateReponse: dateLabel };
@@ -1037,7 +993,7 @@ export default function ComplaintDetailDrawer({
           ...complaint.historique,
           buildHistoryEntry(
             'Confirmation de l’envoi de la Réponse Définitive',
-            reponseMessageDraft || 'Réponse définitive envoyée au réclamant.',
+            'Réponse définitive envoyée au réclamant.',
           ),
         ],
       });
@@ -1123,15 +1079,13 @@ export default function ComplaintDetailDrawer({
     handleConfirmNextStep();
   };
 
-  // Answering "Oui" reveals fields we didn't need until now (accusé de
-  // réception date + message) — pre-fill them once, the first time, so the
-  // user isn't starting from a blank message every time they revisit the tab.
+  // Answering "Oui" reveals a field we didn't need until now (accusé de
+  // réception date) — pre-fill it once, the first time.
   const handleContactAnswer = (value: 'oui' | 'non') => {
     setContactAnswer(value);
     const todayLabel = new Date().toLocaleDateString('fr-FR');
-    if (value === 'oui' && arMessageDraft === '') {
+    if (value === 'oui' && arDateDraft === '') {
       setArDateDraft(todayLabel);
-      setArMessageDraft(buildDefaultArMessage(complaint, reclamantDraft));
     }
     if (value === 'non' && demandeDateDraft === '') {
       setDemandeDateDraft(todayLabel);
@@ -1798,12 +1752,14 @@ export default function ComplaintDetailDrawer({
             <SectionTextField
               label="Actions réalisées"
               value={suiviDraft.actionRealisee}
+              multiline
               readOnly={isClosed}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
             />
             <SectionTextField
               label="Réponses apportées"
               value={suiviDraft.actionsCorrectives}
+              multiline
               readOnly={isClosed}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
             />
@@ -1827,8 +1783,8 @@ export default function ComplaintDetailDrawer({
               {[...complaint.historique].reverse().map((entry, index) => (
                 <div key={index} className="dossier-history-item">
                   <div className="dossier-history-content">
-                    <span className="dossier-history-title">
-                      {KEY_HISTORY_STEPS.has(entry.title) && (
+                    {KEY_HISTORY_STEPS.has(entry.title) && (
+                      <span className="dossier-history-title">
                         <HoverTooltip
                           text="Étape clé du dossier"
                           align="left"
@@ -1836,9 +1792,9 @@ export default function ComplaintDetailDrawer({
                         >
                           <FlagIcon />
                         </HoverTooltip>
-                      )}
-                      {entry.title}
-                    </span>
+                        {entry.title}
+                      </span>
+                    )}
                     <span className="dossier-history-description">{entry.description}</span>
                     {entry.changes && entry.changes.length > 0 && (
                       <div className="dossier-history-changes">

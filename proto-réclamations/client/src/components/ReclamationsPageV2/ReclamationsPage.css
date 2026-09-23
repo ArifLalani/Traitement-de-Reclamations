@@ -1113,7 +1113,7 @@
   display: flex;
   gap: 16px;
   align-items: stretch;
-  transition: background 0.4s ease-out;
+  transition: background 0.4s ease-out, border-color 0.2s ease;
 }
 
 .scope-v2 .card-mention {
@@ -1122,6 +1122,7 @@
 
 .scope-v2 .card:hover {
   background: var(--color-info-selected-bg);
+  border-color: var(--color-primary-blue);
 }
 
 .scope-v2 .card-selected {
@@ -1314,12 +1315,12 @@
 .scope-v2 .cta-badge-wrap {
   position: relative;
   display: inline-flex;
-  margin-right: auto;
+  margin-left: auto;
 }
 
 .scope-v2 .cta-badge-tooltip {
   position: absolute;
-  bottom: calc(100% + 8px);
+  top: calc(100% + 8px);
   right: 0;
   width: 220px;
   background: #1a1a1a;
@@ -2707,6 +2708,7 @@
   color: var(--color-text-primary);
   padding: 16px 0;
   min-height: 96px;
+  field-sizing: content;
 }
 
 .scope-v2 .dossier-field-input input[readonly], .scope-v2 .dossier-field-input textarea[readonly] {

@@ -73,6 +73,24 @@ export default function ReclamationCard({
             <span className="card-source-name">{source}</span>
             <span className="card-dot">·</span>
             <span className="card-date">{date}</span>
+            {badge && (
+              <span
+                className="cta-badge-wrap"
+                onMouseEnter={() => isFlagged && setBadgeTooltipOpen(true)}
+                onMouseLeave={() => setBadgeTooltipOpen(false)}
+              >
+                <span className={`chip cta-badge ${badge.className}`}>
+                  {isFlagged && <FlagIcon />}
+                  {badge.label}
+                </span>
+                {isFlagged && badgeTooltipOpen && (
+                  <span className="cta-badge-tooltip">
+                    Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant
+                    traitement.
+                  </span>
+                )}
+              </span>
+            )}
           </div>
           <a className="card-url-row" href={toHref(url)} target="_blank" rel="noopener noreferrer" onClick={handleLinkClick}>
             <span className="card-url">{url}</span>
@@ -91,24 +109,6 @@ export default function ReclamationCard({
         </div>
 
         <div className="card-footer">
-          {badge && (
-            <span
-              className="cta-badge-wrap"
-              onMouseEnter={() => isFlagged && setBadgeTooltipOpen(true)}
-              onMouseLeave={() => setBadgeTooltipOpen(false)}
-            >
-              <span className={`chip cta-badge ${badge.className}`}>
-                {isFlagged && <FlagIcon />}
-                {badge.label}
-              </span>
-              {isFlagged && badgeTooltipOpen && (
-                <span className="cta-badge-tooltip">
-                  Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant
-                  traitement.
-                </span>
-              )}
-            </span>
-          )}
           {hasActions && (
             <div className="card-actions">
               <button
