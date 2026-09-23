@@ -110,7 +110,7 @@ const curated: Reclamation[] = [
     url: 'fr.trustpilot.com/review/assurance-os...',
     author: 'Sophie L.',
     rating: 2,
-    text: "Délais de traitement vraiment trop longs pour un simple changement d'adresse. Le service client est sympathique mais visiblement pas assez nombreux.",
+    text: "Délais de traitement vraiment trop longs pour un simple changement d'adresse. Le service client est sympathique mais visiblement pas assez nombreux pour absorber la demande. J'ai dû rappeler trois fois avant d'obtenir une confirmation écrite, ce qui n'est clairement pas à la hauteur de ce qu'on attend d'un assureur.",
   },
   {
     id: '4',
@@ -143,7 +143,7 @@ const curated: Reclamation[] = [
     url: 'linkedin.com/posts/thomas-perrin_assurance...',
     author: 'Thomas Perrin',
     rating: null,
-    text: "Mon entreprise a résilié son contrat suite à plusieurs incidents non résolus avec leur service de gestion des sinistres professionnels.",
+    text: "Mon entreprise a résilié son contrat suite à plusieurs incidents non résolus avec leur service de gestion des sinistres professionnels. Malgré plusieurs relances de notre comptable et un dossier complet transmis dès le premier mois, aucune action concrète n'a été engagée avant notre décision de changer de prestataire.",
   },
   {
     id: '7',

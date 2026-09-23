@@ -64,37 +64,33 @@ export default function ReclamationCard({
   return (
     <div className={`card-wrapper ${isNew ? 'card-wrapper-unread' : ''}`}>
       <div
-        className={`card card-selectable ${selected ? 'card-selected' : ''}`}
+        className={`card card-mention card-selectable ${selected ? 'card-selected' : ''}`}
         onClick={onToggleSelect}
       >
-        <div className="card-info">
-          <div className="card-top">
-            <div className="card-source-row">
-              <SourceIcon source={source} />
-              <span className="card-source-name">{source}</span>
-              <span className="card-dot">·</span>
-              <span className="card-date">{date}</span>
-            </div>
-            <a className="card-url-row" href={toHref(url)} target="_blank" rel="noopener noreferrer" onClick={handleLinkClick}>
-              <span className="card-url">{url}</span>
-              <ArrowUpRight />
-            </a>
+        <div className="card-top">
+          <div className="card-source-row">
+            <SourceIcon source={source} />
+            <span className="card-source-name">{source}</span>
+            <span className="card-dot">·</span>
+            <span className="card-date">{date}</span>
           </div>
+          <a className="card-url-row" href={toHref(url)} target="_blank" rel="noopener noreferrer" onClick={handleLinkClick}>
+            <span className="card-url">{url}</span>
+            <ArrowUpRight />
+          </a>
+        </div>
 
-          <div className="card-body">
-            <div className="card-author-row">
-              <SentimentIcon text={text} />
-              <span className="card-author">{author}</span>
-            </div>
-            <div className="card-text-wrapper">
-              <p className="card-text card-text-clamped">{text}</p>
-            </div>
+        <div className="card-body">
+          <div className="card-author-row">
+            <SentimentIcon text={text} />
+            <span className="card-author">{author}</span>
+          </div>
+          <div className="card-text-wrapper">
+            <p className="card-text card-text-clamped">{text}</p>
           </div>
         </div>
 
-        <div className="card-divider" />
-
-        <div className="card-cta">
+        <div className="card-footer">
           {badge && (
             <span
               className="cta-badge-wrap"
