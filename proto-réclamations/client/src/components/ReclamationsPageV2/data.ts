@@ -1,6 +1,12 @@
 import type { Source } from './SourceIcon';
 
-export type ReclamationState = 'possible' | 'a-traiter' | 'declinee' | 'mes-reclamations';
+export type ReclamationState =
+  | 'possible'
+  | 'a-traiter'
+  | 'declinee'
+  | 'mes-reclamations'
+  | 'en-attente'
+  | 'classee-sans-suite';
 
 export type Reclamation = {
   id: string;
@@ -12,6 +18,10 @@ export type Reclamation = {
   author: string;
   rating: number | null;
   text: string;
+  // Set once a demande de contact has been sent to the mention's author
+  // (state 'en-attente') — lets the create-réclamation slider pre-fill the
+  // guiding question and its date when reopened.
+  demandeContactDate?: string;
 };
 
 export type Sentiment = 'negative' | 'neutral' | 'positive';

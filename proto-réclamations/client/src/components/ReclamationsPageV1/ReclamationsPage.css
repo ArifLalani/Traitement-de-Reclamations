@@ -1,0 +1,3188 @@
+.scope-v1 .page {
+  background: var(--color-body-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.scope-v1 .icon-button {
+  cursor: pointer;
+  border-radius: 100px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scope-v1 .icon-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Header */
+.scope-v1 .header {
+  background: var(--color-dark-blue);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0);
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .header-scrolled {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.scope-v1 .header-left-actions {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scope-v1 .header-left-actions .icon-button {
+  color: var(--color-white);
+}
+
+
+.scope-v1 .header-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.scope-v1 .header-top {
+  width: 100%;
+  max-width: var(--content-max-width);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+
+.scope-v1 .logo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding-right: 20px;
+}
+
+.scope-v1 .logo-text {
+  width: 116px;
+  height: 30px;
+}
+
+.scope-v1 .logo-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v1 .logo-stars {
+  width: 52px;
+  height: 9px;
+}
+
+.scope-v1 .logo-system {
+  width: 54px;
+  height: 13px;
+}
+
+/* Subheader */
+.scope-v1 .subheader {
+  background: var(--color-primary-blue);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 4px 8px;
+}
+
+/* App shell (sidebar + body) */
+.scope-v1 .app-shell {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  width: 100%;
+}
+
+/* Sidebar — overlays the content instead of pushing it */
+.scope-v1 .sidebar {
+  width: 300px;
+  background: var(--color-white);
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+  position: fixed;
+  top: 77px;
+  left: 0;
+  height: calc(100vh - 77px);
+  overflow: hidden;
+  z-index: 6;
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-v1 .sidebar-collapsed {
+  transform: translateX(-100%);
+}
+
+.scope-v1 .sidebar-inner {
+  width: 300px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.scope-v1 .sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  background: var(--color-body-bg);
+}
+
+.scope-v1 .sidebar-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 100px;
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--font-button-medium);
+  letter-spacing: 0;
+}
+
+.scope-v1 .sidebar-profile-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.scope-v1 .sidebar-profile-name {
+  color: var(--color-primary-blue);
+  font: var(--font-body1);
+}
+
+.scope-v1 .sidebar-profile-role {
+  color: var(--color-text-primary);
+  font: var(--font-body2);
+}
+
+.scope-v1 .sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.scope-v1 .sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  color: var(--color-text-secondary);
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.scope-v1 .sidebar-item:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .sidebar-item span:first-of-type {
+  flex: 1;
+}
+
+.scope-v1 .sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  color: var(--color-primary-blue);
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  background: var(--color-info-selected-bg);
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scope-v1 .sidebar-section-header-active {
+  background: rgba(33, 150, 243, 0.16);
+}
+
+.scope-v1 .sidebar-section-header span {
+  flex: 1;
+}
+
+.scope-v1 .sidebar-subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px 8px 40px;
+  color: var(--color-primary-blue);
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.scope-v1 .sidebar-subitem:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .sidebar-subitem-active {
+  background: var(--color-info-selected-bg);
+}
+
+.scope-v1 .sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+}
+
+.scope-v1 .sidebar-versions-label {
+  padding: 12px 16px 4px;
+  font: var(--font-caption);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .sidebar-version-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.scope-v1 .sidebar-version-button:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .sidebar-version-button-active {
+  background: var(--color-info-selected-bg);
+  color: var(--color-primary-blue);
+  font-weight: 700;
+}
+
+.scope-v1 .sidebar-divider {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  margin: 0 0 4px;
+}
+
+/* Body / content */
+.scope-v1 .body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The sidebar overlays instead of pushing (see .sidebar above), so when
+   it's open we shift the body over by its width ourselves — otherwise
+   .content centers on the full viewport and reads as off-center next to
+   the visible sidebar covering its left edge. */
+.scope-v1 .body-shifted {
+  margin-left: 300px;
+}
+
+.scope-v1 .content {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 24px 40px;
+}
+
+/* Reputation intro (first-visit landing page) */
+.scope-v1 .reputation-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 40px 0;
+  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .reputation-intro-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.scope-v1 .reputation-intro-title {
+  margin: 0;
+  font: 500 34px/1.235 var(--font-family);
+  letter-spacing: 0.25px;
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .reputation-intro-body {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.scope-v1 .reputation-intro-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .reputation-intro-text p {
+  margin: 0;
+}
+
+.scope-v1 .reputation-intro-illustration {
+  flex: 1;
+  min-width: 0;
+  max-width: 356px;
+  height: auto;
+  border-radius: 8px;
+}
+
+.scope-v1 .reputation-intro-cards {
+  display: flex;
+  gap: 32px;
+}
+
+.scope-v1 .reputation-intro-card {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: var(--color-grey-50);
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 8px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.scope-v1 .reputation-intro-card:hover {
+  border-color: var(--color-primary-blue);
+  box-shadow: 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2);
+}
+
+.scope-v1 .reputation-intro-card-title {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .reputation-intro-card-text {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+/* Tabs */
+.scope-v1 .tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.scope-v1 .tabs {
+  display: flex;
+  position: relative;
+}
+
+.scope-v1 .export-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateY(0);
+  opacity: 1;
+  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scope-v1 .tab {
+  cursor: pointer;
+  padding: 12px 16px;
+  font: var(--font-button-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  position: relative;
+  transition: color 0.25s ease;
+}
+
+/* Tabs content transition */
+.scope-v1 .tabs-content {
+  width: 100%;
+}
+
+@keyframes panel-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scope-v1 .panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .panel-body > * {
+  animation: panel-fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .panel-body > *:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.scope-v1 .panel-body > *:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.scope-v1 .panel-body > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.scope-v1 .card-list > * {
+  animation: panel-fade-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .card-list > *:nth-child(1) {
+  animation-delay: 0.16s;
+}
+.scope-v1 .card-list > *:nth-child(2) {
+  animation-delay: 0.22s;
+}
+.scope-v1 .card-list > *:nth-child(3) {
+  animation-delay: 0.28s;
+}
+.scope-v1 .card-list > *:nth-child(4) {
+  animation-delay: 0.34s;
+}
+.scope-v1 .card-list > *:nth-child(5) {
+  animation-delay: 0.4s;
+}
+.scope-v1 .card-list > *:nth-child(6) {
+  animation-delay: 0.46s;
+}
+.scope-v1 .card-list > *:nth-child(7) {
+  animation-delay: 0.52s;
+}
+.scope-v1 .card-list > *:nth-child(n + 8) {
+  animation-delay: 0.58s;
+}
+
+.scope-v1 .panel-empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-secondary);
+  font: var(--font-body1);
+}
+
+
+/* Appbar / search */
+.scope-v1 .appbar-bar {
+  position: sticky;
+  top: 77px;
+  z-index: 5;
+  align-self: stretch;
+  width: 100%;
+  background: var(--color-primary-blue);
+  transition: box-shadow 0.25s ease;
+}
+
+
+.scope-v1 .appbar {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.scope-v1 .search-field {
+  flex: 1;
+  background: var(--color-white);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.scope-v1 .search-field input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .search-field input::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 100px;
+  color: var(--color-text-disabled);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.scope-v1 .search-clear:hover {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .appbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 20px;
+  flex-shrink: 0;
+}
+
+.scope-v1 .appbar-icon-button {
+  color: var(--color-white);
+}
+
+.scope-v1 .appbar-icon-button-badgeable {
+  position: relative;
+}
+
+.scope-v1 .appbar-icon-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 100px;
+  background: var(--color-error-main);
+  box-shadow: 0 0 0 1.5px var(--color-primary-blue);
+}
+
+.scope-v1 .appbar-more-menu-wrap {
+  position: relative;
+}
+
+.scope-v1 .export-menu-wrap {
+  position: relative;
+}
+
+.scope-v1 .export-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 400px;
+  max-width: 90vw;
+  background: var(--color-white);
+  border-radius: 4px;
+  box-shadow: 0 9px 23px rgba(0, 0, 0, 0.12), 0 24px 19px rgba(0, 0, 0, 0.14), 0 11px 7.5px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  z-index: 15;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.96) translateY(-4px);
+  transform-origin: top right;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.scope-v1 .export-menu-open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+
+.scope-v1 .export-menu-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.scope-v1 .export-menu-open .export-menu-body > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .export-menu-open .export-menu-body > *:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.scope-v1 .export-menu-open .export-menu-body > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.scope-v1 .export-menu-open .export-menu-body > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.scope-v1 .export-menu-open .export-menu-body > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.scope-v1 .export-menu-open .export-menu-body > *:nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+
+.scope-v1 .export-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-v1 .export-menu-label {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .export-menu-range-row {
+  display: flex;
+  gap: 10px;
+}
+
+.scope-v1 .export-menu-range-chip {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid #bdbdbd;
+  background: var(--color-white);
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.scope-v1 .export-menu-range-chip-active {
+  border-color: transparent;
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+}
+
+.scope-v1 .export-menu-period-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .export-menu-date-field .field-border {
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .export-menu-date-field input::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .export-menu-cta {
+  align-self: flex-end;
+}
+
+.scope-v1 .export-menu-selection-note {
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: var(--color-white);
+  border-radius: 4px;
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+  padding: 8px 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+}
+
+.scope-v1 .more-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 16px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.scope-v1 .more-menu-item:hover {
+  background: var(--color-action-hover);
+}
+
+/* Mentions toolbar */
+.scope-v1 .mentions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100vw;
+  position: sticky;
+  top: 165px;
+  z-index: 4;
+  background: var(--color-white);
+  padding: 8px calc((100vw - 1100px) / 2 + 24px);
+  margin: -24px 0 -8px calc(-1 * ((100vw - 1100px) / 2 + 24px));
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0), 0 3px 4px 0 rgba(0, 0, 0, 0), 0 1px 8px 0 rgba(0, 0, 0, 0);
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .mentions-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 8px;
+  padding: 8px;
+  position: sticky;
+  top: 181px;
+  z-index: 4;
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0), 0 3px 4px 0 rgba(0, 0, 0, 0), 0 1px 8px 0 rgba(0, 0, 0, 0);
+  transition: box-shadow 0.25s ease;
+  animation: mentions-selection-toolbar-fade-in 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes mentions-selection-toolbar-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.scope-v1 .mentions-toolbar.mentions-toolbar-stuck {
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+}
+
+@keyframes mentions-selection-toolbar-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.scope-v1 .mentions-selection-toolbar-closing {
+  animation: mentions-selection-toolbar-fade-out 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+
+.scope-v1 .mentions-selection-toolbar.mentions-toolbar-stuck {
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+}
+
+.scope-v1 .mentions-selection-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scope-v1 .mentions-selection-count {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .mentions-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scope-v1 .mark-all-read-btn:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.scope-v1 .mark-all-read-btn:disabled:hover {
+  background: none;
+}
+
+.scope-v1 .mentions-count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-chip-selected-bg);
+  border-radius: 100px;
+  padding: 8px 12px;
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .mark-all-read-btn {
+  cursor: pointer;
+  padding: 6px 8px;
+  font: var(--font-button-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-primary-blue);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.scope-v1 .mark-all-read-btn:hover {
+  background: var(--color-action-hover);
+}
+
+/* Alert banner */
+.scope-v1 .alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--color-alert-bg);
+  border: 1px solid var(--color-alert-border);
+  border-radius: 12px;
+  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .alert-banner-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 59px;
+  height: 59px;
+  border-radius: 100px;
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scope-v1 .alert-banner-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6.5px;
+  border-radius: 100px;
+  background: var(--color-error-main);
+  color: var(--color-white);
+  font: 500 12px/20px var(--font-family);
+  letter-spacing: 0.14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scope-v1 .alert-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.scope-v1 .alert-banner-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .alert-banner-subtitle {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .alert-banner-subtitle strong {
+  color: var(--color-warning-main);
+}
+
+.scope-v1 .alert-banner-cta {
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 8px 22px;
+  border-radius: 4px;
+  background: var(--color-warning-main);
+  color: var(--color-white);
+  font: 500 15px/26px var(--font-family);
+  letter-spacing: 0.46px;
+  text-transform: uppercase;
+  box-shadow: 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Filters side panel */
+.scope-v1 .filters-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 90vw;
+  background: var(--color-white);
+  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2), 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+}
+
+.scope-v1 .filters-panel-open {
+  transform: translateX(0);
+}
+
+.scope-v1 .filters-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.scope-v1 .filters-panel-title {
+  flex: 1;
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-dark-blue);
+}
+
+.scope-v1 .filters-panel-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.scope-v1 .filters-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+}
+
+.scope-v1 .filters-panel-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scope-v1 .filters-panel-group-label {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .filters-panel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.scope-v1 .filters-panel-chips-vertical {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.scope-v1 .filters-panel-chip {
+  border: 1px solid var(--color-chip-border);
+  background: var(--color-white);
+  border-radius: 100px;
+  padding: 4px 8px;
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.scope-v1 .filters-panel-chip-active {
+  background: var(--color-info-selected-bg);
+  border-color: var(--color-info-selected-bg);
+  color: var(--color-lightblue-text);
+}
+
+.scope-v1 .sort-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.scope-v1 .sort-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.scope-v1 .sort-radio-circle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-disabled);
+  transition: border-color 0.2s ease;
+}
+
+.scope-v1 .sort-radio-circle-checked {
+  border-color: #2196f3;
+  background: radial-gradient(circle, #2196f3 0 5px, transparent 6px 100%);
+}
+
+.scope-v1 .sort-radio-label {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+/* Filters */
+.scope-v1 .filters-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
+}
+
+.scope-v1 .filters {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  transform: translateY(0);
+  opacity: 1;
+  animation: panel-fade-slide-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Card list */
+.scope-v1 .card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  transform: translateY(0);
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scope-v1 .scroll-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 24px 0;
+}
+
+.scope-v1 .scroll-sentinel-loader {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-chip-border);
+  border-top-color: var(--color-primary-blue);
+  border-radius: 50%;
+  animation: scroll-sentinel-spin 0.7s linear infinite;
+}
+
+@keyframes scroll-sentinel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.scope-v1 .card-wrapper {
+  border-radius: 8px;
+}
+
+.scope-v1 .card-wrapper-unread {
+  border-left: 5px solid #1e88e5;
+}
+
+.scope-v1 .card {
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  transition: background 0.4s ease-out, border-color 0.2s ease;
+}
+
+.scope-v1 .card-mention {
+  flex-direction: column;
+}
+
+.scope-v1 .card:hover {
+  background: var(--color-info-selected-bg);
+  border-color: var(--color-primary-blue);
+}
+
+.scope-v1 .card-selected {
+  background: var(--color-info-selected-bg);
+}
+
+.scope-v1 .card-selectable {
+  cursor: pointer;
+}
+
+.scope-v1 .card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .card-top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-v1 .card-source-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scope-v1 .card-source-name {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .card-dot, .scope-v1 .card-date {
+  font: var(--font-caption);
+  letter-spacing: 0.4px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 100px;
+  padding: 3px 10px;
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
+  white-space: nowrap;
+}
+
+.scope-v1 .chip-possible {
+  background: var(--color-orange-50);
+  color: var(--color-warning-dark);
+}
+
+.scope-v1 .chip-declinee {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .chip-mes-reclamations {
+  background: var(--color-success-50);
+  color: var(--color-success-dark);
+}
+
+.scope-v1 .card-url-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.scope-v1 .card-url {
+  font: var(--font-caption);
+  letter-spacing: 0.4px;
+  color: var(--color-text-disabled);
+  transition: color 0.2s ease;
+}
+
+.scope-v1 .card-url-row:hover .card-url {
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .arrow-up-right {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.scope-v1 .card-url-row:hover .arrow-up-right {
+  transform: translate(1px, -1px);
+}
+
+.scope-v1 .arrow-up-right-line {
+  position: absolute;
+  inset: 21.88%;
+  width: 9px;
+  height: 9px;
+}
+
+.scope-v1 .arrow-up-right-head {
+  position: absolute;
+  top: 21.88%;
+  right: 21.88%;
+  bottom: 31.25%;
+  left: 31.25%;
+  width: 7.5px;
+  height: 7.5px;
+}
+
+.scope-v1 .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.scope-v1 .card-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scope-v1 .card-author {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .card-text-wrapper {
+  width: 100%;
+}
+
+.scope-v1 .card-text {
+  width: 100%;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+  min-height: 72px;
+}
+
+.scope-v1 .card-text-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.scope-v1 .btn-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  color: var(--color-primary-blue);
+  padding: 4px 0;
+  align-self: flex-start;
+}
+
+.scope-v1 .btn-link-icon {
+  transition: transform 0.25s ease;
+}
+
+.scope-v1 .btn-link-icon-flipped {
+  transform: rotate(180deg);
+}
+
+.scope-v1 .card-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--color-grey-200);
+  flex-shrink: 0;
+}
+
+.scope-v1 .card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.scope-v1 .cta-badge-wrap {
+  position: relative;
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.scope-v1 .cta-badge-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: #1a1a1a;
+  color: #fff;
+  font: var(--font-caption);
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 4px;
+  box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.14), 0 1px 8px 0 rgba(0, 0, 0, 0.2);
+  z-index: 5;
+  pointer-events: none;
+  animation: panel-fade-slide-up 0.15s ease;
+}
+
+.scope-v1 .card-actions {
+  display: flex;
+  align-items: center;
+}
+
+.scope-v1 .btn-text {
+  cursor: pointer;
+  font: var(--font-button-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-primary-blue);
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.scope-v1 .btn-text:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .btn-text:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Scroll to top FAB */
+.scope-v1 .scroll-top-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 100px;
+  background: #e0e0e0;
+  box-shadow:
+    0 1px 18px 0 rgba(0, 0, 0, 0.12),
+    0 6px 10px 0 rgba(0, 0, 0, 0.14),
+    0 3px 5px -1px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  transform: translateY(16px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scope-v1 .scroll-top-fab-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.scope-v1 .scroll-top-fab:hover {
+  background: #d5d5d5;
+}
+
+.scope-v1 .scroll-top-fab-icon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.scope-v1 .scroll-top-fab-line {
+  position: absolute;
+  top: 12.5%;
+  bottom: 12.5%;
+  left: 46.88%;
+  right: 46.88%;
+  width: 1.5px;
+  height: 18px;
+}
+
+.scope-v1 .scroll-top-fab-chevron {
+  position: absolute;
+  top: 12.5%;
+  left: 18.75%;
+  right: 18.75%;
+  bottom: 53.13%;
+  width: 15px;
+  height: 8.25px;
+}
+
+/* Alert snackbar */
+.scope-v1 .alert-snackbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scope-v1 .alert-snackbar-info {
+  background: #e5f6fd;
+  border-radius: 4px;
+}
+
+.scope-v1 .alert-snackbar-success {
+  background: #edf7ed;
+  border-radius: 8px;
+}
+
+.scope-v1 .alert-snackbar-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.scope-v1 .alert-snackbar-text {
+  white-space: nowrap;
+}
+
+.scope-v1 .alert-snackbar-info .alert-snackbar-text {
+  color: #014361;
+  font: var(--font-h6);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+  padding: 8px 0;
+}
+
+.scope-v1 .alert-snackbar-success .alert-snackbar-text {
+  color: #1e4620;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  padding: 8px 0;
+}
+
+.scope-v1 .alert-snackbar-action {
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.46px;
+  text-transform: uppercase;
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .alert-snackbar-action:hover {
+  background: var(--color-action-hover);
+}
+
+/* The sidebar overlays instead of pushing (see .sidebar above), so
+   left:50% centers on the full viewport rather than on the visible
+   content area when it's open — shift by half the 300px sidebar width to
+   re-center against the content instead of the page. */
+.scope-v1 .created-alert-shifted {
+  left: calc(50% + 150px);
+}
+
+/* Create reclamation modal */
+@keyframes modal-backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-paper-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.scope-v1 .modal-row {
+  display: flex;
+  gap: 16px;
+}
+
+.scope-v1 .modal-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.scope-v1 .modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+}
+
+/* Unsaved changes confirm dialog */
+.scope-v1 .confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 40;
+  animation: modal-backdrop-fade-in 0.2s ease;
+}
+
+.scope-v1 .confirm-dialog-paper {
+  position: relative;
+  background: var(--color-white);
+  border-radius: 4px;
+  width: 420px;
+  max-width: 100%;
+  box-shadow:
+    0 9px 46px 8px rgba(0, 0, 0, 0.12),
+    0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 11px 15px -7px rgba(0, 0, 0, 0.2);
+  animation: modal-paper-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-v1 .confirm-dialog-title {
+  padding: 20px 40px 0 24px;
+  margin: 0;
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .confirm-dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+
+.scope-v1 .confirm-dialog-close:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.scope-v1 .confirm-dialog-body {
+  padding: 16px 24px 24px;
+  margin: 0;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .confirm-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.scope-v1 .btn-filled {
+  background: var(--color-primary-blue);
+  color: var(--color-white);
+  cursor: pointer;
+  font: var(--font-button-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 5px 0 rgba(0, 0, 0, 0.12),
+    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 3px 1px -2px rgba(0, 0, 0, 0.2);
+}
+
+.scope-v1 .btn-filled:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Outlined form fields */
+.scope-v1 .field-outlined {
+  position: relative;
+}
+
+.scope-v1 .field-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-v1 .field-readonly-label {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .field-readonly-value {
+  display: flex;
+  align-items: center;
+}
+
+.scope-v1 .field-border {
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 4px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  position: relative;
+}
+
+/* Clicking into a field should visibly show it as selected — a thicker,
+   accent-colored border (via box-shadow so it doesn't shift layout) plus a
+   matching label color, mirroring the floating-label pattern used when the
+   field has an error. */
+.scope-v1 .field-border:focus-within {
+  border-color: var(--color-primary-blue);
+  box-shadow: 0 0 0 1px var(--color-primary-blue);
+}
+
+.scope-v1 .field-outlined:focus-within .field-label {
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .field-border input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+}
+
+.scope-v1 .field-border input::placeholder {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.scope-v1 .field-dropdown-trigger {
+  width: 100%;
+  background: none;
+  cursor: pointer;
+  padding-right: 24px;
+  text-align: left;
+}
+
+.scope-v1 .field-dropdown-value {
+  flex: 1;
+  min-width: 0;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.scope-v1 .field-dropdown-value-placeholder {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.scope-v1 .field-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+.scope-v1 .field-caret-open {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.scope-v1 .field-dropdown-menu {
+  position: fixed;
+  background: var(--color-white);
+  border-radius: 4px;
+  padding: 8px 0;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  z-index: 40;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: panel-fade-slide-up 0.15s ease backwards;
+}
+
+.scope-v1 .field-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 6px 16px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .field-dropdown-item-label {
+  white-space: nowrap;
+}
+
+.scope-v1 .field-dropdown-item:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .field-dropdown-item-selected {
+  background: rgba(16, 45, 105, 0.08);
+}
+
+.scope-v1 .field-dropdown-item-help-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.scope-v1 .field-border-textarea {
+  align-items: flex-start;
+  padding: 0;
+}
+
+.scope-v1 .field-border-textarea textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 12px;
+  transition: height 0.1s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Hug-content variant (FormTextareaAutoGrow) — always sized to fit its
+   value exactly, so there's never internal scroll/fade to manage. */
+.scope-v1 .field-border-textarea-autogrow textarea {
+  overflow: hidden;
+}
+
+.scope-v1 .field-fade-top textarea {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 36px, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 36px, black 100%);
+}
+
+.scope-v1 .field-fade-bottom textarea {
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 36px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 36px), transparent 100%);
+}
+
+.scope-v1 .field-fade-top.field-fade-bottom textarea {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 36px,
+    black calc(100% - 36px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0, black 36px, black calc(100% - 36px), transparent 100%);
+}
+
+.scope-v1 .field-border-textarea textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scope-v1 .field-border-textarea textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scope-v1 .field-border-textarea textarea::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 100px;
+}
+
+.scope-v1 .field-border-textarea textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.scope-v1 .field-border-textarea textarea::placeholder {
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.scope-v1 .field-label {
+  position: absolute;
+  /* Centered against .field-border's own 56px min-height, not 50% of
+     .field-outlined — that wrapper grows taller than the border box
+     whenever .field-error-text is shown below it, which would otherwise
+     pull a percentage-based center down with it. */
+  top: 28px;
+  left: 12px;
+  transform: translateY(-50%);
+  background: transparent;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, background-color 0.15s ease, padding 0.15s ease;
+}
+
+.scope-v1 .field-label-floating {
+  top: 0;
+  background: var(--color-white);
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+.scope-v1 .field-outlined-textarea .field-label {
+  top: 28px;
+}
+
+.scope-v1 .field-outlined-textarea .field-label-floating {
+  top: 0;
+}
+
+.scope-v1 .field-border-error {
+  border-color: #e4032e;
+}
+
+.scope-v1 .field-label-error {
+  color: #e4032e;
+}
+
+.scope-v1 .field-error-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  letter-spacing: 0.15px;
+  color: #e4032e;
+}
+
+/* Complaints table */
+.scope-v1 .complaints-table {
+  background: var(--color-white);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v1 .complaint-ticket-chip {
+  background: var(--color-grey-100);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .complaint-cta {
+  flex-shrink: 0;
+  width: 237px;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.scope-v1 .complaint-cta-status {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .complaint-cta-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scope-v1 .complaint-cta-label {
+  font: var(--font-subtitle2);
+  font-weight: 400;
+  letter-spacing: 0.1px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .complaint-echeance {
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.scope-v1 .complaint-echeance-warning {
+  color: var(--color-error-main);
+}
+
+.scope-v1 .complaint-echeance-closed {
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .complaints-chip-conformite-conforme {
+  background: var(--color-lightblue-50);
+  color: var(--color-lightblue-text);
+}
+
+.scope-v1 .complaints-chip-avancement-a-traiter {
+  background: var(--color-orange-50);
+  color: var(--color-warning-dark);
+}
+
+.scope-v1 .complaints-chip-avancement-sans-suite, .scope-v1 .complaints-chip-avancement-cloture {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .complaints-chip-conformite-non-conforme {
+  background: #fdecea;
+  color: #c62828;
+}
+
+/* Complaint detail drawer */
+@keyframes drawer-backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-panel-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawer-panel-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.scope-v1 .drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+  animation: drawer-backdrop-fade-in 0.2s ease;
+}
+
+/* Used when this drawer opens as a direct continuation of another drawer in
+   the same spot (e.g. create-réclamation -> treatment) — the panel/backdrop
+   must not visibly move, only its content changes, so the entrance
+   animation is skipped. Must stay before the .drawer-closing rules below:
+   both this and those match with equal specificity once a still-open
+   drawer created this way is closed, and the close animation must win. */
+.scope-v1 .drawer-backdrop.drawer-noenter {
+  animation: none;
+}
+
+.scope-v1 .drawer-backdrop.drawer-closing {
+  animation: drawer-backdrop-fade-out 0.2s ease forwards;
+}
+
+.scope-v1 .drawer-panel {
+  background: var(--color-white);
+  width: 700px;
+  max-width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  animation: drawer-panel-slide-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-v1 .drawer-panel.drawer-noenter {
+  animation: none;
+}
+
+.scope-v1 .drawer-closing .drawer-panel {
+  animation: drawer-panel-slide-out 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.scope-v1 .drawer-appbar {
+  background: var(--color-grey-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 72px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.scope-v1 .drawer-title {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .drawer-close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+
+.scope-v1 .drawer-close-button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Create-claim slider */
+.scope-v1 .create-claim-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scope-v1 .create-claim-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.scope-v1 .create-claim-heading {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .create-claim-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.scope-v1 .create-claim-actions {
+  padding: 20px 16px;
+}
+
+.scope-v1 .drawer-text {
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 a.drawer-canal:hover .drawer-text {
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 a.drawer-canal:hover .arrow-up-right {
+  transform: translate(1px, -1px);
+}
+
+/* Dossier detail drawer */
+.scope-v1 .dossier-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Success toast shown after creating a réclamation. It lives above whatever
+   is currently in the panel (loading beat or treatment content — see
+   ReclamationsPage.tsx) rather than inside either one, since it stays
+   visible across that swap. Mirrors .drawer-backdrop's own flex-end layout
+   so the band lines up with the panel's exact position/width regardless of
+   viewport size, instead of hardcoding the panel's dimensions again. */
+.scope-v1 .created-toast-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.scope-v1 .created-toast-band {
+  width: 700px;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 32px;
+}
+
+.scope-v1 .dossier-created-toast {
+  background: #edf7ed;
+  color: #1e4620;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  box-shadow:
+    0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  animation: dossier-created-toast-fade 4s ease forwards;
+}
+
+@keyframes dossier-created-toast-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.scope-v1 .dossier-panel-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-panel-loader {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-chip-border);
+  border-top-color: var(--color-primary-blue);
+  border-radius: 50%;
+  animation: scroll-sentinel-spin 0.7s linear infinite;
+}
+
+.scope-v1 .dossier-panel-loading-text {
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-header {
+  background: var(--color-grey-200);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .dossier-header-stuck {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.scope-v1 .dossier-title {
+  font: 500 20px/1.6 var(--font-family);
+  letter-spacing: 0.15px;
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .dossier-status-chip {
+  background: #e5f6fd;
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .dossier-status-chip-closed {
+  background: var(--color-chip-selected-bg);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-status-chip-attente {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.scope-v1 .dossier-header-spacer {
+  flex: 1;
+}
+
+.scope-v1 .dossier-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.scope-v1 .dossier-content {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 24px 24px;
+}
+
+.scope-v1 .dossier-content .dossier-info-alert {
+  margin-bottom: 32px;
+}
+
+.scope-v1 .dossier-content .dossier-section:not(:last-child) {
+  margin-bottom: 16px;
+}
+
+/* Tabs + stepper stay put while the tab content underneath scrolls. The
+   24px top padding normally on .dossier-content lives here instead (as
+   padding-top, not margin) so this wrapper's own white background covers
+   that space too — otherwise scrolled content would still peek through
+   the gap between the drawer header and the stuck tabs. */
+.scope-v1 .dossier-content .dossier-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  /* Full-bleed to the drawer's edges (undoing .dossier-content's own side
+     padding) so the shadow reads as one bar spanning the whole width,
+     not a floating card only as wide as the segmented control. */
+  margin: 0 -24px 8px;
+  padding: 16px 24px;
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .dossier-sticky-header-stuck {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+
+/* Dossier tabs (Informations / Traitement / Historique) */
+.scope-v1 .dossier-tabs-segmented {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  background: var(--color-grey-100);
+  border-radius: 12px;
+  padding: 4px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-tabs-segment-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
+  background: var(--color-white);
+  border-radius: 8px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.04);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-v1 .dossier-tabs-segment {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  cursor: pointer;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font: var(--font-button-medium);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-tabs-segment-active {
+  color: var(--color-text-primary);
+}
+
+/* Traitement tab: guiding question flow */
+.scope-v1 .dossier-treatment-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-treatment-block > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-treatment-block > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.scope-v1 .dossier-treatment-block > *:nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+
+.scope-v1 .dossier-treatment-block > .dossier-contract-row {
+  animation-delay: 0s;
+}
+
+.scope-v1 .dossier-content .dossier-info-alert-text {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-treatment-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-treatment-fields > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-treatment-fields > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.scope-v1 .dossier-treatment-fields > *:nth-child(n + 5) {
+  animation-delay: 0.4s;
+}
+
+/* This row only ever mounts on its own (revealed by the "rattaché à un
+   contrat ?" toggle after everything else is already visible), so it should
+   animate in immediately like the other question's revealed content,
+   instead of inheriting the entrance stagger delay from its DOM position. */
+.scope-v1 .dossier-treatment-fields > .dossier-contract-row {
+  animation-delay: 0s;
+}
+
+.scope-v1 .dossier-question-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-field-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.scope-v1 .dossier-question-text {
+  font: var(--font-subtitle1);
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-choice-answer {
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-block-title {
+  font: var(--font-h6);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  /* font-h6's 1.6 line-height reserves a taller box than the glyphs
+     actually need, so the gap after this title reads as bigger than the
+     same nominal gap after other, tighter-lined elements — pull the box's
+     own bottom edge in to cancel that leftover leading. */
+  margin-bottom: -8px;
+}
+
+/* Each "Informations ..." group's own fields sit 16px apart (the block's
+   base gap), but the group itself needs to read as a distinct section from
+   whatever came before it — so its title gets an extra 16px on top of that
+   gap, landing on the 32px separation used between top-level groups. */
+.scope-v1 .dossier-treatment-block > .dossier-block-title,
+.scope-v1 .dossier-treatment-fields > .dossier-block-title {
+  margin-top: 16px;
+}
+
+.scope-v1 .dossier-treatment-block > .dossier-block-title:first-child,
+.scope-v1 .dossier-treatment-fields > .dossier-block-title:first-child {
+  margin-top: 0;
+}
+
+.scope-v1 .dossier-choice-row {
+  display: flex;
+  gap: 8px;
+}
+
+.scope-v1 .dossier-choice-row-error .dossier-toggle-btn {
+  border-color: #e4032e;
+}
+
+.scope-v1 .dossier-toggle-btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-chip-border);
+  background: var(--color-white);
+  font: var(--font-button-medium);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.scope-v1 .dossier-toggle-btn:hover {
+  background: var(--color-action-hover);
+}
+
+.scope-v1 .dossier-toggle-btn-active {
+  background: var(--color-primary-blue);
+  border-color: var(--color-primary-blue);
+  color: var(--color-white);
+}
+
+.scope-v1 .dossier-toggle-btn-active:hover {
+  background: var(--color-primary-blue);
+}
+
+.scope-v1 .dossier-section-meta {
+  flex-shrink: 0;
+  font: var(--font-body2);
+  letter-spacing: 1px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-section {
+  background: #fafafa;
+  border-radius: 8px;
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-section + .dossier-section {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-section + .dossier-section + .dossier-section {
+  animation-delay: 0.1s;
+}
+
+.scope-v1 .dossier-section-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-v1 .dossier-section-open .dossier-section-collapse {
+  grid-template-rows: 1fr;
+}
+
+.scope-v1 .dossier-section-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.scope-v1 .dossier-section-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-section-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-section-title {
+  flex: 1;
+  text-align: left;
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 16px 16px;
+}
+
+.scope-v1 .dossier-section-body > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-section-body > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .dossier-section-body > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-section-body > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-section-body > *:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.scope-v1 .dossier-section-body > *:nth-child(5) {
+  animation-delay: 0.2s;
+}
+.scope-v1 .dossier-section-body > *:nth-child(n + 6) {
+  animation-delay: 0.25s;
+}
+
+.scope-v1 .dossier-section-headline {
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-field-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-field-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.scope-v1 .dossier-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-field-label {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-field-chip-wrap {
+  display: inline-flex;
+  align-self: flex-start;
+}
+
+.scope-v1 .dossier-field-help {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.scope-v1 .dossier-field-help-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.38);
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.scope-v1 .dossier-field-required {
+  color: #e4032e;
+}
+
+.scope-v1 .field-required {
+  color: #e4032e;
+}
+
+.scope-v1 .dossier-field-input {
+  background: var(--color-white);
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  position: relative;
+}
+
+.scope-v1 .dossier-field-input:focus-within {
+  border-color: var(--color-primary-blue);
+  box-shadow: 0 0 0 1px var(--color-primary-blue);
+}
+
+.scope-v1 .dossier-field-input input, .scope-v1 .dossier-field-input select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-v1 .dossier-field-input textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+  min-height: 96px;
+  field-sizing: content;
+}
+
+.scope-v1 .dossier-field-input input[readonly], .scope-v1 .dossier-field-input textarea[readonly] {
+  color: var(--color-text-primary);
+  cursor: default;
+}
+
+.scope-v1 .dossier-field-input-readonly {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.scope-v1 .dossier-field-input-readonly:focus-within {
+  box-shadow: none;
+}
+
+.scope-v1 .dossier-field-input-readonly input, .scope-v1 .dossier-field-input-readonly textarea {
+  padding: 0;
+}
+
+.scope-v1 .dossier-field-input-readonly input {
+  flex: 0 1 auto;
+  field-sizing: content;
+}
+
+.scope-v1 .dossier-field-input-readonly textarea {
+  min-height: 0;
+  field-sizing: content;
+}
+
+.scope-v1 .dossier-field-input-error {
+  border-color: #e4032e;
+}
+
+.scope-v1 .dossier-field-error-text {
+  font: var(--font-body2);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: #e4032e;
+}
+
+.scope-v1 .dossier-field-adornment {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-save-btn {
+  align-self: flex-end;
+}
+
+/* Compact horizontal dossier stepper (create-réclamation slider) — bare,
+   no card/title. The 5 dots are the flex items that space-between
+   actually spaces (fixed 24px each), so spacing is decided purely by the
+   dots and stays perfectly even. The container's own left/right padding
+   is set to offset each edge dot's centering so the LABEL's outer edge —
+   not the dot — has room to sit at the panel's margin without being
+   clipped: the wrapped first-step label's widest line, "Réception de la
+   mention" (~101px), needs the dot pushed in by (101-24)/2 ≈ 38.5px on the
+   left, rounded up to 40px; the right side uses the widest last-step label
+   across both label sets — "Clôture du dossier"'s widest line (~69px) —
+   needing (69-24)/2 ≈ 22.5px, rounded up to 24px so "sans suite" (narrower)
+   also clears it with a little room to spare. These are hardcoded to this
+   stepper's label set and font — if any label text changes, re-measure and
+   adjust (and the line/line-fill offsets below, which mirror this same
+   math). */
+.scope-v1 .dossier-hstepper {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 24px 80px 40px;
+  /* overflow-x: hidden used to sit here to trim a few px of horizontal
+     scroll from the first/last label's margin, but per the CSS overflow
+     spec, pairing a non-"visible" overflow-x with a "visible" overflow-y
+     forces the latter to compute as "auto" too — silently clipping the
+     current step's dot halo (box-shadow) at the container's top edge.
+     The side padding above is already tuned to fit the widest wrapped
+     label, so dropping this is safe. */
+  /* .dossier-content is a flex column, making this a flex item — and
+     overflow-x: hidden used to switch its automatic minimum size from
+     content-based to 0, so without this it would get squashed shorter
+     (clipping the step labels/badge) whenever a sibling below it (e.g.
+     the "Oui" branch's extra fields) makes the column tall enough to need
+     shrinking. flex-shrink: 0 guards against that directly instead. */
+  flex-shrink: 0;
+}
+
+.scope-v1 .dossier-hstepper-line {
+  position: absolute;
+  top: 12px;
+  left: 52px;
+  right: 36px;
+  height: 2px;
+  background: #d9d9d9;
+  transform: translateY(-1px);
+}
+
+.scope-v1 .dossier-hstepper-line-fill {
+  position: absolute;
+  top: 12px;
+  left: 52px;
+  height: 2px;
+  background: var(--color-primary-blue);
+  transform: translateY(-1px);
+  transition: width 0.3s ease;
+}
+
+.scope-v1 .dossier-hstep {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 24px;
+}
+
+.scope-v1 .dossier-hstep-dot {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  /* Must stay fully opaque — it sits directly over the connector line and
+     any transparency lets the line bleed through the circle. */
+  background: #d9d9d9;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-hstep-done .dossier-hstep-dot {
+  background: var(--color-primary-blue);
+  color: #fff;
+}
+
+.scope-v1 .dossier-hstep-current .dossier-hstep-dot {
+  background: var(--color-primary-blue);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(16, 45, 105, 0.2);
+}
+
+.scope-v1 .dossier-hstep-label {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 104px;
+  font: 500 13px/1.3 var(--font-family);
+  letter-spacing: 0.1px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  white-space: normal;
+}
+
+.scope-v1 .dossier-hstep-current .dossier-hstep-label {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+
+.scope-v1 .dossier-hstep-upcoming .dossier-hstep-label {
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .dossier-hstep-skipped .dossier-hstep-label {
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .dossier-hstep-badge {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 500 12px/1.2 var(--font-family);
+  letter-spacing: 0.2px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.scope-v1 .dossier-hstep-badge-warning {
+  color: #c62828;
+}
+
+.scope-v1 .dossier-history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-history-item {
+  display: flex;
+  gap: 12px;
+  animation: panel-fade-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.scope-v1 .dossier-history-marker {
+  position: relative;
+  width: 24px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.scope-v1 .dossier-history-dot {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-grey-100);
+  color: var(--color-text-primary);
+  z-index: 1;
+}
+
+.scope-v1 .dossier-history-line {
+  position: absolute;
+  top: 0;
+  bottom: -16px;
+  left: 10px;
+  width: 2px;
+  overflow: hidden;
+}
+
+.scope-v1 .dossier-history-line svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scope-v1 .dossier-history-line line {
+  stroke: var(--color-grey-200);
+}
+
+.scope-v1 .dossier-history-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-history-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-history-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.scope-v1 .dossier-history-item:nth-child(n + 4) {
+  animation-delay: 0.2s;
+}
+
+.scope-v1 .dossier-history-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scope-v1 .dossier-history-title {
+  font: 500 16px/1.2 var(--font-family);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-history-description {
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+  color: var(--color-text-secondary);
+}
+
+/* Generic "what was actually chosen" list under a "Modification de ..."
+   entry — works for any field type (text, date, select, toggle) since it's
+   just label/value rows, laid out in a light card to set it apart from the
+   entry's own description text above it. */
+.scope-v1 .dossier-history-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.scope-v1 .dossier-history-change-row {
+  display: flex;
+  gap: 8px;
+  font: var(--font-body2);
+  letter-spacing: 0.17px;
+}
+
+.scope-v1 .dossier-history-change-label {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-history-change-label::after {
+  content: ' :';
+}
+
+.scope-v1 .dossier-history-change-value {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.scope-v1 .dossier-history-meta {
+  font: var(--font-caption);
+  letter-spacing: 0.4px;
+  color: var(--color-text-disabled);
+}
+
+/* Buttons-only footer — the info text that used to live here moved to
+   .dossier-info-alert, right under the stepper (see markup). */
+.scope-v1 .dossier-next-step {
+  background: var(--color-white);
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+.scope-v1 .dossier-done-text {
+  margin: 0;
+  max-width: 578px;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.scope-v1 .dossier-alert-warning {
+  background: var(--color-alert-bg);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-alert-info {
+  background: rgba(33, 150, 243, 0.08);
+  border-radius: 8px;
+  padding: 16px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font: 400 14px/1.43 var(--font-family);
+  letter-spacing: 0.17px;
+  color: var(--color-primary-blue);
+  /* .dossier-treatment-block's 16px gap is generous for this alert
+     specifically — pull its neighbors closer on both sides. */
+  margin: -8px 0;
+}
+
+.scope-v1 .dossier-alert-info p {
+  margin: 0;
+}
+
+/* Groups an alert with the field it directly instructs (e.g. the AR/contact
+   date), so the gap between them is a deliberate, explicit value instead of
+   inheriting the same -8px-off-16px hack used for a lone alert sitting
+   between unrelated siblings. */
+.scope-v1 .dossier-alert-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scope-v1 .dossier-alert-field-group .dossier-alert-info {
+  margin: 0;
+}
+
+.scope-v1 .dossier-alert-warning-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-warning-main);
+}
+
+.scope-v1 .dossier-alert-warning-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-warning-main);
+}
+
+.scope-v1 .dossier-alert-warning-text {
+  margin: 0;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-warning-main);
+}
+
+.scope-v1 .dossier-treatment-block-centered {
+  align-items: center;
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* Sticky footer for the Traitement tab's primary action(s) — sits outside
+   the scrolling .dossier-content so it's always reachable. A drop shadow
+   (not a gradient) separates it from whatever scrolls up behind it.
+   Buttons hug their own content (row flex, no stretch) instead of filling
+   the width. */
+.scope-v1 .dossier-traitement-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 20px 24px;
+  background: var(--color-white);
+  position: relative;
+  z-index: 2;
+  transition: box-shadow 0.25s ease;
+}
+
+.scope-v1 .dossier-traitement-footer-shadow {
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
+}

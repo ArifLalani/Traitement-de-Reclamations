@@ -12,10 +12,14 @@ import ComplaintsFiltersPanel, {
   type ProgressionFilter,
 } from './ComplaintsFiltersPanel';
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
-import CreateReclamationSlider, { type ReclamationFormData } from './CreateReclamationSlider';
+import CreateReclamationSlider, {
+  type ReclamantDraftData,
+  type ReclamationFormData,
+} from './CreateReclamationSlider';
 import MentionsAlertBanner from './MentionsAlertBanner';
 import MentionsFiltersPanel, {
   type AppreciationFilter,
+  type ContactFilter,
   type EtatFilter,
   type PeriodeFilter,
   type ReclamationsFacet,
@@ -30,7 +34,10 @@ import {
   attachDetails,
   complaints as initialComplaints,
   closedComplaints as initialClosedComplaints,
+  getContactTag,
+  STATUT_CLIENT_LABEL,
   type Complaint,
+  type HistoriqueEntry,
 } from './complaintsData';
 import { exportComplaintsToCsv, filterComplaintsByRange } from './exportComplaints';
 import type { Source } from './SourceIcon';
@@ -148,11 +155,16 @@ type TabId = SidebarSection;
 
 const PAGE_SIZE = 20;
 
-export default function ReclamationsPage() {
+type ReclamationsPageProps = {
+  versionSwitcher?: React.ReactNode;
+};
+
+export default function ReclamationsPage({ versionSwitcher }: ReclamationsPageProps = {}) {
   const [activeTab, setActiveTab] = useState<TabId>('mentions');
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [appreciationFilter, setAppreciationFilter] = useState<AppreciationFilter>('tous');
   const [reclamationsFacet, setReclamationsFacet] = useState<ReclamationsFacet>('tous');
+  const [contactFilter, setContactFilter] = useState<ContactFilter>('tous');
   const [periodeFilter, setPeriodeFilter] = useState<PeriodeFilter>('annee');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortPanelOpen, setSortPanelOpen] = useState(false);
@@ -172,6 +184,48 @@ export default function ReclamationsPage() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
+  // Date a demande de contact was sent for a mention now "en attente" —
+  // keyed alongside stateOverrides so reopening the slider can pre-fill it.
+  const [demandeContactDates, setDemandeContactDates] = useState<Record<string, string>>({});
+  // Reclamant fields saved via the mention slider's "Enregistrer" action
+  // (without creating a réclamation) — keyed by mention id so reopening the
+  // slider picks up right where the user left off. A few curated mentions
+  // start out already filled in, as if someone had saved them earlier, so
+  // there's something to see beyond the empty-by-default case. Rattaché à
+  // un contrat isn't something the system could ever know on its own — it
+  // stays unanswered (null) rather than being guessed at.
+  const [reclamantDrafts, setReclamantDrafts] = useState<Record<string, ReclamantDraftData>>({
+    '2': {
+      nom: 'D.',
+      prenom: 'Marc',
+      email: 'marc.dupont@gmail.com',
+      telephone: '06 12 34 56 78',
+      denominationSociale: '',
+      porteurDuRisque: '',
+      rattacheContrat: null,
+      statutClient: '',
+    },
+    '5': {
+      nom: 'Martin',
+      prenom: 'Julie',
+      email: 'julie.martin@gmail.com',
+      telephone: '07 45 12 89 63',
+      denominationSociale: '',
+      porteurDuRisque: '',
+      rattacheContrat: null,
+      statutClient: '',
+    },
+    '7': {
+      nom: 'Roussel',
+      prenom: 'Patrice',
+      email: 'patrice.roussel@gmail.com',
+      telephone: '06 98 76 54 32',
+      denominationSociale: '',
+      porteurDuRisque: '',
+      rattacheContrat: null,
+      statutClient: '',
+    },
+  });
   const [snackbar, setSnackbar] = useState<{
     id: string;
     message: string;
@@ -185,6 +239,7 @@ export default function ReclamationsPage() {
   ]);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
+  const [complaintsContactFilter, setComplaintsContactFilter] = useState<ContactFilter>('tous');
   const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(false);
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
@@ -262,6 +317,13 @@ export default function ReclamationsPage() {
     setVisibleCount(PAGE_SIZE);
   };
 
+  const selectContactFilter = (id: ContactFilter) => {
+    if (id === contactFilter) return;
+    prevTops.current = measureTops();
+    setContactFilter(id);
+    setVisibleCount(PAGE_SIZE);
+  };
+
   const selectPeriodeFilter = (id: PeriodeFilter) => {
     if (id === periodeFilter) return;
     prevTops.current = measureTops();
@@ -274,6 +336,7 @@ export default function ReclamationsPage() {
     setEtatFilter('tous');
     setAppreciationFilter('tous');
     setReclamationsFacet('tous');
+    setContactFilter('tous');
     setPeriodeFilter('annee');
     setVisibleCount(PAGE_SIZE);
   };
@@ -304,10 +367,18 @@ export default function ReclamationsPage() {
     setVisibleCount(PAGE_SIZE);
   };
 
+  const selectComplaintsContactFilter = (id: ContactFilter) => {
+    if (id === complaintsContactFilter) return;
+    prevTops.current = measureTops();
+    setComplaintsContactFilter(id);
+    setVisibleCount(PAGE_SIZE);
+  };
+
   const resetComplaintsFilters = () => {
     prevTops.current = measureTops();
     setProgressionFilter('tous');
     setConformiteFilter('tous');
+    setComplaintsContactFilter('tous');
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -449,6 +520,7 @@ export default function ReclamationsPage() {
 
   const handleRequestCreate = (r: (typeof reclamations)[number]) => {
     setCreateTarget(r);
+    if (isEffectivelyNew(r)) markIdsAsRead([r.id]);
   };
 
   const markIdsAsRead = (ids: string[]) => {
@@ -624,7 +696,7 @@ export default function ReclamationsPage() {
     exitSelectionMode();
   };
 
-  const handleConfirmCreate = (formData: ReclamationFormData) => {
+  const handleConfirmCreate = (formData: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => {
     if (!createTarget) return;
     const id = createTarget.id;
     prevTops.current = measureTops();
@@ -652,8 +724,35 @@ export default function ReclamationsPage() {
       description: formData.description,
     });
     newComplaint.reclamant.telephone = formData.telephone;
+    newComplaint.reclamant.rattacheContrat = formData.rattacheContrat;
+    newComplaint.reclamant.statutClient = formData.statutClient;
     newComplaint.classification.porteurDuRisque = formData.porteurDuRisque;
     newComplaint.notesInternes = formData.notesInternes;
+
+    // The "Création de la réclamation" entry (a key step, flagged as such in
+    // the Historique tab) should also carry the contact info gathered in the
+    // mention slider, not just the generic "créée depuis une mention"
+    // description — otherwise that information is lost from the trail. And
+    // the dossier's own historique picks up right where the mention's left
+    // off (réception, demande de contact, classement sans suite...) instead
+    // of starting blank — same trail, whichever slider it's viewed from.
+    const contactChanges = [
+      { label: 'Prénom', value: formData.prenom },
+      { label: 'Nom', value: formData.nom },
+      { label: 'Email', value: formData.email },
+      { label: 'Téléphone', value: formData.telephone },
+      { label: 'Dénomination sociale', value: formData.denominationSociale },
+      { label: 'Assureur / Porteur du risque', value: formData.porteurDuRisque },
+      { label: 'Rattaché à un contrat', value: formData.rattacheContrat === 'oui' ? 'Oui' : formData.rattacheContrat === 'non' ? 'Non' : '' },
+      { label: 'Statut du client', value: formData.statutClient ? STATUT_CLIENT_LABEL[formData.statutClient] : '' },
+    ].filter((change) => change.value.trim() !== '');
+    const creationEntry = {
+      ...(newComplaint.historique.find((entry) => entry.title === 'Création de la réclamation') ??
+        newComplaint.historique[0]),
+      changes: contactChanges,
+    };
+    newComplaint.historique = [...mentionHistorique, creationEntry];
+
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
     // Rather than closing the create slider and reopening a separate detail
@@ -706,6 +805,27 @@ export default function ReclamationsPage() {
     snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
   };
 
+  // The mention isn't turned into a réclamation yet here — its author hasn't
+  // given their contact details, so there's nothing to open a dossier with.
+  // It's just flagged "en attente" until they reply.
+  const handleConfirmEnAttente = (id: string, demandeContactDate: string) => {
+    prevTops.current = measureTops();
+    setStateOverrides((prev) => ({ ...prev, [id]: 'en-attente' }));
+    setDemandeContactDates((prev) => ({ ...prev, [id]: demandeContactDate }));
+  };
+
+  // Faute de retour de l'auteur de la mention dans le délai imparti (10
+  // jours après la demande de contact) — see CreateReclamationSlider's
+  // canClasserSansSuite.
+  const handleClasserSansSuiteMention = (id: string) => {
+    prevTops.current = measureTops();
+    setStateOverrides((prev) => ({ ...prev, [id]: 'classee-sans-suite' }));
+  };
+
+  const handleSaveReclamantDraft = (id: string, draft: ReclamantDraftData) => {
+    setReclamantDrafts((prev) => ({ ...prev, [id]: draft }));
+  };
+
   const handleSnackbarUndo = () => {
     if (!snackbar) return;
     snackbar.onUndo?.();
@@ -748,9 +868,24 @@ export default function ReclamationsPage() {
     conformiteFilter,
   ]);
 
-  const effectiveReclamations = reclamations.map((r) =>
-    stateOverrides[r.id] ? { ...r, state: stateOverrides[r.id] } : r,
-  );
+  const effectiveReclamations = reclamations.map((r) => ({
+    ...r,
+    state: stateOverrides[r.id] ?? r.state,
+    demandeContactDate: demandeContactDates[r.id] ?? r.demandeContactDate,
+  }));
+
+  // Once a réclamation exists for a mention, its reclamant data (not the
+  // mention's own saved draft, which stops being updated once "en attente"
+  // is left behind) is what settles whether the author is a prospect or a
+  // client.
+  const getMentionContactTag = (r: (typeof effectiveReclamations)[number]) => {
+    const linkedComplaint =
+      r.state === 'mes-reclamations' ? complaintsList.find((c) => c.sourceReclamationId === r.id) : undefined;
+    const draft = reclamantDrafts[r.id];
+    return linkedComplaint
+      ? getContactTag(linkedComplaint.reclamant.rattacheContrat, linkedComplaint.reclamant.statutClient)
+      : getContactTag(draft?.rattacheContrat, draft?.statutClient);
+  };
 
   const query = search.trim().toLowerCase();
 
@@ -778,19 +913,13 @@ export default function ReclamationsPage() {
   const matchesAppreciation = (r: (typeof effectiveReclamations)[number]) =>
     appreciationFilter === 'tous' || sentiment(r) === appreciationFilter;
 
-  const matchesReclamationsFacet = (r: (typeof effectiveReclamations)[number]) => {
-    switch (reclamationsFacet) {
-      case 'tous':
-        return true;
-      case 'potentielles':
-        return r.state === 'possible';
-      case 'confirmees':
-        return r.state === 'mes-reclamations';
-      case 'ecartees':
-        return r.state === 'declinee';
-      default:
-        return true;
-    }
+  const matchesReclamationsFacet = (r: (typeof effectiveReclamations)[number]) =>
+    reclamationsFacet === 'tous' || r.state === reclamationsFacet;
+
+  const matchesContact = (r: (typeof effectiveReclamations)[number]) => {
+    if (contactFilter === 'tous') return true;
+    const tag = getMentionContactTag(r);
+    return contactFilter === 'prospect' ? tag === 'Prospect' : tag === 'Client';
   };
 
   const matchesPeriode = (r: (typeof effectiveReclamations)[number]) => {
@@ -816,7 +945,14 @@ export default function ReclamationsPage() {
   ).length;
 
   const filtered = searched
-    .filter((r) => matchesReclamationsFacet(r) && matchesEtat(r) && matchesAppreciation(r) && matchesPeriode(r))
+    .filter(
+      (r) =>
+        matchesReclamationsFacet(r) &&
+        matchesEtat(r) &&
+        matchesAppreciation(r) &&
+        matchesContact(r) &&
+        matchesPeriode(r),
+    )
     .sort((a, b) =>
       mentionsSortOrder === 'recent'
         ? parseDateValue(b.date) - parseDateValue(a.date)
@@ -841,7 +977,11 @@ export default function ReclamationsPage() {
         c.description.toLowerCase().includes(complaintsQuery);
       const matchesProgression = progressionFilter === 'tous' || c.avancement === progressionFilter;
       const matchesConformite = conformiteFilter === 'tous' || c.conformite === conformiteFilter;
-      return matchesSearch && matchesProgression && matchesConformite;
+      const matchesContact =
+        complaintsContactFilter === 'tous' ||
+        getContactTag(c.reclamant.rattacheContrat, c.reclamant.statutClient) ===
+          (complaintsContactFilter === 'prospect' ? 'Prospect' : 'Client');
+      return matchesSearch && matchesProgression && matchesConformite && matchesContact;
     })
     .sort((a, b) =>
       complaintsSortOrder === 'urgence'
@@ -859,8 +999,10 @@ export default function ReclamationsPage() {
     etatFilter !== 'tous' ||
     appreciationFilter !== 'tous' ||
     reclamationsFacet !== 'tous' ||
+    contactFilter !== 'tous' ||
     periodeFilter !== 'annee';
-  const complaintsFiltersActive = progressionFilter !== 'tous' || conformiteFilter !== 'tous';
+  const complaintsFiltersActive =
+    progressionFilter !== 'tous' || conformiteFilter !== 'tous' || complaintsContactFilter !== 'tous';
 
   const selectedReclamations = effectiveReclamations.filter((r) => selectedIds.has(r.id));
   const canMarkSelectedRead = selectedReclamations.some((r) => isEffectivelyNew(r));
@@ -902,7 +1044,7 @@ export default function ReclamationsPage() {
       </header>
 
       <div className="app-shell">
-        <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} />
+        <Sidebar active={activeTab} onSelect={handleSelectTab} open={sidebarOpen} versionSwitcher={versionSwitcher} />
 
         <main className={`body ${sidebarOpen ? 'body-shifted' : ''}`}>
           {activeTab === 'reputation-intro' ? (
@@ -1136,6 +1278,7 @@ export default function ReclamationsPage() {
                         selected={selectedIds.has(reclamation.id)}
                         onToggleSelect={() => toggleSelectId(reclamation.id)}
                         onCreate={() => handleRequestCreate(reclamation)}
+                        contactTag={getMentionContactTag(reclamation)}
                       />
                     </div>
                   ))}
@@ -1268,6 +1411,8 @@ export default function ReclamationsPage() {
           onAppreciationChange={selectAppreciationFilter}
           reclamationsFacet={reclamationsFacet}
           onReclamationsFacetChange={selectReclamationsFacet}
+          contact={contactFilter}
+          onContactChange={selectContactFilter}
           periode={periodeFilter}
           onPeriodeChange={selectPeriodeFilter}
           onReset={resetMentionsFilters}
@@ -1280,6 +1425,8 @@ export default function ReclamationsPage() {
           onProgressionChange={selectProgressionFilter}
           conformite={conformiteFilter}
           onConformiteChange={selectConformiteFilter}
+          contact={complaintsContactFilter}
+          onContactChange={selectComplaintsContactFilter}
           onReset={resetComplaintsFilters}
         />
 
@@ -1318,6 +1465,13 @@ export default function ReclamationsPage() {
           onSubmit={handleConfirmCreate}
           onDismiss={() => handleDismissMention(createTarget.id)}
           onViewComplaint={() => handleViewComplaintFromMention(createTarget.id)}
+          onConfirmEnAttente={(date) => handleConfirmEnAttente(createTarget.id, date)}
+          onClasserSansSuite={() => handleClasserSansSuiteMention(createTarget.id)}
+          linkedComplaintHistorique={
+            complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.historique
+          }
+          savedReclamantDraft={reclamantDrafts[createTarget.id]}
+          onSaveReclamantDraft={(draft) => handleSaveReclamantDraft(createTarget.id, draft)}
         />
       )}
 

@@ -1,6 +1,14 @@
+import type { ContactFilter } from './complaintsData';
+import type { ReclamationState } from './data';
+
+export type { ContactFilter };
 export type EtatFilter = 'tous' | 'non-lu' | 'lu';
 export type AppreciationFilter = 'tous' | 'positive' | 'neutre' | 'negative';
-export type ReclamationsFacet = 'tous' | 'potentielles' | 'confirmees' | 'ecartees';
+// Aligned directly on the mention's actual state, rather than a separate
+// set of facet labels that didn't quite map onto it (e.g. "Confirmées" used
+// to mean 'mes-reclamations', "Écartées" didn't cover 'classee-sans-suite'
+// at all).
+export type ReclamationsFacet = 'tous' | ReclamationState;
 export type PeriodeFilter = 'semaine' | 'mois' | 'annee' | 'tout';
 
 type ChipGroupProps<T extends string> = {
@@ -61,9 +69,16 @@ const APPRECIATION_OPTIONS: { id: AppreciationFilter; label: string }[] = [
 
 const RECLAMATIONS_OPTIONS: { id: ReclamationsFacet; label: string }[] = [
   { id: 'tous', label: 'Tous' },
-  { id: 'potentielles', label: 'Potentielles' },
-  { id: 'confirmees', label: 'Confirmées' },
-  { id: 'ecartees', label: 'Écartées' },
+  { id: 'possible', label: 'Réclamation potentielle' },
+  { id: 'en-attente', label: 'En attente' },
+  { id: 'mes-reclamations', label: 'Réclamation ouverte' },
+  { id: 'classee-sans-suite', label: 'Classée sans suite' },
+];
+
+const CONTACT_OPTIONS: { id: ContactFilter; label: string }[] = [
+  { id: 'tous', label: 'Tous' },
+  { id: 'prospect', label: 'Prospect' },
+  { id: 'client', label: 'Client' },
 ];
 
 const PERIODE_OPTIONS: { id: PeriodeFilter; label: string }[] = [
@@ -82,6 +97,8 @@ type MentionsFiltersPanelProps = {
   onAppreciationChange: (value: AppreciationFilter) => void;
   reclamationsFacet: ReclamationsFacet;
   onReclamationsFacetChange: (value: ReclamationsFacet) => void;
+  contact: ContactFilter;
+  onContactChange: (value: ContactFilter) => void;
   periode: PeriodeFilter;
   onPeriodeChange: (value: PeriodeFilter) => void;
   onReset: () => void;
@@ -96,6 +113,8 @@ export default function MentionsFiltersPanel({
   onAppreciationChange,
   reclamationsFacet,
   onReclamationsFacetChange,
+  contact,
+  onContactChange,
   periode,
   onPeriodeChange,
   onReset,
@@ -122,11 +141,12 @@ export default function MentionsFiltersPanel({
           onChange={onAppreciationChange}
         />
         <ChipGroup
-          label="Réclamations"
+          label="Statut de la mention"
           value={reclamationsFacet}
           options={RECLAMATIONS_OPTIONS}
           onChange={onReclamationsFacetChange}
         />
+        <ChipGroup label="Client / Prospect" value={contact} options={CONTACT_OPTIONS} onChange={onContactChange} />
         <ChipGroup label="Période" value={periode} options={PERIODE_OPTIONS} onChange={onPeriodeChange} />
       </div>
     </div>

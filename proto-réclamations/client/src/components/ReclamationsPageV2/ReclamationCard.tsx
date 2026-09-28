@@ -8,11 +8,15 @@ const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; classNa
   possible: { label: 'Réclamation potentielle', className: 'chip-possible' },
   declinee: { label: 'Écartée', className: 'chip-declinee' },
   'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
+  'en-attente': { label: 'En attente', className: 'chip-en-attente' },
+  'classee-sans-suite': { label: 'Classée sans suite', className: 'chip-classee-sans-suite' },
 };
 
 const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
   possible: 'Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant traitement.',
   'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
+  'en-attente': "Une demande de coordonnées a été envoyée à l'auteur de la mention, en attente de sa réponse.",
+  'classee-sans-suite': "Classée sans suite faute de retour de l'auteur de la mention dans le délai imparti.",
 };
 
 function toHref(url: string) {
@@ -35,6 +39,10 @@ type ReclamationCardProps = {
   selected?: boolean;
   onToggleSelect?: () => void;
   onCreate: () => void;
+  // Whether the author turned out to be a prospect ("non" to "rattaché à un
+  // contrat") or a client (rattaché + statut précisé) — unknown until that
+  // question's been answered, hence optional.
+  contactTag?: 'Prospect' | 'Client' | null;
 };
 
 export default function ReclamationCard({
@@ -44,6 +52,7 @@ export default function ReclamationCard({
   selected = false,
   onToggleSelect,
   onCreate,
+  contactTag,
 }: ReclamationCardProps) {
   const { state, source, date, url, author, text } = reclamation;
   const isDeclinee = state === 'declinee';
@@ -105,6 +114,7 @@ export default function ReclamationCard({
           <div className="card-author-row">
             <SentimentIcon text={text} />
             <span className="card-author">{author}</span>
+            {contactTag && <span className="chip chip-neutral">{contactTag}</span>}
           </div>
           <div className="card-text-wrapper">
             <p className="card-text card-text-clamped">{text}</p>

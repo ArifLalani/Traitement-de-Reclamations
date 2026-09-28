@@ -4,6 +4,10 @@ type SidebarProps = {
   active: SidebarSection;
   onSelect: (section: SidebarSection) => void;
   open?: boolean;
+  // Dev-only prototype version switcher (see App.tsx) — rendered inline in
+  // the sidebar's own flow, rather than as a floating overlay, so it reads
+  // as part of the nav instead of covering the header.
+  versionSwitcher?: React.ReactNode;
 };
 
 function ThumbsUpIcon() {
@@ -88,7 +92,7 @@ function ChevronIcon({ direction = 'down' }: { direction?: 'up' | 'down' }) {
   );
 }
 
-export default function Sidebar({ active, onSelect, open = true }: SidebarProps) {
+export default function Sidebar({ active, onSelect, open = true, versionSwitcher }: SidebarProps) {
   return (
     <aside className={`sidebar ${open ? '' : 'sidebar-collapsed'}`}>
       <div className="sidebar-inner">
@@ -132,6 +136,12 @@ export default function Sidebar({ active, onSelect, open = true }: SidebarProps)
         </nav>
 
         <div className="sidebar-bottom">
+          {versionSwitcher && (
+            <>
+              <span className="sidebar-versions-label">Versions</span>
+              {versionSwitcher}
+            </>
+          )}
           <div className="sidebar-divider" />
           <button type="button" className="sidebar-item">
             <UserIcon />

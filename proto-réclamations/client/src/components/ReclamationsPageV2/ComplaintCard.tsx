@@ -7,6 +7,7 @@ import {
   AVANCEMENT_TOOLTIP,
   CONFORMITE_LABEL,
   getConformiteTooltip,
+  getContactTag,
   type Complaint,
 } from './complaintsData';
 
@@ -41,7 +42,9 @@ export default function ComplaintCard({
     conformite,
     echeanceLabel,
     echeanceWarning,
+    reclamant,
   } = complaint;
+  const contactTag = getContactTag(reclamant.rattacheContrat, reclamant.statutClient);
 
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -137,6 +140,7 @@ export default function ComplaintCard({
           <div className="card-body">
             <div className="card-author-row">
               <span className="card-author">{requerant}</span>
+              {contactTag && <span className="chip chip-neutral">{contactTag}</span>}
             </div>
             <div className="card-text-wrapper" ref={wrapperRef}>
               <p ref={textRef} className={`card-text ${expanded ? '' : 'card-text-clamped'}`}>
@@ -175,12 +179,14 @@ export default function ComplaintCard({
                 <span className={`chip complaints-chip-avancement-${avancement}`}>{AVANCEMENT_LABEL[avancement]}</span>
               </HoverTooltip>
             </div>
-            <div className="complaint-cta-row">
-              <span className="complaint-cta-label">Statut de conformité</span>
-              <HoverTooltip text={getConformiteTooltip(complaint)} align="right">
-                <span className={`chip complaints-chip-conformite-${conformite}`}>{CONFORMITE_LABEL[conformite]}</span>
-              </HoverTooltip>
-            </div>
+            {contactTag !== 'Prospect' && (
+              <div className="complaint-cta-row">
+                <span className="complaint-cta-label">Statut de conformité</span>
+                <HoverTooltip text={getConformiteTooltip(complaint)} align="right">
+                  <span className={`chip complaints-chip-conformite-${conformite}`}>{CONFORMITE_LABEL[conformite]}</span>
+                </HoverTooltip>
+              </div>
+            )}
             <div className="complaint-cta-row">
               <span className="complaint-cta-label">Échéance</span>
               <span
