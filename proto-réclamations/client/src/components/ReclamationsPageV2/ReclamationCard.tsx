@@ -6,15 +6,12 @@ import SourceIcon from './SourceIcon';
 import type { Reclamation } from './data';
 
 const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; className: string }>> = {
-  possible: { label: 'Réclamation potentielle', className: 'chip-possible' },
-  declinee: { label: 'Écartée', className: 'chip-declinee' },
   'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
   'en-attente': { label: 'En attente', className: 'chip-en-attente' },
   cloturee: { label: 'Clôturée', className: 'chip-cloturee' },
 };
 
 const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
-  possible: 'Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant traitement.',
   'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
   'en-attente': "Une demande de coordonnées a été envoyée à l'auteur de la mention, en attente de sa réponse.",
   cloturee: "La demande n'a pas pu être traitée directement ; une demande a été transmise à l'hébergeur du site.",
@@ -23,14 +20,6 @@ const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
   return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
-}
-
-function FlagIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width={14} height={14} fill="none" stroke="currentColor" strokeWidth="1.4">
-      <path d="M4 17V3.5c0-.3.2-.5.5-.5H15l-2.5 4L15 11H4.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 type ReclamationCardProps = {
@@ -56,19 +45,11 @@ export default function ReclamationCard({
   contactTag,
 }: ReclamationCardProps) {
   const { ticket, state, source, date, url, author, text } = reclamation;
-  const isDeclinee = state === 'declinee';
-  const isMesReclamations = state === 'mes-reclamations';
-  const isFlagged = state === 'possible';
-  // Read/unread only affects the unread indicator (card-wrapper-unread) — it
-  // never hides the create-complaint action, only an already-open or
-  // already-declined mention has no "Créer une réclamation" action left.
-  const canCreate = !isMesReclamations && !isDeclinee;
 
   const [badgeTooltipOpen, setBadgeTooltipOpen] = useState(false);
 
   const badge = STATE_BADGE[state];
   const badgeTooltipText = BADGE_TOOLTIP[state];
-  const hasActions = isMesReclamations || isDeclinee || isFlagged || canCreate;
 
   const handleLinkClick = (e: MouseEvent) => {
     if (!selectionMode) return;
@@ -98,10 +79,7 @@ export default function ReclamationCard({
                 onMouseEnter={() => badgeTooltipText && setBadgeTooltipOpen(true)}
                 onMouseLeave={() => setBadgeTooltipOpen(false)}
               >
-                <span className={`chip cta-badge ${badge.className}`}>
-                  {isFlagged && <FlagIcon />}
-                  {badge.label}
-                </span>
+                <span className={`chip cta-badge ${badge.className}`}>{badge.label}</span>
                 {badgeTooltipText && badgeTooltipOpen && (
                   <span className="cta-badge-tooltip">{badgeTooltipText}</span>
                 )}
@@ -126,20 +104,18 @@ export default function ReclamationCard({
         </div>
 
         <div className="card-footer">
-          {hasActions && (
-            <div className="card-actions">
-              <button
-                type="button"
-                className="btn-text"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreate();
-                }}
-              >
-                Voir les détails
-              </button>
-            </div>
-          )}
+          <div className="card-actions">
+            <button
+              type="button"
+              className="btn-text"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreate();
+              }}
+            >
+              Voir les détails
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -664,38 +664,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     if (hasSelection) handleCancelComplaintsSelection();
   };
 
-  const handleBulkDismiss = () => {
-    const ids = [...selectedIds].filter((id) => {
-      const r = effectiveReclamations.find((x) => x.id === id);
-      return r && r.state === 'possible';
-    });
-    if (ids.length === 0) return;
-    prevTops.current = measureTops();
-    setStateOverrides((prev) => {
-      const next = { ...prev };
-      ids.forEach((id) => {
-        next[id] = 'declinee';
-      });
-      return next;
-    });
-    setSnackbar({
-      id: 'bulk-dismiss',
-      message: `${ids.length} mention${ids.length > 1 ? 's' : ''} écartée${ids.length > 1 ? 's' : ''}.`,
-      variant: 'info',
-      onUndo: () => {
-        prevTops.current = measureTops();
-        setStateOverrides((prev) => {
-          const next = { ...prev };
-          ids.forEach((id) => delete next[id]);
-          return next;
-        });
-      },
-    });
-    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
-    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
-    exitSelectionMode();
-  };
-
   const handleConfirmCreate = (formData: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => {
     if (!createTarget) return;
     const id = createTarget.id;
@@ -784,27 +752,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     if (complaint) openComplaintDetail(complaint);
   };
 
-  const handleDismissMention = (id: string) => {
-    setCreateTarget(null);
-    prevTops.current = measureTops();
-    setStateOverrides((prev) => ({ ...prev, [id]: 'declinee' }));
-    setSnackbar({
-      id,
-      message: 'Mention écartée',
-      variant: 'info',
-      onUndo: () => {
-        prevTops.current = measureTops();
-        setStateOverrides((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      },
-    });
-    if (snackbarTimeout.current) clearTimeout(snackbarTimeout.current);
-    snackbarTimeout.current = setTimeout(() => setSnackbar(null), 3500);
-  };
-
   // The mention isn't turned into a réclamation yet here — its author hasn't
   // given their contact details, so there's nothing to open a dossier with.
   // It's just flagged "en attente" until they reply.
@@ -816,8 +763,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
 
   // The mention can't be answered directly on the source platform — a
   // request goes out to the site's host instead, which closes this mention
-  // out (distinct from "Écartée", which means it was never a real
-  // complaint).
+  // out.
   const handleClotureMention = (id: string) => {
     prevTops.current = measureTops();
     setStateOverrides((prev) => ({ ...prev, [id]: 'cloturee' }));
@@ -899,7 +845,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     r.url.toLowerCase().includes(query);
 
   const searched = effectiveReclamations.filter(matchesQuery);
-  const activeReclamations = searched.filter((r) => r.state !== 'declinee');
 
   const sentiment = (r: (typeof effectiveReclamations)[number]): AppreciationFilter => {
     const s = getSentiment(r.text);
@@ -941,8 +886,8 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     return ts >= twelveMonthsAgo;
   };
 
-  const newCount = activeReclamations.filter(isEffectivelyNew).length;
-  const negativeNewCount = activeReclamations.filter(
+  const newCount = searched.filter(isEffectivelyNew).length;
+  const negativeNewCount = searched.filter(
     (r) => isEffectivelyNew(r) && getSentiment(r.text) === 'negative',
   ).length;
 
@@ -1008,7 +953,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
 
   const selectedReclamations = effectiveReclamations.filter((r) => selectedIds.has(r.id));
   const canMarkSelectedRead = selectedReclamations.some((r) => isEffectivelyNew(r));
-  const canDismissSelectedFlagged = selectedReclamations.some((r) => r.state === 'possible');
 
   return (
     <div className="page scope-v2">
@@ -1226,14 +1170,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                       </span>
                     </div>
                     <div className="mentions-selection-actions">
-                      <button
-                        type="button"
-                        className="mark-all-read-btn"
-                        disabled={!canDismissSelectedFlagged}
-                        onClick={handleBulkDismiss}
-                      >
-                        Écarter
-                      </button>
                       <button
                         type="button"
                         className="mark-all-read-btn"
@@ -1465,7 +1401,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           reclamation={createTarget}
           onClose={() => setCreateTarget(null)}
           onSubmit={handleConfirmCreate}
-          onDismiss={() => handleDismissMention(createTarget.id)}
           onViewComplaint={() => handleViewComplaintFromMention(createTarget.id)}
           onConfirmEnAttente={(date) => handleConfirmEnAttente(createTarget.id, date)}
           onClotureMention={() => handleClotureMention(createTarget.id)}

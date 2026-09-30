@@ -68,7 +68,6 @@ const APPRECIATION_OPTIONS: { id: AppreciationFilter; label: string }[] = [
 
 const RECLAMATIONS_OPTIONS: { id: ReclamationsFacet; label: string }[] = [
   { id: 'tous', label: 'Tous' },
-  { id: 'possible', label: 'Réclamation potentielle' },
   { id: 'en-attente', label: 'En attente' },
   { id: 'mes-reclamations', label: 'Réclamation ouverte' },
   { id: 'cloturee', label: 'Clôturée' },

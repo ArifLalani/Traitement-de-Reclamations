@@ -1,12 +1,6 @@
 import type { Source } from './SourceIcon';
 
-export type ReclamationState =
-  | 'possible'
-  | 'a-traiter'
-  | 'declinee'
-  | 'mes-reclamations'
-  | 'en-attente'
-  | 'cloturee';
+export type ReclamationState = 'a-traiter' | 'mes-reclamations' | 'en-attente' | 'cloturee';
 
 export type Reclamation = {
   id: string;
@@ -93,7 +87,7 @@ const curated: Reclamation[] = [
   {
     id: '1',
     ticket: '',
-    state: 'possible',
+    state: 'a-traiter',
     isNew: true,
     source: 'Facebook',
     date: 'Hier à 14:32',
@@ -117,7 +111,7 @@ const curated: Reclamation[] = [
   {
     id: '3',
     ticket: '',
-    state: 'declinee',
+    state: 'cloturee',
     isNew: false,
     source: 'Trustpilot',
     date: '12/06/2026 à 18:05',
@@ -129,7 +123,7 @@ const curated: Reclamation[] = [
   {
     id: '4',
     ticket: '',
-    state: 'possible',
+    state: 'a-traiter',
     isNew: true,
     source: 'X',
     date: 'Il y a 3h',
@@ -153,7 +147,7 @@ const curated: Reclamation[] = [
   {
     id: '6',
     ticket: '',
-    state: 'declinee',
+    state: 'cloturee',
     isNew: false,
     source: 'LinkedIn',
     date: '08/06/2026 à 11:40',
@@ -165,7 +159,7 @@ const curated: Reclamation[] = [
   {
     id: '7',
     ticket: '',
-    state: 'possible',
+    state: 'a-traiter',
     isNew: false,
     source: 'Web',
     date: '05/06/2026 à 16:22',
@@ -284,10 +278,11 @@ export function parseDateValue(date: string): number {
 
 const sorted: Reclamation[] = [
   ...curated,
-  ...generate('possible', 4, 100),
+  ...generate('a-traiter', 4, 100),
   ...generate('a-traiter', 33, 200),
-  ...generate('declinee', 5, 300),
+  ...generate('a-traiter', 5, 300),
   ...generate('mes-reclamations', 14, 400),
+  ...generate('cloturee', 4, 500),
 ].sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date));
 
 // A mention only just posted hasn't been seen by anyone yet, so it defaults
