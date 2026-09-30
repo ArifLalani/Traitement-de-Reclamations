@@ -6,8 +6,7 @@ export type EtatFilter = 'tous' | 'non-lu' | 'lu';
 export type AppreciationFilter = 'tous' | 'positive' | 'neutre' | 'negative';
 // Aligned directly on the mention's actual state, rather than a separate
 // set of facet labels that didn't quite map onto it (e.g. "Confirmées" used
-// to mean 'mes-reclamations', "Écartées" didn't cover 'classee-sans-suite'
-// at all).
+// to mean 'mes-reclamations').
 export type ReclamationsFacet = 'tous' | ReclamationState;
 export type PeriodeFilter = 'semaine' | 'mois' | 'annee' | 'tout';
 
@@ -72,7 +71,7 @@ const RECLAMATIONS_OPTIONS: { id: ReclamationsFacet; label: string }[] = [
   { id: 'possible', label: 'Réclamation potentielle' },
   { id: 'en-attente', label: 'En attente' },
   { id: 'mes-reclamations', label: 'Réclamation ouverte' },
-  { id: 'classee-sans-suite', label: 'Classée sans suite' },
+  { id: 'cloturee', label: 'Clôturée' },
 ];
 
 const CONTACT_OPTIONS: { id: ContactFilter; label: string }[] = [

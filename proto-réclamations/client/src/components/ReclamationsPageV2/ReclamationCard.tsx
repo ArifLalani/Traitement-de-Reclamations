@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import ArrowUpRight from './ArrowUpRight';
+import HoverTooltip from './HoverTooltip';
 import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
 import type { Reclamation } from './data';
@@ -9,14 +10,14 @@ const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; classNa
   declinee: { label: 'Écartée', className: 'chip-declinee' },
   'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
   'en-attente': { label: 'En attente', className: 'chip-en-attente' },
-  'classee-sans-suite': { label: 'Classée sans suite', className: 'chip-classee-sans-suite' },
+  cloturee: { label: 'Clôturée', className: 'chip-cloturee' },
 };
 
 const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
   possible: 'Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant traitement.',
   'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
   'en-attente': "Une demande de coordonnées a été envoyée à l'auteur de la mention, en attente de sa réponse.",
-  'classee-sans-suite': "Classée sans suite faute de retour de l'auteur de la mention dans le délai imparti.",
+  cloturee: "La demande n'a pas pu être traitée directement ; une demande a été transmise à l'hébergeur du site.",
 };
 
 function toHref(url: string) {
@@ -54,7 +55,7 @@ export default function ReclamationCard({
   onCreate,
   contactTag,
 }: ReclamationCardProps) {
-  const { state, source, date, url, author, text } = reclamation;
+  const { ticket, state, source, date, url, author, text } = reclamation;
   const isDeclinee = state === 'declinee';
   const isMesReclamations = state === 'mes-reclamations';
   const isFlagged = state === 'possible';
@@ -84,6 +85,9 @@ export default function ReclamationCard({
       >
         <div className="card-top">
           <div className="card-source-row">
+            <HoverTooltip text="Numéro de référence de la mention" align="left">
+              <span className="chip complaint-ticket-chip">{ticket}</span>
+            </HoverTooltip>
             <SourceIcon source={source} />
             <span className="card-source-name">{source}</span>
             <span className="card-dot">·</span>

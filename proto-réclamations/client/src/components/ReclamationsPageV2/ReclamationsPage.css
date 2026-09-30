@@ -1244,7 +1244,7 @@
   color: var(--color-text-primary);
 }
 
-.scope-v2 .chip-classee-sans-suite {
+.scope-v2 .chip-cloturee {
   background: var(--color-grey-100);
   color: var(--color-text-primary);
 }
@@ -2212,13 +2212,6 @@
   width: 100%;
 }
 
-/* The flow moved in from the old Traitement tab needs more breathing room
-   from the mention's own details above it than the section's regular 16px
-   gap gives — 16 + this 16px margin = 32px total. */
-.scope-v2 .create-claim-section > .dossier-treatment-block {
-  margin-top: 16px;
-}
-
 /* Pins the classée sans suite explanation + "Rouvrir le dossier" box to the
    bottom of the tab's content instead of sitting right below the mention's
    own details, since .create-claim-section now stretches to fill the
@@ -2253,6 +2246,17 @@
 }
 .scope-v2 .create-claim-section > *:nth-child(6) {
   animation-delay: 0.5s;
+}
+
+/* The step block remounts wholesale (via its React `key`) whenever Q1
+   itself changes — inheriting the positional delay above (up to 0.5s, meant
+   for the slider's initial open) would make that replay wait before even
+   starting, reading as a stuck/laggy click. Its own children still cascade
+   normally among themselves (see .dossier-treatment-block > * below), so a
+   tab switch still looks like a proper reveal — it just all starts at once
+   instead of waiting on card-top/card-body first. */
+.scope-v2 .create-claim-section > .dossier-treatment-block {
+  animation-delay: 0s;
 }
 
 .scope-v2 .create-claim-actions {
@@ -2530,16 +2534,16 @@
   animation-delay: 0s;
 }
 .scope-v2 .dossier-treatment-block > *:nth-child(2) {
-  animation-delay: 0.05s;
+  animation-delay: 0.03s;
 }
 .scope-v2 .dossier-treatment-block > *:nth-child(3) {
-  animation-delay: 0.1s;
+  animation-delay: 0.06s;
 }
 .scope-v2 .dossier-treatment-block > *:nth-child(4) {
-  animation-delay: 0.15s;
+  animation-delay: 0.09s;
 }
 .scope-v2 .dossier-treatment-block > *:nth-child(n + 5) {
-  animation-delay: 0.2s;
+  animation-delay: 0.12s;
 }
 
 .scope-v2 .dossier-treatment-block > .dossier-contract-row {
@@ -3305,6 +3309,10 @@
   margin: 0;
 }
 
+.scope-v2 .dossier-file-upload-btn {
+  width: fit-content;
+}
+
 /* Same staggered entrance as .dossier-treatment-fields' direct children —
    the alert, its field and (where present) the message template reveal one
    after another instead of all popping in at once. */
@@ -3315,13 +3323,13 @@
   animation-delay: 0s;
 }
 .scope-v2 .dossier-alert-field-group > *:nth-child(2) {
-  animation-delay: 0.1s;
+  animation-delay: 0.05s;
 }
 .scope-v2 .dossier-alert-field-group > *:nth-child(3) {
-  animation-delay: 0.2s;
+  animation-delay: 0.1s;
 }
 .scope-v2 .dossier-alert-field-group > *:nth-child(n + 4) {
-  animation-delay: 0.3s;
+  animation-delay: 0.15s;
 }
 
 .scope-v2 .dossier-template-block {
@@ -3364,6 +3372,44 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
+.scope-v2 .dossier-certify-checkbox-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.scope-v2 .dossier-certify-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font: 400 14px/1.43 var(--font-family);
+  letter-spacing: 0.17px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.scope-v2 .dossier-certify-checkbox input[type='checkbox'] {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary-blue);
+}
+
+/* The label's text and its trailing "*" live in one flex item so the text
+   wraps as a single block, keeping the "*" glued to its last word instead
+   of floating off as its own flex item next to the wrapped text. */
+.scope-v2 .dossier-certify-checkbox-text {
+  flex: 1;
+}
+
+.scope-v2 .dossier-certify-checkbox-wrap-error .dossier-certify-checkbox input[type='checkbox'] {
+  outline: 2px solid #e4032e;
+  outline-offset: 1px;
+}
+
 /* The "Copié !" feedback used to sit inline next to the icon, so the button
    (and the header row's height, and everything below it) resized the
    instant it appeared. Floating it over the button instead means the
@@ -3392,10 +3438,12 @@
   color: var(--color-text-secondary);
 }
 
-/* The mention's link, appended below the message body — smaller and muted
+/* The mention's link, shown right below the title — smaller and muted
    since it's there for convenience (so whoever's sending this can jump
-   back to the mention), not part of the message itself. */
+   back to the mention), not part of the message itself. Pulled 4px closer
+   to the header than the block's regular 8px gap. */
 .scope-v2 .dossier-template-link {
+  margin-top: -4px;
   font: var(--font-caption);
   letter-spacing: 0.4px;
   color: var(--color-text-disabled);

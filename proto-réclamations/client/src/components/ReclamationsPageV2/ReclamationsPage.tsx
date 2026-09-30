@@ -814,12 +814,13 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     setDemandeContactDates((prev) => ({ ...prev, [id]: demandeContactDate }));
   };
 
-  // Faute de retour de l'auteur de la mention dans le délai imparti (10
-  // jours après la demande de contact) — see CreateReclamationSlider's
-  // canClasserSansSuite.
-  const handleClasserSansSuiteMention = (id: string) => {
+  // The mention can't be answered directly on the source platform — a
+  // request goes out to the site's host instead, which closes this mention
+  // out (distinct from "Écartée", which means it was never a real
+  // complaint).
+  const handleClotureMention = (id: string) => {
     prevTops.current = measureTops();
-    setStateOverrides((prev) => ({ ...prev, [id]: 'classee-sans-suite' }));
+    setStateOverrides((prev) => ({ ...prev, [id]: 'cloturee' }));
   };
 
   const handleSaveReclamantDraft = (id: string, draft: ReclamantDraftData) => {
@@ -883,14 +884,15 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       r.state === 'mes-reclamations' ? complaintsList.find((c) => c.sourceReclamationId === r.id) : undefined;
     const draft = reclamantDrafts[r.id];
     return linkedComplaint
-      ? getContactTag(linkedComplaint.reclamant.rattacheContrat, linkedComplaint.reclamant.statutClient)
-      : getContactTag(draft?.rattacheContrat, draft?.statutClient);
+      ? getContactTag(linkedComplaint.reclamant.rattacheContrat)
+      : getContactTag(draft?.rattacheContrat);
   };
 
   const query = search.trim().toLowerCase();
 
   const matchesQuery = (r: (typeof effectiveReclamations)[number]) =>
     !query ||
+    r.ticket.toLowerCase().includes(query) ||
     r.author.toLowerCase().includes(query) ||
     r.text.toLowerCase().includes(query) ||
     r.source.toLowerCase().includes(query) ||
@@ -979,7 +981,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       const matchesConformite = conformiteFilter === 'tous' || c.conformite === conformiteFilter;
       const matchesContact =
         complaintsContactFilter === 'tous' ||
-        getContactTag(c.reclamant.rattacheContrat, c.reclamant.statutClient) ===
+        getContactTag(c.reclamant.rattacheContrat) ===
           (complaintsContactFilter === 'prospect' ? 'Prospect' : 'Client');
       return matchesSearch && matchesProgression && matchesConformite && matchesContact;
     })
@@ -1466,7 +1468,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           onDismiss={() => handleDismissMention(createTarget.id)}
           onViewComplaint={() => handleViewComplaintFromMention(createTarget.id)}
           onConfirmEnAttente={(date) => handleConfirmEnAttente(createTarget.id, date)}
-          onClasserSansSuite={() => handleClasserSansSuiteMention(createTarget.id)}
+          onClotureMention={() => handleClotureMention(createTarget.id)}
           linkedComplaintHistorique={
             complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.historique
           }

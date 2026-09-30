@@ -6,10 +6,11 @@ export type ReclamationState =
   | 'declinee'
   | 'mes-reclamations'
   | 'en-attente'
-  | 'classee-sans-suite';
+  | 'cloturee';
 
 export type Reclamation = {
   id: string;
+  ticket: string;
   state: ReclamationState;
   isNew: boolean;
   source: Source;
@@ -91,6 +92,7 @@ export function getSentiment(text: string): Sentiment {
 const curated: Reclamation[] = [
   {
     id: '1',
+    ticket: '',
     state: 'possible',
     isNew: true,
     source: 'Facebook',
@@ -102,6 +104,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '2',
+    ticket: '',
     state: 'a-traiter',
     isNew: true,
     source: 'Google',
@@ -113,6 +116,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '3',
+    ticket: '',
     state: 'declinee',
     isNew: false,
     source: 'Trustpilot',
@@ -124,6 +128,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '4',
+    ticket: '',
     state: 'possible',
     isNew: true,
     source: 'X',
@@ -135,6 +140,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '5',
+    ticket: '',
     state: 'a-traiter',
     isNew: false,
     source: 'Instagram',
@@ -146,6 +152,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '6',
+    ticket: '',
     state: 'declinee',
     isNew: false,
     source: 'LinkedIn',
@@ -157,6 +164,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '7',
+    ticket: '',
     state: 'possible',
     isNew: false,
     source: 'Web',
@@ -225,6 +233,7 @@ function generate(state: ReclamationState, count: number, startId: number): Recl
     const source = sources[n % sources.length];
     return {
       id: `${state}-${n}`,
+      ticket: '',
       state,
       isNew: i < 2,
       source,
@@ -287,10 +296,13 @@ const sorted: Reclamation[] = [
 // arbitrary top-N cut and show up already "read".
 const UNREAD_WINDOW_MS = 3 * 60 * 60 * 1000;
 
-export const reclamations: Reclamation[] = sorted.map((r) => {
+export const reclamations: Reclamation[] = sorted.map((r, index) => {
+  // Oldest mention gets #0001, same idea as réclamation tickets — sorted is
+  // newest-first, so the ticket number counts down from the total.
+  const ticket = `#${String(sorted.length - index).padStart(4, '0')}`;
   // "mes-reclamations" mentions were already converted into a complaint and
   // never show the unread indicator.
-  if (r.state === 'mes-reclamations') return { ...r, isNew: false };
+  if (r.state === 'mes-reclamations') return { ...r, ticket, isNew: false };
   const isRecent = Date.now() - parseDateValue(r.date) <= UNREAD_WINDOW_MS;
-  return { ...r, isNew: isRecent };
+  return { ...r, ticket, isNew: isRecent };
 });

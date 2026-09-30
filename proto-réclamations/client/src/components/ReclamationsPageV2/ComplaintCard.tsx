@@ -44,7 +44,7 @@ export default function ComplaintCard({
     echeanceWarning,
     reclamant,
   } = complaint;
-  const contactTag = getContactTag(reclamant.rattacheContrat, reclamant.statutClient);
+  const contactTag = getContactTag(reclamant.rattacheContrat);
 
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -113,7 +113,9 @@ export default function ComplaintCard({
         <div className="card-info">
           <div className="card-top">
             <div className="card-source-row">
-              <span className="chip complaint-ticket-chip">{ticket}</span>
+              <HoverTooltip text="Numéro de référence de la réclamation" align="left">
+                <span className="chip complaint-ticket-chip">{ticket}</span>
+              </HoverTooltip>
               <span className="card-source-name">{objet}</span>
               <span className="card-dot">·</span>
               <span className="card-date">{dateReception}</span>

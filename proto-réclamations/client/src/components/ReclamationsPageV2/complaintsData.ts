@@ -106,16 +106,16 @@ export const EN_ATTENTE_TOOLTIP = "En attente d'une réponse du réclamant suite
 export type ContactFilter = 'tous' | 'prospect' | 'client';
 
 // "Non" to "rattaché à un contrat" means the author isn't a client yet —
-// a prospect. "Oui" plus the follow-up statut du client precision means
-// they are. This distinction matters: a client is bound by the ACPR
+// a prospect. "Oui" means they are, tagged as soon as that answer is given;
+// the follow-up statut du client is only extra detail, not a condition for
+// the tag. This distinction matters: a client is bound by the ACPR
 // deadlines and reminder notifications the rest of the app enforces, while
 // a prospect isn't under any such time constraint.
 export function getContactTag(
   rattacheContrat: 'oui' | 'non' | '' | null | undefined,
-  statutClient: string | undefined,
 ): 'Prospect' | 'Client' | null {
   if (rattacheContrat === 'non') return 'Prospect';
-  if (rattacheContrat === 'oui' && statutClient) return 'Client';
+  if (rattacheContrat === 'oui') return 'Client';
   return null;
 }
 

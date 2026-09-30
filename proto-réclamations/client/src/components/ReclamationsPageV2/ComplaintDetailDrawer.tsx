@@ -1074,8 +1074,7 @@ export default function ComplaintDetailDrawer({
   const arSent = complaint.suiviCloture.dateAR !== '';
   // Brief loading beat shown while moving from one Traitement step to the
   // next (AR -> RD, and RD -> Analyse de la cause) — same "stay open, show
-  // a loader, then swap the content in place" pattern as
-  // CreateReclamationSlider's classingSansSuite, just shorter.
+  // a loader, then swap the content in place" pattern used elsewhere.
   const [confirmingAR, setConfirmingAR] = useState(false);
   const [confirmingRD, setConfirmingRD] = useState(false);
   // Once a dossier is clôturé, its Informations tab becomes a read-only
@@ -1083,7 +1082,7 @@ export default function ComplaintDetailDrawer({
   const isClosed = complaint.avancement === 'cloture';
   // Prospects aren't bound by the ACPR deadlines that "conformité" tracks —
   // only clients are, so the field doesn't apply to them.
-  const contactTag = getContactTag(complaint.reclamant.rattacheContrat, complaint.reclamant.statutClient);
+  const contactTag = getContactTag(complaint.reclamant.rattacheContrat);
   // Analyse de la cause is an optional follow-up step that only happens
   // once the dossier is already clôturé — its fields are all optional, so
   // its own confirmed flag (not field content) tracks whether it's done.
