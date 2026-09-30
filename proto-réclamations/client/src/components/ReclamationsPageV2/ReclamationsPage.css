@@ -868,6 +868,16 @@
   color: var(--color-text-primary);
 }
 
+/* Groups the count chip with the client/prospect segmented control as one
+   flex item, so .mentions-toolbar's space-between still reads as exactly
+   two sides (this group vs. the export button) instead of spreading three
+   items evenly across the bar. */
+.scope-v2 .mentions-toolbar-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .scope-v2 .mark-all-read-btn {
   cursor: pointer;
   padding: 6px 8px;

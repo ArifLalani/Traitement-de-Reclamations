@@ -1,7 +1,6 @@
-import type { Avancement, Conformite, ContactFilter } from './complaintsData';
+import type { Avancement, Conformite } from './complaintsData';
 import { AVANCEMENT_LABEL, CONFORMITE_LABEL } from './complaintsData';
 
-export type { ContactFilter };
 export type ProgressionFilter = 'tous' | Avancement;
 export type ConformiteFilter = 'tous' | Conformite;
 
@@ -60,12 +59,6 @@ const CONFORMITE_OPTIONS: { id: ConformiteFilter; label: string }[] = [
   { id: 'non-conforme', label: CONFORMITE_LABEL['non-conforme'] },
 ];
 
-const CONTACT_OPTIONS: { id: ContactFilter; label: string }[] = [
-  { id: 'tous', label: 'Tous' },
-  { id: 'prospect', label: 'Prospect' },
-  { id: 'client', label: 'Client' },
-];
-
 type ComplaintsFiltersPanelProps = {
   open: boolean;
   onClose: () => void;
@@ -73,8 +66,6 @@ type ComplaintsFiltersPanelProps = {
   onProgressionChange: (value: ProgressionFilter) => void;
   conformite: ConformiteFilter;
   onConformiteChange: (value: ConformiteFilter) => void;
-  contact: ContactFilter;
-  onContactChange: (value: ContactFilter) => void;
   onReset: () => void;
 };
 
@@ -85,8 +76,6 @@ export default function ComplaintsFiltersPanel({
   onProgressionChange,
   conformite,
   onConformiteChange,
-  contact,
-  onContactChange,
   onReset,
 }: ComplaintsFiltersPanelProps) {
   return (
@@ -115,7 +104,6 @@ export default function ComplaintsFiltersPanel({
           options={CONFORMITE_OPTIONS}
           onChange={onConformiteChange}
         />
-        <ChipGroup label="Client / Prospect" value={contact} options={CONTACT_OPTIONS} onChange={onContactChange} />
       </div>
     </div>
   );

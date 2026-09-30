@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
@@ -42,6 +42,11 @@ import {
 import { exportComplaintsToCsv, filterComplaintsByRange } from './exportComplaints';
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
+
+// The réclamations page's own primary view switch — always one segment or
+// the other (unlike a filter, there's no "tous"), so it lives next to the
+// count chip instead of in the filters panel.
+type ComplaintsContactSegment = 'client' | 'prospect';
 
 function FunnelIcon() {
   return (
@@ -103,6 +108,47 @@ function ListIcon() {
       <circle cx="3" cy="15" r="1" fill="currentColor" stroke="none" />
       <path d="M7 5h10M7 10h10M7 15h10" strokeLinecap="round" />
     </svg>
+  );
+}
+
+// Same sliding-pill segmented control pattern as CreateReclamationSlider's
+// MentionTabsControl — the réclamations page's primary switch between the
+// client and prospect segments, each option showing its own count.
+function ComplaintsContactSegmentedControl({
+  value,
+  onChange,
+  clientCount,
+  prospectCount,
+}: {
+  value: ComplaintsContactSegment;
+  onChange: (segment: ComplaintsContactSegment) => void;
+  clientCount: number;
+  prospectCount: number;
+}) {
+  const segments: { id: ComplaintsContactSegment; label: string }[] = [
+    { id: 'client', label: `Client (${clientCount})` },
+    { id: 'prospect', label: `Prospect (${prospectCount})` },
+  ];
+  const index = Math.max(0, segments.findIndex((segment) => segment.id === value));
+  const style = { '--segment-count': segments.length } as CSSProperties;
+
+  return (
+    <div className="dossier-tabs-segmented dossier-tabs-segmented-small" style={style}>
+      <div
+        className="dossier-tabs-segment-indicator"
+        style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
+      />
+      {segments.map((segment) => (
+        <button
+          key={segment.id}
+          type="button"
+          className={`dossier-tabs-segment ${value === segment.id ? 'dossier-tabs-segment-active' : ''}`}
+          onClick={() => onChange(segment.id)}
+        >
+          {segment.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -239,7 +285,10 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   ]);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
-  const [complaintsContactFilter, setComplaintsContactFilter] = useState<ContactFilter>('tous');
+  // Not a filter — a primary view switch between the two réclamations
+  // segments, always one or the other (no "tous"), shown as a segmented
+  // control next to the count chip rather than in the filters panel.
+  const [complaintsContactSegment, setComplaintsContactSegment] = useState<ComplaintsContactSegment>('client');
   const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(false);
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
@@ -367,10 +416,10 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     setVisibleCount(PAGE_SIZE);
   };
 
-  const selectComplaintsContactFilter = (id: ContactFilter) => {
-    if (id === complaintsContactFilter) return;
+  const selectComplaintsContactSegment = (id: ComplaintsContactSegment) => {
+    if (id === complaintsContactSegment) return;
     prevTops.current = measureTops();
-    setComplaintsContactFilter(id);
+    setComplaintsContactSegment(id);
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -378,7 +427,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     prevTops.current = measureTops();
     setProgressionFilter('tous');
     setConformiteFilter('tous');
-    setComplaintsContactFilter('tous');
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -914,22 +962,32 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     return new Date(Number(year), Number(month) - 1, Number(day)).getTime();
   };
 
-  const filteredComplaints = complaintsList
-    .filter((c) => {
-      const matchesSearch =
-        !complaintsQuery ||
-        c.ticket.toLowerCase().includes(complaintsQuery) ||
-        c.requerant.toLowerCase().includes(complaintsQuery) ||
-        c.objet.toLowerCase().includes(complaintsQuery) ||
-        c.description.toLowerCase().includes(complaintsQuery);
-      const matchesProgression = progressionFilter === 'tous' || c.avancement === progressionFilter;
-      const matchesConformite = conformiteFilter === 'tous' || c.conformite === conformiteFilter;
-      const matchesContact =
-        complaintsContactFilter === 'tous' ||
-        getContactTag(c.reclamant.rattacheContrat) ===
-          (complaintsContactFilter === 'prospect' ? 'Prospect' : 'Client');
-      return matchesSearch && matchesProgression && matchesConformite && matchesContact;
-    })
+  // Search + progression + conformité only — the client/prospect segment is
+  // applied on top of this, so its own two counts (shown on the segmented
+  // control) stay in sync with every other active filter.
+  const complaintsBeforeContactSegment = complaintsList.filter((c) => {
+    const matchesSearch =
+      !complaintsQuery ||
+      c.ticket.toLowerCase().includes(complaintsQuery) ||
+      c.requerant.toLowerCase().includes(complaintsQuery) ||
+      c.objet.toLowerCase().includes(complaintsQuery) ||
+      c.description.toLowerCase().includes(complaintsQuery);
+    const matchesProgression = progressionFilter === 'tous' || c.avancement === progressionFilter;
+    const matchesConformite = conformiteFilter === 'tous' || c.conformite === conformiteFilter;
+    return matchesSearch && matchesProgression && matchesConformite;
+  });
+  const clientComplaintsCount = complaintsBeforeContactSegment.filter(
+    (c) => getContactTag(c.reclamant.rattacheContrat) === 'Client',
+  ).length;
+  const prospectComplaintsCount = complaintsBeforeContactSegment.filter(
+    (c) => getContactTag(c.reclamant.rattacheContrat) === 'Prospect',
+  ).length;
+
+  const filteredComplaints = complaintsBeforeContactSegment
+    .filter(
+      (c) =>
+        getContactTag(c.reclamant.rattacheContrat) === (complaintsContactSegment === 'prospect' ? 'Prospect' : 'Client'),
+    )
     .sort((a, b) =>
       complaintsSortOrder === 'urgence'
         ? (a.echeanceDays ?? Infinity) - (b.echeanceDays ?? Infinity)
@@ -948,8 +1006,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     reclamationsFacet !== 'tous' ||
     contactFilter !== 'tous' ||
     periodeFilter !== 'annee';
-  const complaintsFiltersActive =
-    progressionFilter !== 'tous' || conformiteFilter !== 'tous' || complaintsContactFilter !== 'tous';
+  const complaintsFiltersActive = progressionFilter !== 'tous' || conformiteFilter !== 'tous';
 
   const selectedReclamations = effectiveReclamations.filter((r) => selectedIds.has(r.id));
   const canMarkSelectedRead = selectedReclamations.some((r) => isEffectivelyNew(r));
@@ -1273,10 +1330,18 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                   </div>
                 ) : (
                   <div className={`mentions-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
-                    <span className="mentions-count-chip">
-                      <ListIcon />
-                      {filteredComplaints.length} Réclamations
-                    </span>
+                    <div className="mentions-toolbar-start">
+                      <span className="mentions-count-chip">
+                        <ListIcon />
+                        {filteredComplaints.length} Réclamations
+                      </span>
+                      <ComplaintsContactSegmentedControl
+                        value={complaintsContactSegment}
+                        onChange={selectComplaintsContactSegment}
+                        clientCount={clientComplaintsCount}
+                        prospectCount={prospectComplaintsCount}
+                      />
+                    </div>
                     <div className="export-menu-wrap" ref={exportMenuRef}>
                       <button
                         type="button"
@@ -1363,8 +1428,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           onProgressionChange={selectProgressionFilter}
           conformite={conformiteFilter}
           onConformiteChange={selectConformiteFilter}
-          contact={complaintsContactFilter}
-          onContactChange={selectComplaintsContactFilter}
           onReset={resetComplaintsFilters}
         />
 
