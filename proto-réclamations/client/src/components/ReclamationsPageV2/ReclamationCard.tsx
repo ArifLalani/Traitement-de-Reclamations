@@ -13,7 +13,7 @@ const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; classNa
 
 const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
   'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
-  'en-attente': "Une demande de coordonnées a été envoyée à l'auteur de la mention, en attente de sa réponse.",
+  'en-attente': "Une demande de coordonnées a été envoyée à l'auteur du commentaire, en attente de sa réponse.",
   cloturee: "La demande n'a pas pu être traitée directement ; une demande a été transmise à l'hébergeur du site.",
 };
 

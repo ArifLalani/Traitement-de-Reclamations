@@ -735,18 +735,18 @@ export default function CreateReclamationSlider({
     <div className="dossier-treatment-fields">
       <div className="modal-row">
         <FormField
-          label="Nom de l'auteur de la mention"
+          label="Nom de l'auteur du commentaire"
           required
-          placeholder="Entrez le nom de l'auteur de la mention"
+          placeholder="Entrez le nom de l'auteur du commentaire"
           value={reclamantDraft.nom}
           error={showContactErrors && !reclamantDraft.nom}
           errorText={showContactErrors && !reclamantDraft.nom ? 'Champ requis' : undefined}
           onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
         />
         <FormField
-          label="Prénom de l'auteur de la mention"
+          label="Prénom de l'auteur du commentaire"
           required
-          placeholder="Entrez le prénom de l'auteur de la mention"
+          placeholder="Entrez le prénom de l'auteur du commentaire"
           value={reclamantDraft.prenom}
           error={showContactErrors && !reclamantDraft.prenom}
           errorText={showContactErrors && !reclamantDraft.prenom ? 'Champ requis' : undefined}
@@ -783,7 +783,7 @@ export default function CreateReclamationSlider({
       </div>
       <div className="dossier-question-row">
         <span className="dossier-question-text">
-          L'auteur de la mention est-il rattaché à un contrat ?<span className="field-required">*</span>
+          L'auteur du commentaire est-il rattaché à un contrat ?<span className="field-required">*</span>
         </span>
         <ChoiceToggle
           value={reclamantDraft.rattacheContrat}
@@ -992,7 +992,7 @@ export default function CreateReclamationSlider({
   const getCoordonneesCheckpointStep = (): Step => {
     const retourDetail = hasRetourDetail ? renderRetourDetailFields() : null;
     const inner = stepQuestion(
-      "Avez-vous récupéré les coordonnées de l'auteur de la mention ?",
+      "Avez-vous récupéré les coordonnées de l'auteur du commentaire ?",
       coordonneesCheckpoint,
       handleCoordonneesCheckpointChange,
       () =>
@@ -1210,7 +1210,7 @@ export default function CreateReclamationSlider({
       ? [
           {
             title: 'Confirmation de la demande de contact',
-            description: `Demande de coordonnées envoyée à l'auteur de la mention.`,
+            description: `Demande de coordonnées envoyée à l'auteur du commentaire.`,
             date: demandeDateDraft,
             author: 'Joe Bleau',
           },
@@ -1231,7 +1231,7 @@ export default function CreateReclamationSlider({
       ? [
           {
             title: 'Relance envoyée',
-            description: "Message de relance envoyé à l'auteur de la mention après l'absence de réponse.",
+            description: "Message de relance envoyé à l'auteur du commentaire après l'absence de réponse.",
             date: todayLabel,
             author: 'Joe Bleau',
           },
@@ -1325,7 +1325,7 @@ export default function CreateReclamationSlider({
     setSavedDraftSnapshot(reclamantDraft);
     if (changed.length > 0) {
       onAppendDraftHistorique({
-        title: "Modification des informations de l'auteur de la mention",
+        title: "Modification des informations de l'auteur du commentaire",
         description: `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
         date: todayLabel,
         author: 'Joe Bleau',
@@ -1560,7 +1560,7 @@ export default function CreateReclamationSlider({
                 <div className={treatmentBlockClassName()}>
                   {!relanceConfirmed &&
                     renderEnAttenteAlert(
-                      `Demande d'information envoyée à l'auteur de la mention le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
+                      `Demande d'information envoyée à l'auteur du commentaire le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
                     )}
                   {waitStep.node}
                 </div>
