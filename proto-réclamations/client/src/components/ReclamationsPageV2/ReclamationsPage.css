@@ -2709,6 +2709,24 @@
   border-color: #e4032e;
 }
 
+/* Same selected look as a réclamation/mention card in the list (light blue
+   tint + blue border) instead of the plain toggle's solid blue fill, which
+   read as too heavy for a sentence-length option. */
+.scope-v2 .dossier-choice-column .dossier-toggle-btn-active {
+  background: var(--color-info-selected-bg);
+  border-color: var(--color-primary-blue);
+  color: var(--color-text-primary);
+}
+
+.scope-v2 .dossier-choice-column .dossier-toggle-btn-active:hover {
+  background: var(--color-info-selected-bg);
+}
+
+.scope-v2 .dossier-choice-column .dossier-toggle-btn-active .dossier-choice-card-description {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
 .scope-v2 .dossier-choice-card-title {
   font: var(--font-button-medium);
   color: inherit;
