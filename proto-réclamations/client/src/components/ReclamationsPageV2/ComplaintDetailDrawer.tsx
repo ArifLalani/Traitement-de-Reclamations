@@ -12,6 +12,7 @@ import {
   getConformiteTooltip,
   getContactTag,
   getDossierSteps,
+  getEcheanceInfo,
   INTERLOCUTEURS,
   padFrDate,
   STATUT_CLIENT_LABEL,
@@ -43,12 +44,6 @@ const KEY_HISTORY_STEPS = new Set([
   'Analyse de la cause',
 ]);
 
-// Placeholder options pending the real business list for this field.
-const VERIFICATION_EFFICACITE_OPTIONS = [
-  { id: 'Oui', label: 'Oui' },
-  { id: 'Non', label: 'Non' },
-  { id: 'En cours', label: 'En cours' },
-];
 
 const DOSSIER_STEP_SHORT_LABELS = [
   'Réception de la mention',
@@ -221,19 +216,28 @@ function CopyIcon() {
 function ExpandableHistoryValue({ value }: { value: string }) {
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
+  // Until measured, assume it might overflow so the very first (pre-paint)
+  // render still applies the clamp box needed to measure it — once we know
+  // it doesn't, drop the box entirely so a short value stays plain inline
+  // text and aligns on the same baseline as its label instead of sitting
+  // off per -webkit-box's own baseline rules.
+  const [measured, setMeasured] = useState(false);
   const valueRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
     const el = valueRef.current;
     if (!el) return;
     setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    setMeasured(true);
   }, [value, expanded]);
+
+  const clamped = !expanded && (overflowing || !measured);
 
   return (
     <span className="dossier-history-change-value-wrap">
       <span
         ref={valueRef}
-        className={`dossier-history-change-value ${!expanded ? 'dossier-history-change-value-clamped' : ''}`}
+        className={`dossier-history-change-value ${clamped ? 'dossier-history-change-value-clamped' : ''}`}
       >
         {value}
       </span>
@@ -243,6 +247,42 @@ function ExpandableHistoryValue({ value }: { value: string }) {
         </button>
       )}
     </span>
+  );
+}
+
+// A "plain" multiline field (e.g. the réclamation's own description) is
+// display-only text, not something meant to be resized by dragging a
+// corner — clamp it to 4 lines with a "Voir plus"/"Voir moins" toggle
+// instead, same pattern as ExpandableHistoryValue above.
+function ExpandableFieldText({ value }: { value: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const [measured, setMeasured] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    setMeasured(true);
+  }, [value, expanded]);
+
+  const clamped = !expanded && (overflowing || !measured);
+
+  return (
+    <div className="dossier-field-readonly-text-wrap">
+      <p
+        ref={textRef}
+        className={`dossier-field-readonly-text ${clamped ? 'dossier-field-readonly-text-clamped' : ''}`}
+      >
+        {value}
+      </p>
+      {(overflowing || expanded) && (
+        <button type="button" className="dossier-history-change-toggle" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'Voir moins' : 'Voir plus'}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -332,15 +372,19 @@ function SectionTextField({
         )}
       </span>
       <div
-        className={`dossier-field-input ${readOnly || plain ? 'dossier-field-input-readonly' : ''} ${error ? 'dossier-field-input-error' : ''}`}
+        className={`dossier-field-input ${readOnly || plain ? 'dossier-field-input-readonly' : ''} ${error ? 'dossier-field-input-error' : ''} ${multiline && !plain ? 'dossier-field-input-multiline' : ''}`}
       >
         {multiline ? (
-          <textarea
-            value={readOnly && value === '' ? '-' : value}
-            placeholder={readOnly ? undefined : placeholder}
-            readOnly={readOnly}
-            onChange={(e) => onChange?.(e.target.value)}
-          />
+          plain ? (
+            <ExpandableFieldText value={value || '-'} />
+          ) : (
+            <textarea
+              value={readOnly && value === '' ? '-' : value}
+              placeholder={readOnly ? undefined : placeholder}
+              readOnly={readOnly}
+              onChange={(e) => onChange?.(e.target.value)}
+            />
+          )
         ) : (
           <input
             type="text"
@@ -710,6 +754,11 @@ export default function ComplaintDetailDrawer({
   // before the dossier even exists), so there's no more guiding question
   // here — accusé de réception date is always askable straight away.
   const [arDateDraft, setArDateDraft] = useState(() => complaint.suiviCloture.dateAR);
+  const [arDateMissing, setArDateMissing] = useState(false);
+  // Required before "Confirmer" accepts the AR as sent — same certification
+  // pattern as the mention slider's own "j'ai envoyé le message" checkboxes.
+  const [arCertified, setArCertified] = useState(false);
+  const [arCertifyMissing, setArCertifyMissing] = useState(false);
   const [arNiveau, setArNiveau] = useState<ArNiveau>('niveau1');
   const [arTemplateCopied, setArTemplateCopied] = useState(false);
   const handleCopyArTemplate = () => {
@@ -723,6 +772,10 @@ export default function ComplaintDetailDrawer({
     if (complaint.suiviCloture.dateReponse !== '') return complaint.suiviCloture.dateReponse;
     return complaint.suiviCloture.dateAR !== '' ? new Date().toLocaleDateString('fr-FR') : '';
   });
+  // L'action corrective est obligatoire (contrairement à l'action curative,
+  // facultative) — mêmes champs manquants/erreur que pour l'AR.
+  const [actionCorrectiveDateMissing, setActionCorrectiveDateMissing] = useState(false);
+  const [actionRealiseeMissing, setActionRealiseeMissing] = useState(false);
   const [headerStuck, setHeaderStuck] = useState(false);
   const [tabsStuck, setTabsStuck] = useState(false);
   const [footerShadow, setFooterShadow] = useState(false);
@@ -916,7 +969,7 @@ export default function ComplaintDetailDrawer({
   const scrollToFirstError = () => {
     requestAnimationFrame(() => {
       const firstError = dossierContentRef.current?.querySelector(
-        '.field-border-error, .dossier-field-input-error, .dossier-choice-row-error',
+        '.field-border-error, .dossier-field-input-error, .dossier-choice-row-error, .dossier-certify-checkbox-wrap-error',
       );
       firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
@@ -932,13 +985,19 @@ export default function ComplaintDetailDrawer({
     if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse)
       changed.push({ label: "Date d'envoi de la réponse définitive", value: padFrDate(suiviDraft.dateReponse) || '-' });
     if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate)
-      changed.push({ label: "Date de l'action immédiate", value: padFrDate(suiviDraft.actionImmediate) || '-' });
+      changed.push({ label: "Date de l'action curative", value: padFrDate(suiviDraft.actionImmediate) || '-' });
     if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
       changed.push({ label: "Date de l'action corrective", value: padFrDate(suiviDraft.actionCorrective) || '-' });
     if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee)
-      changed.push({ label: 'Actions réalisées', value: suiviDraft.actionRealisee || '-' });
+      changed.push({ label: "Description de l'action corrective", value: suiviDraft.actionRealisee || '-' });
     if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives)
-      changed.push({ label: 'Réponses apportées', value: suiviDraft.actionsCorrectives || '-' });
+      changed.push({ label: "Description de l'action curative", value: suiviDraft.actionsCorrectives || '-' });
+    if (suiviDraft.exigence !== complaint.suiviCloture.exigence)
+      changed.push({ label: 'Exigence', value: suiviDraft.exigence || '-' });
+    if (suiviDraft.defaillance !== complaint.suiviCloture.defaillance)
+      changed.push({ label: 'Défaillance', value: suiviDraft.defaillance || '-' });
+    if (suiviDraft.preuve !== complaint.suiviCloture.preuve)
+      changed.push({ label: 'Preuve', value: suiviDraft.preuve || '-' });
     if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
       changed.push({ label: "Vérification d'efficacité", value: suiviDraft.verificationEfficacite || '-' });
     onUpdate?.(complaint.id, {
@@ -1038,13 +1097,19 @@ export default function ComplaintDetailDrawer({
       if (suiviDraft.dateReponse !== complaint.suiviCloture.dateReponse)
         changed.push({ label: "Date d'envoi de la réponse définitive", value: padFrDate(suiviDraft.dateReponse) || '-' });
       if (suiviDraft.actionImmediate !== complaint.suiviCloture.actionImmediate)
-        changed.push({ label: "Date de l'action immédiate", value: padFrDate(suiviDraft.actionImmediate) || '-' });
+        changed.push({ label: "Date de l'action curative", value: padFrDate(suiviDraft.actionImmediate) || '-' });
       if (suiviDraft.actionCorrective !== complaint.suiviCloture.actionCorrective)
         changed.push({ label: "Date de l'action corrective", value: padFrDate(suiviDraft.actionCorrective) || '-' });
       if (suiviDraft.actionRealisee !== complaint.suiviCloture.actionRealisee)
-        changed.push({ label: 'Actions réalisées', value: suiviDraft.actionRealisee || '-' });
+        changed.push({ label: "Description de l'action corrective", value: suiviDraft.actionRealisee || '-' });
       if (suiviDraft.actionsCorrectives !== complaint.suiviCloture.actionsCorrectives)
-        changed.push({ label: 'Réponses apportées', value: suiviDraft.actionsCorrectives || '-' });
+        changed.push({ label: "Description de l'action curative", value: suiviDraft.actionsCorrectives || '-' });
+      if (suiviDraft.exigence !== complaint.suiviCloture.exigence)
+        changed.push({ label: 'Exigence', value: suiviDraft.exigence || '-' });
+      if (suiviDraft.defaillance !== complaint.suiviCloture.defaillance)
+        changed.push({ label: 'Défaillance', value: suiviDraft.defaillance || '-' });
+      if (suiviDraft.preuve !== complaint.suiviCloture.preuve)
+        changed.push({ label: 'Preuve', value: suiviDraft.preuve || '-' });
       if (suiviDraft.verificationEfficacite !== complaint.suiviCloture.verificationEfficacite)
         changed.push({ label: "Vérification d'efficacité", value: suiviDraft.verificationEfficacite || '-' });
       Object.assign(updates, { suiviCloture: padSuiviDates(suiviDraft) });
@@ -1083,6 +1148,7 @@ export default function ComplaintDetailDrawer({
   // Prospects aren't bound by the ACPR deadlines that "conformité" tracks —
   // only clients are, so the field doesn't apply to them.
   const contactTag = getContactTag(complaint.reclamant.rattacheContrat);
+  const { conformite } = getEcheanceInfo(complaint);
   // Analyse de la cause is an optional follow-up step that only happens
   // once the dossier is already clôturé — its fields are all optional, so
   // its own confirmed flag (not field content) tracks whether it's done.
@@ -1106,6 +1172,13 @@ export default function ComplaintDetailDrawer({
   const handleConfirmNextStep = () => {
     const todayLabel = new Date().toLocaleDateString('fr-FR');
     if (!arSent) {
+      const dateMissing = !arDateDraft;
+      if (dateMissing || !arCertified) {
+        setArDateMissing(dateMissing);
+        setArCertifyMissing(!arCertified);
+        scrollToFirstError();
+        return;
+      }
       setConfirmingAR(true);
       setTimeout(() => {
         const dateLabel = padFrDate(arDateDraft || todayLabel);
@@ -1120,6 +1193,7 @@ export default function ComplaintDetailDrawer({
               "Confirmation de l'envoi de l'Accusé de Réception",
               'Accusé de réception envoyé au réclamant.',
               [
+                { label: "Date d'envoi de l'accusé de réception", value: dateLabel },
                 { label: 'Type de réponse', value: 'Recevable' },
               ],
             ),
@@ -1131,6 +1205,17 @@ export default function ComplaintDetailDrawer({
         setConfirmingAR(false);
       }, 1500);
     } else {
+      // L'action curative est facultative (instantanée, pas toujours
+      // nécessaire), mais l'action corrective est obligatoire dans tous les
+      // cas avant de pouvoir clôturer.
+      const correctiveDateMissing = !suiviDraft.actionCorrective;
+      const correctiveDescMissing = !suiviDraft.actionRealisee;
+      if (correctiveDateMissing || correctiveDescMissing) {
+        setActionCorrectiveDateMissing(correctiveDateMissing);
+        setActionRealiseeMissing(correctiveDescMissing);
+        scrollToFirstError();
+        return;
+      }
       // Confirming la réponse définitive clôture the dossier right away —
       // there's no separate review/"Clôturer" step anymore. "Analyse de la
       // cause" (see handleConfirmAnalyse) is a mandatory follow-up, but it
@@ -1150,7 +1235,17 @@ export default function ComplaintDetailDrawer({
             buildHistoryEntry(
               'Confirmation de l’envoi de la Réponse Définitive',
               'Réponse définitive envoyée au réclamant.',
-              [{ label: 'Message envoyé', value: suiviDraft.reponseMessage || '-' }],
+              [
+                { label: "Date d'envoi de la réponse définitive", value: dateLabel },
+                { label: 'Message de la réponse définitive envoyé', value: suiviDraft.reponseMessage || '-' },
+                {
+                  label: "Date de l'action curative",
+                  value: suiviDraft.actionImmediate ? padFrDate(suiviDraft.actionImmediate) : '-',
+                },
+                { label: "Description de l'action curative", value: suiviDraft.actionsCorrectives || '-' },
+                { label: "Date de l'action corrective", value: padFrDate(suiviDraft.actionCorrective) },
+                { label: "Description de l'action corrective", value: suiviDraft.actionRealisee },
+              ],
             ),
             buildHistoryEntry('Clôture du dossier', 'Dossier clôturé.'),
           ],
@@ -1170,7 +1265,12 @@ export default function ComplaintDetailDrawer({
       suiviCloture: nextSuivi,
       historique: [
         ...complaint.historique,
-        buildHistoryEntry('Analyse de la cause', 'Analyse de la cause du dossier renseignée.'),
+        buildHistoryEntry('Analyse de la cause', 'Analyse de la cause du dossier renseignée.', [
+          { label: 'Exigence', value: suiviDraft.exigence || '-' },
+          { label: 'Défaillance', value: suiviDraft.defaillance || '-' },
+          { label: 'Preuve', value: suiviDraft.preuve || '-' },
+          { label: "Vérification d'efficacité", value: suiviDraft.verificationEfficacite || '-' },
+        ]),
       ],
     });
   };
@@ -1182,9 +1282,9 @@ export default function ComplaintDetailDrawer({
 
   const statusChipLabel = AVANCEMENT_LABEL[complaint.avancement];
   const statusChipTooltip = AVANCEMENT_TOOLTIP[complaint.avancement];
-  const statusChipClassName = `chip dossier-status-chip ${
-    complaint.avancement !== 'a-traiter' ? 'dossier-status-chip-closed' : ''
-  }`;
+  // Same colors as the complaint card's own status chip, instead of this
+  // drawer's unrelated blue chip style.
+  const statusChipClassName = `chip complaints-chip-avancement-${complaint.avancement}`;
 
   // Shown once the guiding question is answered "Oui" — collects the extra
   // information (contact details + the AR itself) that wasn't needed until
@@ -1197,7 +1297,12 @@ export default function ComplaintDetailDrawer({
         type="date"
         placeholder="JJ/MM/AAAA"
         value={arDateDraft}
-        onChange={setArDateDraft}
+        error={arDateMissing}
+        errorText={arDateMissing ? 'Champ requis' : undefined}
+        onChange={(v) => {
+          setArDateDraft(v);
+          if (v) setArDateMissing(false);
+        }}
       />
       <div className="dossier-field-spacer" />
     </div>
@@ -1224,6 +1329,27 @@ export default function ComplaintDetailDrawer({
     </div>
   );
 
+  // Required before "Confirmer" accepts the AR as sent.
+  const renderArCertifyCheckbox = () => (
+    <div className={`dossier-certify-checkbox-wrap ${arCertifyMissing ? 'dossier-certify-checkbox-wrap-error' : ''}`}>
+      <label className="dossier-certify-checkbox">
+        <input
+          type="checkbox"
+          checked={arCertified}
+          onChange={(e) => {
+            setArCertified(e.target.checked);
+            if (e.target.checked) setArCertifyMissing(false);
+          }}
+        />
+        <span className="dossier-certify-checkbox-text">
+          Je confirme avoir envoyé l'accusé de réception au réclamant.
+          <span className="dossier-field-required">*</span>
+        </span>
+      </label>
+      {arCertifyMissing && <span className="dossier-field-error-text">Champ requis</span>}
+    </div>
+  );
+
   // hideAlert: the "clôturer le dossier" review step already carries its own
   // single "vérifiez que tout est renseigné" alert covering every field
   // below it, so this field's own instructional alert would be redundant
@@ -1234,13 +1360,14 @@ export default function ComplaintDetailDrawer({
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Une fois l'envoi
-            effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
+            L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...), dans un délai
+            maximum de 10 jours. Une fois l'envoi effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
           </p>
           <p>En cas de contrôle, un justificatif pourra être demandé.</p>
         </div>
         {renderArDateField()}
         {renderArTemplateBlock()}
+        {renderArCertifyCheckbox()}
       </div>
     </>
   );
@@ -1261,26 +1388,34 @@ export default function ComplaintDetailDrawer({
 
   const renderReponseInfoFields = () => (
     <>
-      <p className="dossier-block-title">Informations de la réponse définitive</p>
+      <p className="dossier-block-title">Informations concernant le traitement de la réclamation</p>
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Une fois l'envoi
+            La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...), dans un délai
+            maximum de 60 jours afin de respecter les délais fixés par la réglementation ACPR. Une fois l'envoi
             effectué, renseignez ci-dessous la date à laquelle elle a été envoyée.
           </p>
           <p>En cas de contrôle, un justificatif pourra être demandé.</p>
         </div>
         {renderReponseDateField()}
         <FormTextareaAutoGrow
-          label="Message envoyé"
+          label="Message de la réponse définitive envoyé"
           required
           placeholder="Indiquez ici le message envoyé au réclamant"
           value={suiviDraft.reponseMessage}
           onChange={(v) => setSuiviDraft((d) => ({ ...d, reponseMessage: v }))}
         />
+        <p className="dossier-block-title">Action curative</p>
+        <div className="dossier-alert-neutral">
+          <p>
+            Une action curative peut être mise en place immédiatement, sans attendre, pour traiter la situation dans
+            l'instant. Elle est facultative.
+          </p>
+        </div>
         <div className="modal-row">
           <FormField
-            label="Date de l'action immédiate"
+            label="Date de l'action curative"
             type="date"
             placeholder="JJ/MM/AAAA"
             value={suiviDraft.actionImmediate}
@@ -1289,41 +1424,82 @@ export default function ComplaintDetailDrawer({
           <div className="dossier-field-spacer" />
         </div>
         <FormTextareaAutoGrow
-          label="La réponse apportée"
-          placeholder="Décrivez la réponse apportée"
+          label="Description de l'action curative"
+          placeholder="Décrivez l'action curative mise en place"
           value={suiviDraft.actionsCorrectives}
           onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
+        />
+        <p className="dossier-block-title">Action corrective</p>
+        <div className="dossier-alert-neutral">
+          <p>
+            Une action corrective vise à traiter la cause du problème de manière durable ; elle peut nécessiter de
+            solliciter d'autres personnes et donc prendre plus de temps. Elle peut être mise en place en complément de
+            l'action curative, mais elle est obligatoire dans tous les cas.
+          </p>
+        </div>
+        <div className="modal-row">
+          <FormField
+            label="Date de l'action corrective"
+            required
+            type="date"
+            placeholder="JJ/MM/AAAA"
+            value={suiviDraft.actionCorrective}
+            error={actionCorrectiveDateMissing}
+            errorText={actionCorrectiveDateMissing ? 'Champ requis' : undefined}
+            onChange={(v) => {
+              setSuiviDraft((d) => ({ ...d, actionCorrective: v }));
+              if (v) setActionCorrectiveDateMissing(false);
+            }}
+          />
+          <div className="dossier-field-spacer" />
+        </div>
+        <FormTextareaAutoGrow
+          label="Description de l'action corrective"
+          required
+          placeholder="Décrivez l'action corrective mise en place"
+          value={suiviDraft.actionRealisee}
+          error={actionRealiseeMissing}
+          errorText={actionRealiseeMissing ? 'Champ requis' : undefined}
+          onChange={(v) => {
+            setSuiviDraft((d) => ({ ...d, actionRealisee: v }));
+            if (v) setActionRealiseeMissing(false);
+          }}
         />
       </div>
     </>
   );
 
   // Optional follow-up step, shown once the dossier is already clôturé —
-  // none of its fields are required.
+  // none of its fields are required. The corrective action itself (date +
+  // description) is now captured upfront in renderReponseInfoFields, since
+  // it's mandatory before the dossier can even close.
   const renderAnalyseCauseFields = () => (
     <>
       <p className="dossier-block-title">Analyse de la cause</p>
-      <div className="modal-row">
-        <FormField
-          label="Date de l'action corrective"
-          type="date"
-          placeholder="JJ/MM/AAAA"
-          value={suiviDraft.actionCorrective}
-          onChange={(v) => setSuiviDraft((d) => ({ ...d, actionCorrective: v }))}
-        />
-        <div className="dossier-field-spacer" />
-      </div>
-      <FormField
-        label="Vérification d'efficacité"
-        placeholder="Décrivez la vérification d'efficacité"
-        value={suiviDraft.verificationEfficacite}
-        onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
+      <FormTextareaAutoGrow
+        label="Exigence"
+        placeholder="Décrivez l'exigence concernée"
+        value={suiviDraft.exigence}
+        onChange={(v) => setSuiviDraft((d) => ({ ...d, exigence: v }))}
       />
       <FormTextareaAutoGrow
-        label="Action réalisée"
-        placeholder="Décrivez l'action réalisée"
-        value={suiviDraft.actionRealisee}
-        onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
+        label="Défaillance"
+        placeholder="On constate que..."
+        value={suiviDraft.defaillance}
+        onChange={(v) => setSuiviDraft((d) => ({ ...d, defaillance: v }))}
+      />
+      <FormTextareaAutoGrow
+        label="Preuve"
+        placeholder="Décrivez la preuve"
+        value={suiviDraft.preuve}
+        onChange={(v) => setSuiviDraft((d) => ({ ...d, preuve: v }))}
+      />
+      <p className="dossier-block-title">Vérification d'efficacité</p>
+      <FormTextareaAutoGrow
+        label="Vérification d'efficacité"
+        placeholder="Décrivez la vérification d'efficacité de l'action"
+        value={suiviDraft.verificationEfficacite}
+        onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
       />
     </>
   );
@@ -1367,10 +1543,9 @@ export default function ComplaintDetailDrawer({
         onScroll={(e) => setHeaderStuck(e.currentTarget.scrollTop > 4)}
       >
         <div className={`dossier-header ${headerStuck ? 'dossier-header-stuck' : ''}`}>
-          <span className="dossier-title">Dossier {complaint.ticket}</span>
-          <HoverTooltip text={statusChipTooltip} align="left" side="bottom">
-            <span className={statusChipClassName}>{statusChipLabel}</span>
-          </HoverTooltip>
+          <span className="dossier-title">
+            {contactTag === 'Prospect' ? 'Réclamation Prospect' : 'Réclamation client'} {complaint.ticket}
+          </span>
           <div className="dossier-header-spacer" />
           <button type="button" className="btn-filled dossier-export-btn" onClick={handleExportComplaint}>
             Exporter
@@ -1448,8 +1623,8 @@ export default function ComplaintDetailDrawer({
                     align="left"
                     className="dossier-field-chip-wrap"
                   >
-                    <span className={`chip complaints-chip-conformite-${complaint.conformite}`}>
-                      {CONFORMITE_LABEL[complaint.conformite]}
+                    <span className={`chip complaints-chip-conformite-${conformite}`}>
+                      {CONFORMITE_LABEL[conformite]}
                     </span>
                   </HoverTooltip>
                 </div>
@@ -1642,7 +1817,7 @@ export default function ComplaintDetailDrawer({
             </div>
             <div className="dossier-field-row">
               <SectionTextField
-                label="Date de l'action immédiate"
+                label="Date de l'action curative"
                 value={suiviDraft.actionImmediate}
                 type="date"
                 placeholder="Ex: 05/05/2026"
@@ -1659,29 +1834,47 @@ export default function ComplaintDetailDrawer({
               />
             </div>
             <SectionTextField
-              label="Actions réalisées"
+              label="Description de l'action corrective"
               value={suiviDraft.actionRealisee}
               multiline
               readOnly={isClosed}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionRealisee: v }))}
             />
             <SectionTextField
-              label="Réponses apportées"
+              label="Description de l'action curative"
               value={suiviDraft.actionsCorrectives}
               multiline
               readOnly={isClosed}
               onChange={(v) => setSuiviDraft((d) => ({ ...d, actionsCorrectives: v }))}
             />
-            <div className="dossier-field-row">
-              <SectionSelectField<string>
-                label="Vérification d'efficacité"
-                value={suiviDraft.verificationEfficacite}
-                disabled={isClosed}
-                options={VERIFICATION_EFFICACITE_OPTIONS}
-                onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
-              />
-              <div className="dossier-field-spacer" />
-            </div>
+            <SectionTextField
+              label="Exigence"
+              value={suiviDraft.exigence}
+              multiline
+              readOnly={isClosed}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, exigence: v }))}
+            />
+            <SectionTextField
+              label="Défaillance"
+              value={suiviDraft.defaillance}
+              multiline
+              readOnly={isClosed}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, defaillance: v }))}
+            />
+            <SectionTextField
+              label="Preuve"
+              value={suiviDraft.preuve}
+              multiline
+              readOnly={isClosed}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, preuve: v }))}
+            />
+            <SectionTextField
+              label="Vérification d'efficacité"
+              value={suiviDraft.verificationEfficacite}
+              multiline
+              readOnly={isClosed}
+              onChange={(v) => setSuiviDraft((d) => ({ ...d, verificationEfficacite: v }))}
+            />
             <SaveButton disabled={!suiviDirty} onClick={saveSuivi} />
           </AccordionSection>
           </>

@@ -43,6 +43,10 @@ export type SuiviCloture = {
   actionCorrective: string;
   actionRealisee: string;
   actionsCorrectives: string;
+  // Analyse de la cause — free-form, all optional.
+  exigence: string;
+  defaillance: string;
+  preuve: string;
   verificationEfficacite: string;
   // Set once "Analyse de la cause" is confirmed — its fields are all
   // optional, so their emptiness can't be used to tell the step is done.
@@ -68,11 +72,7 @@ export type Complaint = {
   requerant: string;
   dateReception: string;
   dateCloture?: string;
-  echeanceLabel: string;
-  echeanceWarning?: boolean;
-  echeanceDays?: number;
   avancement: Avancement;
-  conformite: Conformite;
   canal: Source;
   sourceUrl?: string;
   denominateurSocial: string;
@@ -139,34 +139,112 @@ function daysBetween(from: Date, to: Date): number {
   return Math.round((to.getTime() - from.getTime()) / 86_400_000);
 }
 
-// Explains the "Conforme" / "Non conforme" chip on hover — conforme just
-// restates the two regulatory deadlines, non-conforme names which one was
-// missed and by how many days, computed from the dossier's actual dates
-// rather than hardcoded, so it stays accurate as the mock data changes.
+// ACPR's two regulatory deadlines, both counted from the date the mention
+// was received.
+const AR_DEADLINE_DAYS = 10;
+const REPONSE_DEADLINE_DAYS = 60;
+
+type DeadlineJudgement = { onTime: boolean; daysRemaining: number; isEntered: boolean };
+
+// A date already entered is judged on its own timing (permanent — doesn't
+// drift as "today" moves on); with no date yet, the countdown is judged
+// against today (live — a day late today may not have been a day late
+// yesterday).
+function judgeDeadline(reception: Date, dateValue: string, deadlineDays: number, today: Date): DeadlineJudgement {
+  const entered = parseFrDateLoose(dateValue);
+  const daysElapsed = entered ? daysBetween(reception, entered) : daysBetween(reception, today);
+  return { onTime: daysElapsed <= deadlineDays, daysRemaining: deadlineDays - daysElapsed, isEntered: entered !== null };
+}
+
+export type EcheanceInfo = {
+  conformite: Conformite;
+  // Empty once there's nothing left to count down to (prospect, or the
+  // dossier has both its dates in, or is clôturé) — ComplaintCard treats an
+  // empty label as "closed".
+  echeanceLabel: string;
+  echeanceWarning: boolean;
+  echeanceDays?: number;
+};
+
+// The single source of truth for a dossier's ACPR compliance: whether it's
+// within the AR/réponse deadlines, and what to show as the running
+// countdown. Prospects (rattachéContrat "non") aren't bound by either
+// deadline, so they always come back conforme with nothing to display —
+// "il faut juste que ce soit traité", no regulatory clock.
+//
+// A deadline that's already passed without the corresponding date filled in
+// shows up as non-conforme right away, not only once the date is entered —
+// and entering a date afterwards can still bring it back to conforme, if
+// that date itself turns out to be within the deadline.
+export function getEcheanceInfo(
+  complaint: Pick<Complaint, 'dateReception' | 'suiviCloture' | 'avancement' | 'reclamant'>,
+  today: Date = new Date(),
+): EcheanceInfo {
+  const { dateReception, suiviCloture, avancement, reclamant } = complaint;
+
+  if (reclamant.rattacheContrat !== 'oui') {
+    return { conformite: 'conforme', echeanceLabel: '', echeanceWarning: false };
+  }
+
+  const reception = parseFrDateLoose(dateReception);
+  if (!reception) {
+    return { conformite: 'conforme', echeanceLabel: '', echeanceWarning: false };
+  }
+
+  const ar = judgeDeadline(reception, suiviCloture.dateAR, AR_DEADLINE_DAYS, today);
+  const reponse = judgeDeadline(reception, suiviCloture.dateReponse, REPONSE_DEADLINE_DAYS, today);
+  const conformite: Conformite = ar.onTime && reponse.onTime ? 'conforme' : 'non-conforme';
+
+  if (avancement === 'cloture' || (ar.isEntered && reponse.isEntered)) {
+    return { conformite, echeanceLabel: '', echeanceWarning: false };
+  }
+
+  // Whichever phase is still open drives the badge — the AR's, until it's
+  // entered, then the réponse's.
+  const active = ar.isEntered ? reponse : ar;
+  const label =
+    active.daysRemaining >= 0
+      ? `${active.daysRemaining} jour${active.daysRemaining > 1 ? 's' : ''} restant${active.daysRemaining > 1 ? 's' : ''}`
+      : `Délai dépassé de ${-active.daysRemaining} jour${-active.daysRemaining > 1 ? 's' : ''}`;
+
+  return { conformite, echeanceLabel: label, echeanceWarning: !active.onTime, echeanceDays: active.daysRemaining };
+}
+
+// Explains the "Conforme" / "Non conforme" chip on hover — computed from the
+// same dates/deadlines as getEcheanceInfo, so the two can't drift apart.
 export function getConformiteTooltip(
-  complaint: Pick<Complaint, 'conformite' | 'dateReception' | 'suiviCloture'>,
+  complaint: Pick<Complaint, 'dateReception' | 'suiviCloture' | 'avancement' | 'reclamant'>,
 ): string {
-  if (complaint.conformite === 'conforme') {
+  if (complaint.reclamant.rattacheContrat !== 'oui') {
+    return "Pas de délai réglementaire : l'auteur n'est pas rattaché à un contrat.";
+  }
+
+  if (getEcheanceInfo(complaint).conformite === 'conforme') {
     return 'Dans les délais réglementaires.';
   }
 
   const { dateReception, suiviCloture } = complaint;
   const reception = parseFrDateLoose(dateReception);
   if (reception) {
+    const today = new Date();
     const ar = parseFrDateLoose(suiviCloture.dateAR);
-    const daysToAR = daysBetween(reception, ar ?? new Date());
-    if (daysToAR > 10) {
-      const overrun = daysToAR - 10;
-      return `Accusé de réception envoyé ${daysToAR} jours après la réception, soit ${overrun} jour${overrun > 1 ? 's' : ''} au-delà du délai réglementaire de 10 jours ouvrables.`;
+    const daysToAR = daysBetween(reception, ar ?? today);
+    if (daysToAR > AR_DEADLINE_DAYS) {
+      const overrun = daysToAR - AR_DEADLINE_DAYS;
+      const overrunLabel = `${overrun} jour${overrun > 1 ? 's' : ''} au-delà du délai réglementaire de 10 jours ouvrables`;
+      return ar
+        ? `Accusé de réception envoyé ${daysToAR} jours après la réception, soit ${overrunLabel}.`
+        : `Accusé de réception toujours pas envoyé ${daysToAR} jours après la réception, soit ${overrunLabel}.`;
     }
 
-    if (ar) {
-      const reponse = parseFrDateLoose(suiviCloture.dateReponse);
-      const daysToReponse = daysBetween(reception, reponse ?? new Date());
-      if (daysToReponse > 60) {
-        const overrun = daysToReponse - 60;
-        return `Réponse définitive envoyée ${daysToReponse} jours après la réception, soit ${overrun} jour${overrun > 1 ? 's' : ''} au-delà du délai réglementaire de 2 mois.`;
-      }
+    const reponse = parseFrDateLoose(suiviCloture.dateReponse);
+    const daysToReponse = daysBetween(reception, reponse ?? today);
+    if (daysToReponse > REPONSE_DEADLINE_DAYS) {
+      const overrun = daysToReponse - REPONSE_DEADLINE_DAYS;
+      const overrunLabel = `${overrun} jour${overrun > 1 ? 's' : ''} au-delà du délai réglementaire de 2 mois`;
+      return reponse
+        ? `Réponse définitive envoyée ${daysToReponse} jours après la réception, soit ${overrunLabel}.`
+        : `Réponse définitive toujours pas envoyée ${daysToReponse} jours après la réception, soit ${overrunLabel}.`;
     }
   }
 
@@ -203,9 +281,10 @@ export type DossierStep = {
 // (mention received, complaint created) are implicit — a Complaint record
 // existing at all means both already happened.
 export function getDossierSteps(
-  complaint: Pick<Complaint, 'avancement' | 'echeanceLabel' | 'echeanceWarning' | 'suiviCloture'>,
+  complaint: Pick<Complaint, 'avancement' | 'dateReception' | 'suiviCloture' | 'reclamant'>,
 ): DossierStep[] {
-  const { avancement, echeanceLabel, echeanceWarning, suiviCloture } = complaint;
+  const { avancement, suiviCloture } = complaint;
+  const { echeanceLabel, echeanceWarning } = getEcheanceInfo(complaint);
 
   const arDone = suiviCloture.dateAR !== '' || avancement === 'cloture';
   // Confirming la réponse définitive now clôture the dossier in the same
@@ -223,13 +302,13 @@ export function getDossierSteps(
     {
       label: "Confirmation de l'envoi de l'Accusé de Réception",
       status: arDone ? 'done' : 'current',
-      badgeLabel: arDone ? 'Complété' : echeanceLabel,
+      badgeLabel: arDone ? 'Complété' : echeanceLabel || undefined,
       badgeWarning: !arDone && echeanceWarning,
     },
     {
       label: 'Confirmation de l’envoi de la Réponse Définitive',
       status: reponseDone ? 'done' : arDone ? 'current' : 'upcoming',
-      badgeLabel: reponseDone ? 'Complété' : arDone ? echeanceLabel : undefined,
+      badgeLabel: reponseDone ? 'Complété' : arDone ? echeanceLabel || undefined : undefined,
       badgeWarning: arDone && !reponseDone && echeanceWarning,
     },
     {
@@ -245,6 +324,33 @@ function splitName(fullName: string): [string, string] {
   const parts = cleaned.split(/\s+/).filter(Boolean);
   if (parts.length <= 1) return [parts[0] ?? '', ''];
   return [parts[0], parts.slice(1).join(' ')];
+}
+
+// A mention's "author" is often a handle or a display name truncated to a
+// last initial (e.g. "paul.durand44", "Inès O.") — fine for the mentions
+// list, but not a real réclamant identity. Only a genuine "Prénom Nom" is
+// trusted as-is; anything else falls back to the realistic pool below.
+function looksLikeFullName(name: string): boolean {
+  return /^[A-ZÀ-Ý][a-zà-ÿ'-]+\s+[A-ZÀ-Ý][a-zà-ÿ'-]+$/.test(name.trim());
+}
+
+const REALISTIC_PRENOMS = [
+  'Inès', 'Paul', 'Sandra', 'Marc', 'Julien', 'Claire', 'Nadia', 'Laura',
+  'Vincent', 'Céline', 'Arnaud', 'Thierry', 'François', 'Élise', 'Nathalie',
+  'Luc', 'Isabelle', 'Mehdi', 'Anaïs', 'Émilie',
+];
+const REALISTIC_NOMS = [
+  'Olivier', 'Durand', 'Martin', 'Bernard', 'Petit', 'Moreau', 'Dubois',
+  'Fontaine', 'Leroy', 'Garnier', 'Chevalier', 'Lambert', 'Fabre', 'Meyer',
+  'Girard', 'Andre', 'Mercier', 'Blanc', 'Guerin', 'Boyer',
+];
+
+// Deterministic per index (not random), so the same mock dossier always
+// gets the same phone number across renders/sessions.
+function generatePhone(index: number): string {
+  const digits = String(10000000 + ((index * 7919) % 90000000)).padStart(8, '0');
+  const prefix = index % 2 === 0 ? '06' : '07';
+  return `${prefix} ${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)}`;
 }
 
 export const INTERLOCUTEURS = ['Julien Fontaine', 'Claire Martin', 'Marc Dubois', 'Sophie Leroy'];
@@ -264,6 +370,10 @@ export type ComplaintCore = Omit<
   // "non") rather than clients — the live flow answers this at création,
   // but mock data needs it hardcoded per entry.
   forceProspect?: boolean;
+  // Gives an already-progressed mock dossier's AR a late send date — its
+  // actual conformité is computed (getEcheanceInfo) from that date, not set
+  // directly, so this only needs to pick which offset produces a late one.
+  lateAR?: boolean;
 };
 
 const NOTES_TEMPLATES = [
@@ -281,7 +391,18 @@ const EDIT_ENTRIES: { title: string; description: string }[] = [
 ];
 
 export function attachDetails(c: ComplaintCore, index = 0): Complaint {
-  const [prenom, nom] = splitName(c.requerant);
+  const hasRealName = looksLikeFullName(c.requerant);
+  const [splitPrenom, splitNom] = splitName(c.requerant);
+  const prenom = hasRealName ? splitPrenom : REALISTIC_PRENOMS[index % REALISTIC_PRENOMS.length];
+  const nom = hasRealName ? splitNom : REALISTIC_NOMS[index % REALISTIC_NOMS.length];
+  // c.email is already reliable once the author itself is a real name
+  // (guessEmail/the fallback both derive it from "prénom nom" in that
+  // case) — only regenerate it to match the réclamant identity above when
+  // that name itself had to be made up.
+  const email = hasRealName
+    ? c.email
+    : `${stripDiacritics(prenom)}.${stripDiacritics(nom)}@gmail.com`.toLowerCase();
+  const telephone = generatePhone(index);
   const porteurDuRisque = c.assureur;
   // A dossier can't reach these stages in the live app without the underlying
   // step being completed first, so the mock data has to reflect that instead
@@ -293,11 +414,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   // format and silently returns '' otherwise — pad it first so dateAR/
   // dateReponse/dateCloture actually get computed.
   const dateReception = padFrDate(c.dateReception);
-  // A "non-conforme" dossier needs an actual overrun in its dates, not just
-  // the label — otherwise the conformité tooltip (which explains the
-  // overrun from these dates) has nothing to point to and falls back to a
-  // generic message.
-  const dateAR = arDone ? addDaysToFrDate(dateReception, c.conformite === 'non-conforme' ? 14 : 3) : '';
+  const dateAR = arDone ? addDaysToFrDate(dateReception, c.lateAR ? 14 : 3) : '';
   const dateReponse = reponseDone ? addDaysToFrDate(dateReception, 25) : '';
   const dateCloture = c.avancement === 'cloture' ? addDaysToFrDate(dateReponse, 5) : undefined;
   const interlocuteur = arDone ? INTERLOCUTEURS[index % INTERLOCUTEURS.length] : '';
@@ -318,7 +435,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   const creationChanges = [
     { label: 'Prénom', value: prenom },
     { label: 'Nom', value: nom },
-    { label: 'Email', value: c.email },
+    { label: 'Email', value: email },
     { label: 'Dénomination sociale', value: c.denominateurSocial },
     { label: 'Assureur / Porteur du risque', value: porteurDuRisque },
     { label: 'Rattaché à un contrat', value: rattacheContrat === 'oui' ? 'Oui' : 'Non' },
@@ -369,11 +486,12 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
     ...c,
     dateReception,
     dateCloture,
+    email,
     reclamant: {
       prenom,
       nom,
-      email: c.email,
-      telephone: '',
+      email,
+      telephone,
       adresse: '',
       rattacheContrat,
       statutClient,
@@ -396,6 +514,9 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
       actionCorrective: '',
       actionRealisee: '',
       actionsCorrectives: '',
+      exigence: '',
+      defaillance: '',
+      preuve: '',
       verificationEfficacite: '',
       analyseTerminee: false,
     },
@@ -465,7 +586,6 @@ function addDaysToFrDate(value: string, days: number): string {
   return date.toLocaleDateString('fr-FR');
 }
 
-const TICKET_NUMBERS = [57, 1, 3, 24, 33, 12, 5, 7, 19, 41, 2, 9, 28, 15];
 const AVANCEMENT_CYCLE: Avancement[] = [
   'a-traiter',
   'a-traiter',
@@ -482,7 +602,6 @@ const AVANCEMENT_CYCLE: Avancement[] = [
   'a-traiter',
   'a-traiter',
 ];
-const REMAINING_DAYS = [59, 8, 3, 46, 8, 12, 0, 0, 27, 6, 15, 0, 2, 34];
 
 // A handful of longer descriptions so the drawer's "Voir plus" can actually
 // be exercised — most mention texts are short and fit within 4 lines.
@@ -499,9 +618,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0044',
     requerant: 'Isabelle Renaud',
     dateReception: formatDateReception(95),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'Google',
     denominateurSocial: '',
     assureur: '',
@@ -515,9 +632,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0038',
     requerant: 'Lucas Bernard',
     dateReception: formatDateReception(110),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'Web',
     denominateurSocial: '',
     assureur: '',
@@ -531,9 +646,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0031',
     requerant: 'Nathalie Vasseur',
     dateReception: formatDateReception(130),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'non-conforme',
+    lateAR: true,
     canal: 'Facebook',
     denominateurSocial: '',
     assureur: '',
@@ -547,9 +661,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0026',
     requerant: 'Arnaud Petit',
     dateReception: formatDateReception(148),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'Google',
     denominateurSocial: '',
     assureur: '',
@@ -563,9 +675,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0018',
     requerant: 'Céline Morel',
     dateReception: formatDateReception(162),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'X',
     denominateurSocial: '',
     assureur: '',
@@ -579,9 +689,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0014',
     requerant: 'Julien Garnier',
     dateReception: formatDateReception(178),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     forceProspect: true,
     canal: 'Google',
     denominateurSocial: '',
@@ -596,9 +704,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0011',
     requerant: 'Marie-Claire Dupuis',
     dateReception: formatDateReception(195),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     forceProspect: true,
     canal: 'Web',
     denominateurSocial: '',
@@ -613,9 +719,8 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0008',
     requerant: 'Thierry Blanchard',
     dateReception: formatDateReception(210),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'non-conforme',
+    lateAR: true,
     canal: 'Facebook',
     denominateurSocial: '',
     assureur: '',
@@ -629,9 +734,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0006',
     requerant: 'Sophie Aubert',
     dateReception: formatDateReception(225),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     forceProspect: true,
     canal: 'Instagram',
     denominateurSocial: '',
@@ -646,9 +749,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0004',
     requerant: 'François Lemaire',
     dateReception: formatDateReception(240),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'Google',
     denominateurSocial: '',
     assureur: '',
@@ -662,9 +763,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0010',
     requerant: 'Élise Fontaine',
     dateReception: formatDateReception(258),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'LinkedIn',
     denominateurSocial: '',
     assureur: '',
@@ -678,9 +777,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0016',
     requerant: 'Marc Girard',
     dateReception: formatDateReception(275),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'Web',
     denominateurSocial: '',
     assureur: '',
@@ -694,9 +791,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     ticket: '#0020',
     requerant: 'Patricia Chevalier',
     dateReception: formatDateReception(290),
-    echeanceLabel: '',
     avancement: 'cloture',
-    conformite: 'conforme',
     canal: 'Google',
     denominateurSocial: '',
     assureur: '',
@@ -707,14 +802,18 @@ const closedComplaintsCore: ComplaintCore[] = [
   },
 ];
 
-export const closedComplaints: Complaint[] = closedComplaintsCore.map((c, index) => attachDetails(c, index));
+// Réclamation tickets are their own numbering, bounded by how many
+// réclamations actually exist (closedComplaintsCore + complaintsCore) —
+// not the mention's own (much larger) numbering space, and not an
+// unrelated, arbitrarily higher literal.
+export const closedComplaints: Complaint[] = closedComplaintsCore.map((c, index) =>
+  attachDetails({ ...c, ticket: `#${String(index + 1).padStart(4, '0')}` }, index),
+);
 
 const complaintsCore: ComplaintCore[] = reclamations
   .filter((r) => r.state === 'mes-reclamations')
   .map((r, index) => {
     const avancement = AVANCEMENT_CYCLE[index % AVANCEMENT_CYCLE.length];
-    const remainingDays = REMAINING_DAYS[index % REMAINING_DAYS.length];
-    const isClosed = avancement === 'cloture';
     const description = LONG_DESCRIPTIONS[index] ?? r.text;
     // The réclamant's contact info is collected upfront, at création (mention
     // slider) — not gated behind a later step like AR confirmation — so even
@@ -727,14 +826,13 @@ const complaintsCore: ComplaintCore[] = reclamations
     return {
       id: `complaint-${r.id}`,
       sourceReclamationId: r.id,
-      ticket: `#${String(TICKET_NUMBERS[index % TICKET_NUMBERS.length]).padStart(4, '0')}`,
+      // Continues right after closedComplaints' own numbering, so every
+      // réclamation ticket stays within 1..(total réclamation count)
+      // instead of reusing the mention's own, much larger numbering space.
+      ticket: `#${String(closedComplaintsCore.length + index + 1).padStart(4, '0')}`,
       requerant: r.author,
       dateReception: formatDateReception(index * 4 + 3),
-      echeanceLabel: isClosed ? '' : `${remainingDays} jours restants`,
-      echeanceWarning: !isClosed && remainingDays <= 9,
-      echeanceDays: isClosed ? undefined : remainingDays,
       avancement,
-      conformite: index === 9 ? 'non-conforme' : 'conforme',
       canal: r.source,
       sourceUrl: r.url.replace(/\.{3}$/, ''),
       denominateurSocial: '',

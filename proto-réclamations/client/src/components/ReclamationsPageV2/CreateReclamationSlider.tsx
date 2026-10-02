@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import drawerClose from '../../assets/figma/drawer-close.svg';
 import AlertSnackbar from './AlertSnackbar';
 import ArrowUpRight from './ArrowUpRight';
@@ -168,6 +168,37 @@ function ChoiceToggle({
   );
 }
 
+// A row of option cards (unlike ChoiceToggle's Oui/Non pair) — used for
+// "Quelle option correspond à votre situation ?", whose three options each
+// need a short title plus a bit more detail than a single word can carry.
+function ChoiceColumn<T extends string>({
+  value,
+  onChange,
+  options,
+  error,
+}: {
+  value: T | null;
+  onChange: (value: T) => void;
+  options: { value: T; title: string; description: string }[];
+  error?: boolean;
+}) {
+  return (
+    <div className={`dossier-choice-column ${error ? 'dossier-choice-row-error' : ''}`}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`dossier-toggle-btn dossier-choice-card ${value === option.value ? 'dossier-toggle-btn-active' : ''}`}
+          onClick={() => onChange(option.value)}
+        >
+          <span className="dossier-choice-card-title">{option.title}</span>
+          <span className="dossier-choice-card-description">{option.description}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // A history entry's "changes" value, clamped to 4 lines with a "Voir plus" /
 // "Voir moins" toggle once it actually overflows — e.g. the mention author's
 // full retranscribed response, which can run much longer than the other
@@ -275,12 +306,53 @@ type CreateReclamationSliderProps = {
   // parent and restored here when the slider reopens.
   savedReclamantDraft?: ReclamantDraftData;
   onSaveReclamantDraft: (draft: ReclamantDraftData) => void;
+  // Each "Enregistrer" on the reclamant draft appends one of these — kept by
+  // the parent (alongside the draft itself) so the modification still shows
+  // in the Historique tab the next time the slider reopens, not just within
+  // the session that made it.
+  savedDraftHistorique?: HistoriqueEntry[];
+  onAppendDraftHistorique: (entry: HistoriqueEntry) => void;
+  // Which of the six clôture paths actually closed this mention — persisted
+  // by the parent so "Mention clôturée" still explains itself correctly
+  // after the slider's been fully closed and reopened (not just within the
+  // same session), same reasoning as savedDraftHistorique above.
+  savedClotureReason?: ClotureReason;
+  onSetClotureReason: (reason: ClotureReason) => void;
 };
 
 const CLOSE_ANIMATION_DURATION = 200;
 
 type YesNo = 'oui' | 'non' | null;
-type StepPhase = 'question' | 'envoi' | 'relance-envoi' | 'waiting' | 'reclamant' | 'cloture-offer';
+// Q1=Non branch — which of the three options the user picked when the
+// comment's author hasn't been identified.
+type CanalAnswer = 'plateforme' | 'administrateur' | 'rien' | null;
+// Which of the six "cloture-offer" paths actually closed a mention —
+// 'administrateur' / 'qa': Q1's own two dead ends, the author was never
+// reached at all. 'hebergeur-apres-reponse' / 'qa-apres-reponse': the author
+// did reply (via la plateforme) but without their coordonnées.
+// 'hebergeur-sans-reponse' / 'qa-sans-reponse': no reply at all, even after
+// the relance. Within each "apres-reponse"/"sans-reponse" pair, the
+// hebergeur-* variant means the hébergeur could be contacted; the qa-*
+// variant means it couldn't. Persisted by the parent (unlike the rest of
+// this component's flow state) so the "Mention clôturée" summary still
+// explains itself correctly after the slider's been fully closed and
+// reopened, not just across an in-session réouverture.
+export type ClotureReason =
+  | 'administrateur'
+  | 'qa'
+  | 'hebergeur-apres-reponse'
+  | 'qa-apres-reponse'
+  | 'hebergeur-sans-reponse'
+  | 'qa-sans-reponse'
+  | null;
+type StepPhase =
+  | 'question'
+  | 'envoi'
+  | 'relance-envoi'
+  | 'waiting'
+  | 'reclamant'
+  | 'cloture-offer'
+  | 'pending-definition';
 type Step = { node: ReactNode; phase: StepPhase };
 
 export default function CreateReclamationSlider({
@@ -293,6 +365,10 @@ export default function CreateReclamationSlider({
   linkedComplaintHistorique,
   savedReclamantDraft,
   onSaveReclamantDraft,
+  savedDraftHistorique,
+  onAppendDraftHistorique,
+  savedClotureReason,
+  onSetClotureReason,
 }: CreateReclamationSliderProps) {
   const isMesReclamations = reclamation.state === 'mes-reclamations';
   const isEnAttente = reclamation.state === 'en-attente';
@@ -304,6 +380,20 @@ export default function CreateReclamationSlider({
   const [objet] = useState(() => suggestObjet(reclamation.text));
   const [closing, setClosing] = useState(false);
   const [activeTab, setActiveTab] = useState<MentionTabKey>('informations');
+  // The treatment block's own cascade delay (below) is forced to 0s so a
+  // mid-session remount — switching Q1's answer, say — doesn't lag behind
+  // card-top/card-body's own entrance. But the slider's very first open is
+  // exactly when it should join that cascade, hence this one-shot flag:
+  // true only for the brief window the initial reveal is still playing.
+  const [initialCascadeDone, setInitialCascadeDone] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialCascadeDone(true), 700);
+    return () => clearTimeout(timer);
+  }, []);
+  const treatmentBlockClassName = (extra?: string) =>
+    ['dossier-treatment-block', !initialCascadeDone && 'dossier-treatment-block-first-reveal', extra]
+      .filter(Boolean)
+      .join(' ');
 
   // The whole treatment flow below mirrors the team's Figma flowchart node
   // by node — getTreatmentStep() walks it top to bottom and returns exactly
@@ -311,19 +401,14 @@ export default function CreateReclamationSlider({
   // "Avez-vous les coordonnées...?" checkpoint reached once waiting on a
   // reply is the same question in the diagram, so they all share
   // coordonneesCheckpoint below rather than being separate fields.
-  // Q1 — reopening an "en attente" mention pre-fills this with "Non" (no
-  // coordonnées or prior demande on hand yet), its exact value not
-  // mattering once enAttenteConfirmed is already true, since the wait loop
-  // is reached the same way regardless of which sub-path led there.
-  const [contactAnswer, setContactAnswer] = useState<YesNo>(isEnAttente ? 'non' : null);
-  const [identiteFormulaireAnswer, setIdentiteFormulaireAnswer] = useState<YesNo>(null);
+  // Q1 — reopening an "en attente" mention pre-fills this with "Non" (the
+  // author wasn't identified directly, hence going through the "plateforme"
+  // canal to request their coordonnées), since the wait loop is reached the
+  // same way regardless of which sub-path led there.
+  const [identifiedAnswer, setIdentifiedAnswer] = useState<YesNo>(isEnAttente ? 'non' : null);
   // Q1=Non branch — reopening an "en attente" mention pre-fills this with
-  // "Non" too (no coordonnées directly on hand).
-  const [aCoordonneesDirectAnswer, setACoordonneesDirectAnswer] = useState<YesNo>(isEnAttente ? 'non' : null);
-  // Last checkpoint of the Q1=Non/Non branch — reopening an "en attente"
-  // mention pre-fills this with "Oui" (the demande was sent, hence the
-  // wait), so the wait loop shows right away.
-  const [peutRepondreAnswer, setPeutRepondreAnswer] = useState<YesNo>(isEnAttente ? 'oui' : null);
+  // "plateforme" (the demande was sent via the platform, hence the wait).
+  const [canalAnswer, setCanalAnswer] = useState<CanalAnswer>(isEnAttente ? 'plateforme' : null);
   const [demandeDateDraft, setDemandeDateDraft] = useState(reclamation.demandeContactDate ?? '');
   // Once the demande de contact is confirmed, the slider stays open (it's
   // not creating a réclamation yet) and swaps the form for the wait loop
@@ -352,13 +437,17 @@ export default function CreateReclamationSlider({
   // Shared by every "Avez-vous les coordonnées...?" checkpoint reached once
   // waiting on a reply (right after the reply, or after the relance).
   const [coordonneesCheckpoint, setCoordonneesCheckpoint] = useState<YesNo>(null);
+  // That checkpoint's own "non" branch — reached once a reply came in
+  // without the coordonnées in it.
+  const [peutContacterHebergeurAnswer, setPeutContacterHebergeurAnswer] = useState<YesNo>(null);
+  // Asked instead of Q1 when reopening a mention that was clôturée while
+  // still waiting on the author (clotureReason 'hebergeur-sans-reponse' /
+  // 'qa-sans-reponse') — reopening a mention closed any other way skips
+  // straight to "Ajouter les informations" (see reouvertureNeedsResponseQuestion).
+  const [reouvertureReponseAnswer, setReouvertureReponseAnswer] = useState<YesNo>(null);
   const [showContactErrors, setShowContactErrors] = useState(false);
   const [templateCopied, setTemplateCopied] = useState(false);
   const [relanceTemplateCopied, setRelanceTemplateCopied] = useState(false);
-  // Hidden by default under "Avez-vous demandé l'identité selon ce
-  // formulaire ?" — a "Voir le formulaire" button reveals it on demand
-  // instead of cluttering the question with the full template right away.
-  const [showIdentiteTemplate, setShowIdentiteTemplate] = useState(false);
 
   const initialReclamantDraft: ReclamantDraftData = savedReclamantDraft ?? {
     nom,
@@ -389,7 +478,7 @@ export default function CreateReclamationSlider({
   const liveContactTag = getContactTag(reclamantDraft.rattacheContrat);
   const createSubmitLabel =
     liveContactTag === 'Client'
-      ? 'Créer une réclamation ACPR'
+      ? 'Créer une réclamation client'
       : liveContactTag === 'Prospect'
         ? 'Créer une réclamation prospect'
         : 'Créer une réclamation';
@@ -398,6 +487,20 @@ export default function CreateReclamationSlider({
   // instead: the slider stays open, its info stays visible, and a toast +
   // persistent grey notice confirm the new status.
   const [mentionCloturee, setMentionCloturee] = useState(isCloturee);
+  // Clôture isn't final — kept true even after a réouverture so the
+  // historique still shows that step happened, instead of erasing it the
+  // moment mentionCloturee flips back to false.
+  const [wasEverCloturee, setWasEverCloturee] = useState(isCloturee);
+  // Mirrors savedClotureReason until handleClotureMention sets a new one —
+  // not derived live from canalAnswer/coordonneesCheckpoint/
+  // peutContacterHebergeurAnswer, since those get reset to null the moment
+  // "Rouvrir la mention" is clicked and would otherwise forget which one it
+  // was.
+  const [clotureReason, setClotureReasonState] = useState<ClotureReason>(savedClotureReason ?? null);
+  const setClotureReason = (reason: ClotureReason) => {
+    setClotureReasonState(reason);
+    onSetClotureReason(reason);
+  };
   const [clotureToast, setClotureToast] = useState(false);
   const clotureToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [todayLabel] = useState(() => new Date().toLocaleDateString('fr-FR'));
@@ -406,24 +509,33 @@ export default function CreateReclamationSlider({
   // Each handler below only resets the *next* answer down the tree — deeper
   // answers are left untouched, so flipping back to a combination already
   // answered before re-reveals it pre-filled instead of blank.
-  const handleContactAnswerChange = (value: 'oui' | 'non') => {
-    setContactAnswer(value);
-    setIdentiteFormulaireAnswer(null);
-    setACoordonneesDirectAnswer(null);
+  const handleIdentifiedAnswerChange = (value: 'oui' | 'non') => {
+    setIdentifiedAnswer(value);
+    setCanalAnswer(null);
   };
-  const handleACoordonneesDirectChange = (value: 'oui' | 'non') => {
-    setACoordonneesDirectAnswer(value);
-    setPeutRepondreAnswer(null);
+  const handleCanalAnswerChange = (value: Exclude<CanalAnswer, null>) => {
+    setCanalAnswer(value);
+    setEusReponseAnswer(null);
+    setRelanceConfirmed(false);
+    setReponseApresRelanceAnswer(null);
+    setCoordonneesCheckpoint(null);
+    setPeutContacterHebergeurAnswer(null);
   };
   const handleEusReponseChange = (value: 'oui' | 'non') => {
     setEusReponseAnswer(value);
     setRelanceConfirmed(false);
     setReponseApresRelanceAnswer(null);
     setCoordonneesCheckpoint(null);
+    setPeutContacterHebergeurAnswer(null);
   };
   const handleReponseApresRelanceChange = (value: 'oui' | 'non') => {
     setReponseApresRelanceAnswer(value);
     setCoordonneesCheckpoint(null);
+    setPeutContacterHebergeurAnswer(null);
+  };
+  const handleCoordonneesCheckpointChange = (value: 'oui' | 'non') => {
+    setCoordonneesCheckpoint(value);
+    setPeutContacterHebergeurAnswer(null);
   };
 
   const handleCopyTemplate = () => {
@@ -450,16 +562,27 @@ export default function CreateReclamationSlider({
       ? 'cloturee'
       : enAttenteConfirmed
         ? 'en-attente'
-        : reclamation.state;
+        // Once réouverte (even before that's saved), the mention isn't
+        // "cloturée" any more either — falling through to reclamation.state
+        // here would show its stale clôturée badge again, since that prop
+        // doesn't update while the slider stays open.
+        : wasEverCloturee
+          ? 'a-traiter'
+          : reclamation.state;
   const badge = STATE_BADGE[badgeState];
 
-  // Only when the identity was already confirmed via the site's own
-  // formulaire does the date get entered by hand — otherwise it's added
-  // automatically once the demande is confirmed.
-  const needsManualDate = contactAnswer === 'oui' && identiteFormulaireAnswer === 'oui';
+  // The "identité selon ce formulaire" question (which used to decide this)
+  // belonged to the old Q1 — pending the next round of changes to the
+  // "plateforme" canal's own steps, the send date is always added
+  // automatically for now.
+  const needsManualDate = false;
 
-  const contactAnswerMissing = showContactErrors && !contactAnswer;
-  const hasRetourDetail = eusReponseAnswer === 'oui' || reponseApresRelanceAnswer === 'oui';
+  const identifiedAnswerMissing = showContactErrors && !identifiedAnswer;
+  const canalAnswerMissing = showContactErrors && identifiedAnswer === 'non' && !canalAnswer;
+  const peutContacterHebergeurAnswerMissing =
+    showContactErrors && coordonneesCheckpoint === 'non' && !peutContacterHebergeurAnswer;
+  const hasRetourDetail =
+    eusReponseAnswer === 'oui' || reponseApresRelanceAnswer === 'oui' || reouvertureReponseAnswer === 'oui';
   const retourDateMissing = showContactErrors && hasRetourDetail && !retourDateDraft;
   const demandeDateMissing = showContactErrors && needsManualDate && !enAttenteConfirmed && !demandeDateDraft;
 
@@ -473,11 +596,15 @@ export default function CreateReclamationSlider({
     </div>
   );
 
-  const renderEnAttenteAlert = (text: string) => (
+  // The title distinguishes the initial demande from a relance — both land
+  // on the same warning shape, but at a glance they otherwise read as the
+  // same wait, even though a relance means the first message went
+  // unanswered.
+  const renderEnAttenteAlert = (text: string, title = 'En attente du retour du client suite à la demande initiale') => (
     <div className="dossier-alert-warning">
       <div className="dossier-alert-warning-title-row">
         <AlertTriangleIcon />
-        <span className="dossier-alert-warning-title">En attente du retour du client</span>
+        <span className="dossier-alert-warning-title">{title}</span>
       </div>
       <p className="dossier-alert-warning-text">{text}</p>
     </div>
@@ -523,22 +650,6 @@ export default function CreateReclamationSlider({
       templateCopied,
       handleCopyTemplate,
     );
-
-  // Collapsed by default under "Avez-vous demandé l'identité selon ce
-  // formulaire ?" — "ce formulaire" being the demande de contact template
-  // above, shown only once asked for.
-  const renderIdentiteTemplateToggle = () => (
-    <div className="dossier-template-toggle-wrap">
-      <button
-        type="button"
-        className="btn-text dossier-template-toggle-btn"
-        onClick={() => setShowIdentiteTemplate((v) => !v)}
-      >
-        {showIdentiteTemplate ? 'Masquer le formulaire' : 'Voir le formulaire'}
-      </button>
-      {showIdentiteTemplate && renderDemandeContactTemplate()}
-    </div>
-  );
 
   const renderRelanceTemplate = () =>
     renderMessageTemplate('Message de relance à envoyer', RELANCE_TEMPLATE_BODY, relanceTemplateCopied, handleCopyRelanceTemplate);
@@ -602,6 +713,22 @@ export default function CreateReclamationSlider({
       clotureCertifyMissing,
     );
 
+  // Required before "Clôturer la mention" accepts that there's really
+  // nothing left to try — the "Aucune action possible" / "Je ne peux rien
+  // faire" terminal, which shares clotureCertified/clotureCertifyMissing
+  // with the courrier path above since only one of the two ever applies at
+  // once.
+  const renderQaNotifieeCertifyCheckbox = () =>
+    renderCertifyCheckbox(
+      "Je confirme qu'aucune action supplémentaire n'est possible pour obtenir les coordonnées de l'auteur du commentaire.",
+      clotureCertified,
+      (checked) => {
+        setClotureCertified(checked);
+        if (checked) setClotureCertifyMissing(false);
+      },
+      clotureCertifyMissing,
+    );
+
   // Same fields whether they show up right away or later once the
   // coordonnées were retrieved from the author's reply.
   const renderReclamantFields = () => (
@@ -629,28 +756,14 @@ export default function CreateReclamationSlider({
       <div className="modal-row">
         <FormField
           label="Email"
-          required
           placeholder="Entrez une adresse email"
           value={reclamantDraft.email}
-          error={showContactErrors && !reclamantDraft.email && !reclamantDraft.telephone}
-          errorText={
-            showContactErrors && !reclamantDraft.email && !reclamantDraft.telephone
-              ? 'Un email ou un numéro de téléphone est requis'
-              : undefined
-          }
           onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
         />
         <FormField
           label="Numéro de téléphone"
-          required
           placeholder="Entrez le numéro de téléphone"
           value={reclamantDraft.telephone}
-          error={showContactErrors && !reclamantDraft.email && !reclamantDraft.telephone}
-          errorText={
-            showContactErrors && !reclamantDraft.email && !reclamantDraft.telephone
-              ? 'Un email ou un numéro de téléphone est requis'
-              : undefined
-          }
           onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
         />
       </div>
@@ -708,8 +821,8 @@ export default function CreateReclamationSlider({
       {reclamantDraft.rattacheContrat === 'non' && (
         <div className="dossier-alert-info">
           <p>
-            L'auteur n'étant pas rattaché à un contrat, cette réclamation concerne un prospect : son traitement ne
-            relève pas de la réglementation ACPR (ni délai réglementaire, ni suivi de conformité).
+            L'auteur n'étant pas rattaché à un contrat, cette réclamation concerne un prospect : elle doit tout de
+            même être traitée, mais sans les délais réglementaires ni le suivi de conformité imposés par l'ACPR.
           </p>
         </div>
       )}
@@ -738,6 +851,27 @@ export default function CreateReclamationSlider({
           Télécharger le document
         </button>
         {renderClotureCertifyCheckbox()}
+      </div>
+    </div>
+  );
+
+  // The terminal reached from "Aucune action possible" / "Je ne peux rien
+  // faire" — same shape as renderClotureOfferFields (confirm, then
+  // clôturer), but there's nobody left to send a courrier to, so QA gets
+  // notified automatically instead.
+  const renderQaNotifieeFields = () => (
+    <div className="dossier-treatment-fields">
+      <div className="dossier-alert-field-group">
+        <div className="dossier-alert-info">
+          <p>
+            Les coordonnées de l'auteur du commentaire ne peuvent être obtenues par aucun autre moyen.
+          </p>
+          <p>
+            Au moment de la clôture, un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la
+            situation.
+          </p>
+        </div>
+        {renderQaNotifieeCertifyCheckbox()}
       </div>
     </div>
   );
@@ -839,6 +973,19 @@ export default function CreateReclamationSlider({
     };
   };
 
+  // Reached once a reply came in without the coordonnées in it.
+  const getCoordonneesHebergeurBranch = (): Step =>
+    stepQuestion(
+      "Pouvez-vous contacter l'hébergeur de la plateforme ?",
+      peutContacterHebergeurAnswer,
+      setPeutContacterHebergeurAnswer,
+      () =>
+        peutContacterHebergeurAnswer === 'oui'
+          ? { phase: 'cloture-offer', node: renderClotureOfferFields() }
+          : { phase: 'cloture-offer', node: renderQaNotifieeFields() },
+      { error: peutContacterHebergeurAnswerMissing },
+    );
+
   // The "Avez-vous les coordonnées...?" checkpoint reached from several
   // points in the wait loop (right after the reply, at J+3, after the
   // relance) — always the same question, same two outcomes.
@@ -847,11 +994,11 @@ export default function CreateReclamationSlider({
     const inner = stepQuestion(
       "Avez-vous récupéré les coordonnées de l'auteur de la mention ?",
       coordonneesCheckpoint,
-      setCoordonneesCheckpoint,
+      handleCoordonneesCheckpointChange,
       () =>
         coordonneesCheckpoint === 'oui'
           ? { phase: 'reclamant', node: renderReclamantFields() }
-          : { phase: 'cloture-offer', node: renderClotureOfferFields() },
+          : getCoordonneesHebergeurBranch(),
     );
     return { phase: inner.phase, node: (<>{retourDetail}{inner.node}</>) };
   };
@@ -877,10 +1024,12 @@ export default function CreateReclamationSlider({
       'Avez-vous reçu une réponse de la part de l\'auteur du commentaire ?',
       reponseApresRelanceAnswer,
       handleReponseApresRelanceChange,
+      // "Oui" still asks "avez-vous récupéré les coordonnées ?" (the retour's
+      // own detail fields show above it) — but "non" skips that question
+      // entirely and goes straight to the hébergeur question, since no reply
+      // at all after a relance already means no coordonnées were obtained.
       () =>
-        reponseApresRelanceAnswer === 'oui'
-          ? getCoordonneesCheckpointStep()
-          : { phase: 'cloture-offer', node: renderClotureOfferFields() },
+        reponseApresRelanceAnswer === 'oui' ? getCoordonneesCheckpointStep() : getCoordonneesHebergeurBranch(),
     );
     return {
       phase: inner.phase,
@@ -888,6 +1037,7 @@ export default function CreateReclamationSlider({
         <>
           {renderEnAttenteAlert(
             `Message de relance envoyé le ${relanceDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu (délai maximum de 30 jours).`,
+            'En attente du retour du client suite à la relance',
           )}
           {inner.node}
         </>
@@ -911,68 +1061,106 @@ export default function CreateReclamationSlider({
     );
   };
 
-  // Q1 = "oui" branch: coordonnées already requested — just need to know
-  // whether identity was confirmed via the site's own formulaire (that's
-  // what decides needsManualDate) before sending/confirming the demande.
-  const getIdentiteBranch = (): Step =>
-    stepQuestion(
-      "Avez-vous demandé l'identité selon ce formulaire ?",
-      identiteFormulaireAnswer,
-      setIdentiteFormulaireAnswer,
-      () => (enAttenteConfirmed ? getWaitLoopStep() : { phase: 'envoi', node: renderEnvoiDemandeFields(false) }),
-      { preview: renderIdentiteTemplateToggle() },
-    );
+  const CANAL_OPTIONS: { value: Exclude<CanalAnswer, null>; title: string; description: string }[] = [
+    {
+      value: 'plateforme',
+      title: 'Répondre sur la plateforme',
+      description: "Vous pouvez envoyer un message à l'auteur directement en réponse à son commentaire.",
+    },
+    {
+      value: 'administrateur',
+      title: "Contacter l'administrateur",
+      description: "Vous pouvez joindre l'administrateur de la plateforme pour obtenir les coordonnées de l'auteur.",
+    },
+    {
+      value: 'rien',
+      title: 'Aucune action possible',
+      description: "Vous ne pouvez ni répondre sur la plateforme, ni contacter l'administrateur.",
+    },
+  ];
 
-  // Reached once neither coordonnées nor a prior demande are on hand —
-  // last checkpoint before deciding between sending the demande de
-  // coordonnées directly or, if the mention can't even be answered on the
-  // platform, falling back to the courrier à l'hébergeur.
-  const getPeutRepondreBranch = (): Step =>
-    stepQuestion(
-      'Avez-vous la possibilité de répondre à ce commentaire ?',
-      peutRepondreAnswer,
-      setPeutRepondreAnswer,
-      () => {
-        if (peutRepondreAnswer === 'oui') {
-          return enAttenteConfirmed ? getWaitLoopStep() : { phase: 'envoi', node: renderEnvoiDemandeFields() };
-        }
-        return { phase: 'cloture-offer', node: renderClotureOfferFields() };
-      },
+  // Q1 = "non" branch: the author isn't identified — which of the three ways
+  // of handling that applies here decides what shows below.
+  const getCanalBranch = (): Step => {
+    const row = (
+      <div className="dossier-question-row dossier-question-row-stacked">
+        <span className="dossier-question-text">
+          Quelle option correspond à votre situation ?<span className="field-required">*</span>
+        </span>
+        <ChoiceColumn value={canalAnswer} onChange={handleCanalAnswerChange} options={CANAL_OPTIONS} error={canalAnswerMissing} />
+      </div>
     );
-
-  // Q1 = "non" branch: coordonnées not yet requested — check if they're
-  // already on hand before falling through to getPeutRepondreBranch.
-  const getCoordonneesDirectBranch = (): Step =>
-    stepQuestion(
-      "Avez-vous les coordonnées de l'auteur du commentaire ?",
-      aCoordonneesDirectAnswer,
-      handleACoordonneesDirectChange,
-      () =>
-        aCoordonneesDirectAnswer === 'oui'
-          ? { phase: 'reclamant', node: renderReclamantFields() }
-          : getPeutRepondreBranch(),
-    );
+    if (!canalAnswer) return { phase: 'question', node: row };
+    let next: Step;
+    if (canalAnswer === 'plateforme') {
+      next = enAttenteConfirmed ? getWaitLoopStep() : { phase: 'envoi', node: renderEnvoiDemandeFields() };
+    } else if (canalAnswer === 'administrateur') {
+      next = { phase: 'cloture-offer', node: renderClotureOfferFields() };
+    } else {
+      next = { phase: 'cloture-offer', node: renderQaNotifieeFields() };
+    }
+    return { phase: next.phase, node: (<>{row}<Fragment key={canalAnswer}>{next.node}</Fragment></>) };
+  };
 
   // Walks the flowchart node by node from Q1 — each question stays visible
   // once reached, with whatever comes next appended right below it.
   const getTreatmentStep = (): Step =>
     stepQuestion(
-      'Avez-vous déjà demandé les coordonnées à l\'auteur du commentaire ?',
-      contactAnswer,
-      handleContactAnswerChange,
-      () => (contactAnswer === 'oui' ? getIdentiteBranch() : getCoordonneesDirectBranch()),
-      { error: contactAnswerMissing },
+      'Avez-vous identifié l\'auteur du commentaire ?',
+      identifiedAnswer,
+      handleIdentifiedAnswerChange,
+      () => (identifiedAnswer === 'oui' ? { phase: 'reclamant', node: renderReclamantFields() } : getCanalBranch()),
+      { error: identifiedAnswerMissing },
     );
 
-  const step = getTreatmentStep();
+  // True as soon as "Rouvrir la mention" is clicked — drives what's shown
+  // locally (skipping Q1, the historique preview) even though nothing about
+  // the mention's actual status changes until a réclamation gets created;
+  // saving a draft here flips mentionCloturee back to true, so this goes
+  // back to false too.
+  const reouvertureActive = wasEverCloturee && !mentionCloturee;
+
+  // Reopening skips Q1 entirely, but what it lands on next depends on how
+  // the mention got clôturée: if it was still waiting on the author
+  // (clôturée straight from "pas de réponse même après la relance"), that
+  // question is asked again first, since a réponse may have come in since;
+  // any other clôture already means the author was never going to reply on
+  // the platform, so there's nothing left to ask before "Ajouter les
+  // informations".
+  const reouvertureNeedsResponseQuestion =
+    clotureReason === 'hebergeur-sans-reponse' || clotureReason === 'qa-sans-reponse';
+  const getReouvertureStep = (): Step => {
+    if (!reouvertureNeedsResponseQuestion) {
+      return { phase: 'reclamant', node: renderReclamantFields() };
+    }
+    return stepQuestion(
+      'Avez-vous reçu une réponse de la part de l\'auteur du commentaire ?',
+      reouvertureReponseAnswer,
+      setReouvertureReponseAnswer,
+      () => ({
+        phase: 'reclamant',
+        node: (
+          <>
+            {reouvertureReponseAnswer === 'oui' && renderRetourDetailFields()}
+            {renderReclamantFields()}
+          </>
+        ),
+      }),
+    );
+  };
+
+  const step = reouvertureActive ? null : getTreatmentStep();
+  const reouvertureStep = reouvertureActive ? getReouvertureStep() : null;
   // Once the demande de contact is confirmed, the guiding questions that led
   // here (Q1, Q2, Q3...) are no longer relevant to show — only the wait
   // loop itself, under a single persistent "en attente" notice.
   const waitStep = enAttenteConfirmed ? getWaitLoopStep() : null;
-  const showingReclamantFields = step?.phase === 'reclamant';
-  const showingClotureOffer = step?.phase === 'cloture-offer' && !mentionCloturee;
-  const isEnvoiStep = step?.phase === 'envoi';
-  const isRelanceEnvoiStep = step?.phase === 'relance-envoi';
+  const showingReclamantFields = reouvertureActive
+    ? reouvertureStep?.phase === 'reclamant'
+    : step?.phase === 'reclamant' && !mentionCloturee;
+  const showingClotureOffer = !reouvertureActive && step?.phase === 'cloture-offer' && !mentionCloturee;
+  const isEnvoiStep = !reouvertureActive && step?.phase === 'envoi';
+  const isRelanceEnvoiStep = !reouvertureActive && step?.phase === 'relance-envoi';
 
   // Whether the sticky footer has anything to show — e.g. while waiting on
   // a retour answer, no action applies yet, so the footer itself shouldn't
@@ -980,14 +1168,39 @@ export default function CreateReclamationSlider({
   const hasFooterActions =
     isMesReclamations ||
     (activeTab === 'informations' &&
-      (showingClotureOffer || showingReclamantFields || isEnvoiStep || isRelanceEnvoiStep));
+      (showingClotureOffer ||
+        showingReclamantFields ||
+        isEnvoiStep ||
+        isRelanceEnvoiStep ||
+        mentionCloturee ||
+        reouvertureActive));
 
   const reclamantFieldsMissing =
     !reclamantDraft.nom ||
     !reclamantDraft.prenom ||
-    (!reclamantDraft.email && !reclamantDraft.telephone) ||
     !reclamantDraft.rattacheContrat ||
     (reclamantDraft.rattacheContrat === 'oui' && !reclamantDraft.statutClient);
+
+  // The wording for why the mention was clôturée differs by clotureReason —
+  // in particular, the "-apres-reponse" / "-sans-reponse" variants need to
+  // say whether the author actually replied (just without their
+  // coordonnées) or never replied at all, even after the relance. Shared by
+  // the historique entry and the "Mention clôturée" summary so the two
+  // don't drift apart.
+  const CLOTURE_DESCRIPTIONS: Record<Exclude<typeof clotureReason, null>, string> = {
+    administrateur:
+      "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées.",
+    qa: "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'hebergeur-apres-reponse':
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées, un courrier a donc été envoyé à l'hébergeur du site afin de les obtenir.",
+    'qa-apres-reponse':
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'hebergeur-sans-reponse':
+      "L'auteur du commentaire n'a pas répondu, même après la relance. Un courrier a été envoyé à l'hébergeur du site afin d'obtenir ses coordonnées.",
+    'qa-sans-reponse':
+      "L'auteur du commentaire n'a pas répondu, même après la relance, et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+  };
+  const clotureDescription = clotureReason ? CLOTURE_DESCRIPTIONS[clotureReason] : '';
 
   // The mention's own trail so far — carried over into the new réclamation's
   // historique on submit, and shown as-is here until a réclamation exists.
@@ -1024,12 +1237,29 @@ export default function CreateReclamationSlider({
           },
         ]
       : []),
-    ...(mentionCloturee
+    // Every "Enregistrer" on the reclamant draft adds one of these (see
+    // handleSaveDraft) — persisted by the parent so they survive the slider
+    // closing and reopening.
+    ...(savedDraftHistorique ?? []),
+    ...(wasEverCloturee
       ? [
           {
             title: 'Clôture de la mention',
-            description:
-              "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : un courrier a été transmis à l'hébergeur pour les demander.",
+            description: clotureDescription,
+            date: todayLabel,
+            author: 'Joe Bleau',
+          },
+        ]
+      : []),
+    // Shown while the réouverture is active and also carried over into the
+    // new réclamation's historique on submit (handleSubmit calls onSubmit
+    // with this very array) — but not after a plain save, which reverts
+    // reouvertureActive to false since nothing was actually reopened yet.
+    ...(reouvertureActive
+      ? [
+          {
+            title: 'Réouverture de la mention',
+            description: "Les coordonnées de l'auteur du commentaire ont été obtenues : la mention est à nouveau à traiter.",
             date: todayLabel,
             author: 'Joe Bleau',
           },
@@ -1043,6 +1273,11 @@ export default function CreateReclamationSlider({
     setTimeout(action, CLOSE_ANIMATION_DURATION);
   };
 
+  // Réouvrir la mention only ever creates a réclamation or goes back to
+  // "Mention clôturée" (via "Annuler") — there's no save-for-later step in
+  // between any more, so closing mid-réouverture (whatever was typed)
+  // discards it the same way, no confirmation needed: the mention just ends
+  // up clôturée, as if réouvrir had never been clicked.
   const handleClose = () => requestClose(onClose);
 
   // Rather than disabling the button, a click with required fields still
@@ -1059,10 +1294,44 @@ export default function CreateReclamationSlider({
 
   // Saves whatever's currently filled in without creating the réclamation —
   // no validation, unlike handleSubmit, since it's meant to let the user
-  // pick up a partially filled dossier later.
+  // pick up a partially filled dossier later. Only reachable from Q1's
+  // "oui" branch — a réouverture skips straight to "Annuler" ou "Créer la
+  // réclamation" instead, with no save-for-later step of its own.
   const handleSaveDraft = () => {
+    const changed: { label: string; value: string }[] = [];
+    if (reclamantDraft.nom !== savedDraftSnapshot.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
+    if (reclamantDraft.prenom !== savedDraftSnapshot.prenom)
+      changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
+    if (reclamantDraft.email !== savedDraftSnapshot.email)
+      changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
+    if (reclamantDraft.telephone !== savedDraftSnapshot.telephone)
+      changed.push({ label: 'Téléphone', value: reclamantDraft.telephone || '-' });
+    if (reclamantDraft.denominationSociale !== savedDraftSnapshot.denominationSociale)
+      changed.push({ label: 'Dénomination sociale', value: reclamantDraft.denominationSociale || '-' });
+    if (reclamantDraft.porteurDuRisque !== savedDraftSnapshot.porteurDuRisque)
+      changed.push({ label: 'Assureur / Porteur du risque', value: reclamantDraft.porteurDuRisque || '-' });
+    if (reclamantDraft.rattacheContrat !== savedDraftSnapshot.rattacheContrat)
+      changed.push({
+        label: 'Rattaché à un contrat',
+        value: reclamantDraft.rattacheContrat === 'oui' ? 'Oui' : reclamantDraft.rattacheContrat === 'non' ? 'Non' : '-',
+      });
+    if (reclamantDraft.statutClient !== savedDraftSnapshot.statutClient)
+      changed.push({
+        label: 'Statut du client',
+        value: reclamantDraft.statutClient ? STATUT_CLIENT_LABEL[reclamantDraft.statutClient] : '-',
+      });
+
     onSaveReclamantDraft(reclamantDraft);
     setSavedDraftSnapshot(reclamantDraft);
+    if (changed.length > 0) {
+      onAppendDraftHistorique({
+        title: "Modification des informations de l'auteur de la mention",
+        description: `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
+        date: todayLabel,
+        author: 'Joe Bleau',
+        changes: changed,
+      });
+    }
     setDraftSavedToast(true);
     if (draftSavedToastTimeout.current) clearTimeout(draftSavedToastTimeout.current);
     draftSavedToastTimeout.current = setTimeout(() => setDraftSavedToast(false), 3000);
@@ -1080,9 +1349,66 @@ export default function CreateReclamationSlider({
     }
     onClotureMention();
     setMentionCloturee(true);
+    setWasEverCloturee(true);
+    // coordonneesCheckpoint stays null when the hébergeur question was
+    // reached straight from "pas de réponse même après la relance" —
+    // it's only ever set to 'non' when a reply did come in without the
+    // coordonnées in it.
+    const gotReply = coordonneesCheckpoint === 'non';
+    if (canalAnswer === 'rien') {
+      setClotureReason('qa');
+    } else if (canalAnswer === 'administrateur') {
+      setClotureReason('administrateur');
+    } else if (peutContacterHebergeurAnswer === 'oui') {
+      setClotureReason(gotReply ? 'hebergeur-apres-reponse' : 'hebergeur-sans-reponse');
+    } else {
+      setClotureReason(gotReply ? 'qa-apres-reponse' : 'qa-sans-reponse');
+    }
     setClotureToast(true);
     if (clotureToastTimeout.current) clearTimeout(clotureToastTimeout.current);
     clotureToastTimeout.current = setTimeout(() => setClotureToast(false), 3000);
+  };
+
+  // Clôture isn't final — this takes local effect only (showing
+  // getReouvertureStep below instead of "Mention clôturée"); the mention
+  // only actually leaves clôturée once a réclamation gets created from it.
+  // "Annuler" or closing the slider both go straight back to clôturée —
+  // there's no save-for-later step in between any more.
+  const handleReouvrirMention = () => {
+    setMentionCloturee(false);
+    setClotureCertified(false);
+    setClotureCertifyMissing(false);
+    setIdentifiedAnswer(null);
+    setCanalAnswer(null);
+    setReouvertureReponseAnswer(null);
+    setRetourTexte('');
+    setRetourDateDraft('');
+    // The réouverture flow is a fresh start, independent of however the
+    // mention got to clôturée in the first place — without resetting these,
+    // their stale values (e.g. enAttenteConfirmed still true) would make the
+    // old wait-loop render instead of getReouvertureStep.
+    setEnAttenteConfirmed(false);
+    setEusReponseAnswer(null);
+    setReponseApresRelanceAnswer(null);
+    setPeutContacterHebergeurAnswer(null);
+    setCoordonneesCheckpoint(null);
+    setRelanceConfirmed(false);
+    setRelanceCertified(false);
+    setRelanceCertifyMissing(false);
+    setDemandeCertified(false);
+    setDemandeCertifyMissing(false);
+  };
+
+  // "Annuler" on the réouverture — discards whatever was typed (the
+  // reclamant draft reverts to its last saved snapshot) and goes back to
+  // showing "Mention clôturée", same end state as closing the slider without
+  // saving.
+  const handleCancelReouverture = () => {
+    setReclamantDraft(savedDraftSnapshot);
+    setReouvertureReponseAnswer(null);
+    setRetourTexte('');
+    setRetourDateDraft('');
+    setMentionCloturee(true);
   };
 
   // Confirms the demande de contact — the date is entered by hand only when
@@ -1207,7 +1533,7 @@ export default function CreateReclamationSlider({
               </div>
 
               {isMesReclamations && (
-                <div className="dossier-treatment-block">
+                <div className={treatmentBlockClassName('dossier-treatment-block-spaced')}>
                   <div className="dossier-alert-info">
                     <p>
                       Une réclamation a déjà été ouverte pour cette mention. Son traitement se poursuit dans la page
@@ -1218,22 +1544,20 @@ export default function CreateReclamationSlider({
               )}
 
               {!isMesReclamations && mentionCloturee && (
-                <div className="dossier-treatment-block">
+                <div className={treatmentBlockClassName('dossier-treatment-block-spaced')}>
                   <div className="dossier-alert-neutral">
+                    <span className="dossier-alert-neutral-title">Mention clôturée</span>
+                    <p>{clotureDescription}</p>
                     <p>
-                      Cette mention a été clôturée : les coordonnées de l'auteur du commentaire n'ont pas pu être
-                      obtenues malgré la demande transmise.
-                    </p>
-                    <p>
-                      Un courrier a été envoyé à l'hébergeur du site afin d'obtenir les coordonnées de l'auteur du
-                      commentaire.
+                      Si ces coordonnées sont obtenues par la suite, la mention peut être rouverte pour reprendre son
+                      traitement.
                     </p>
                   </div>
                 </div>
               )}
 
               {!isMesReclamations && !mentionCloturee && enAttenteConfirmed && waitStep && (
-                <div className="dossier-treatment-block">
+                <div className={treatmentBlockClassName()}>
                   {!relanceConfirmed &&
                     renderEnAttenteAlert(
                       `Demande d'information envoyée à l'auteur de la mention le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
@@ -1243,8 +1567,11 @@ export default function CreateReclamationSlider({
               )}
 
               {!isMesReclamations && !mentionCloturee && !enAttenteConfirmed && (
-                <div key={contactAnswer} className="dossier-treatment-block">
-                  {step.node}
+                <div key={identifiedAnswer} className={treatmentBlockClassName()}>
+                  {/* A réouverture skips Q1 — the "avez-vous identifié l'auteur ?"
+                      question doesn't apply any more, since reopening the mention
+                      already answers it (see getReouvertureStep). */}
+                  {reouvertureActive ? reouvertureStep?.node : step?.node}
                 </div>
               )}
             </div>
@@ -1317,7 +1644,17 @@ export default function CreateReclamationSlider({
                     Clôturer la mention
                   </button>
                 )}
-                {activeTab === 'informations' && showingReclamantFields && (
+                {activeTab === 'informations' && mentionCloturee && (
+                  <button type="button" className="btn-filled" onClick={handleReouvrirMention}>
+                    Rouvrir la mention
+                  </button>
+                )}
+                {activeTab === 'informations' && reouvertureActive && (
+                  <button type="button" className="btn-text" onClick={handleCancelReouverture}>
+                    Annuler
+                  </button>
+                )}
+                {activeTab === 'informations' && showingReclamantFields && !reouvertureActive && (
                   <button
                     type="button"
                     className="btn-text"

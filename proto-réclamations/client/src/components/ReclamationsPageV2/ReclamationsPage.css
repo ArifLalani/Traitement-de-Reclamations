@@ -1207,6 +1207,22 @@
   gap: 8px;
 }
 
+/* Source/reference row on the left, status chips (échéance, conformité,
+   avancement) on the right — same line, pushed to the card's own edges. */
+.scope-v2 .card-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.scope-v2 .card-top-chips {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
 .scope-v2 .card-source-row-spacer {
   flex: 1;
 }
@@ -1363,13 +1379,6 @@
 
 .scope-v2 .btn-link-icon-flipped {
   transform: rotate(180deg);
-}
-
-.scope-v2 .card-divider {
-  align-self: stretch;
-  width: 1px;
-  background: var(--color-grey-200);
-  flex-shrink: 0;
 }
 
 .scope-v2 .card-footer {
@@ -1991,51 +2000,22 @@
   color: var(--color-text-primary);
 }
 
-.scope-v2 .complaint-cta {
-  flex-shrink: 0;
-  width: 237px;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.scope-v2 .complaint-cta-status {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.scope-v2 .complaint-cta-row {
-  width: 100%;
-  display: flex;
+/* Échéance chip — same pill padding/shape as the other status chips, but no
+   fill: it only carries meaning through its (secondary, or red once urgent)
+   text color. */
+.scope-v2 .complaint-echeance-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.scope-v2 .complaint-cta-label {
-  font: var(--font-subtitle2);
-  font-weight: 400;
-  letter-spacing: 0.1px;
-  color: var(--color-text-secondary);
-}
-
-.scope-v2 .complaint-echeance {
-  font: var(--font-body2);
-  letter-spacing: 0.17px;
-  color: var(--color-text-secondary);
+  border-radius: 100px;
+  padding: 3px 10px;
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
   white-space: nowrap;
-}
-
-.scope-v2 .complaint-echeance-warning {
-  color: var(--color-error-main);
-}
-
-.scope-v2 .complaint-echeance-closed {
   color: var(--color-text-secondary);
+}
+
+.scope-v2 .complaint-echeance-chip-warning {
+  color: var(--color-error-main);
 }
 
 .scope-v2 .complaints-chip-conformite-conforme {
@@ -2259,6 +2239,23 @@
   animation-delay: 0s;
 }
 
+/* ...except on the slider's very first open (see initialCascadeDone in
+   CreateReclamationSlider), where the treatment block should join the
+   cascade above instead of popping in immediately — same position/delay a
+   plain nth-child(4) would get if the override above didn't exist. */
+.scope-v2 .create-claim-section > .dossier-treatment-block.dossier-treatment-block-first-reveal {
+  animation-delay: 0.3s;
+}
+
+/* "Une réclamation a déjà été ouverte..." / "Mention clôturée" — these two
+   terminal notices read better with more air above them than the section's
+   own 16px rhythm gives every block, since they're closing out the mention
+   rather than just being the next step in it. Adds 16px on top of that
+   existing gap, for 32px total. */
+.scope-v2 .dossier-treatment-block-spaced {
+  margin-top: 16px;
+}
+
 .scope-v2 .create-claim-actions {
   padding: 20px 16px;
 }
@@ -2384,21 +2381,6 @@
   color: var(--color-primary-blue);
 }
 
-.scope-v2 .dossier-status-chip {
-  background: #e5f6fd;
-  color: var(--color-primary-blue);
-}
-
-.scope-v2 .dossier-status-chip-closed {
-  background: var(--color-chip-selected-bg);
-  color: var(--color-text-primary);
-}
-
-.scope-v2 .dossier-status-chip-attente {
-  background: rgba(0, 0, 0, 0.08);
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .scope-v2 .dossier-header-spacer {
   flex: 1;
 }
@@ -2506,6 +2488,28 @@
   flex: none;
   padding: 4px 14px;
   font: var(--font-button-medium);
+}
+
+/* "Réclamations clients  22" — the count sits in its own light pill next to
+   the label instead of being folded into the text, 8px apart and both
+   centered as a group within the segment. */
+.scope-v2 .dossier-tabs-segment-with-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.scope-v2 .dossier-tabs-segment-count {
+  background: transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font: var(--font-button-medium);
+  color: inherit;
+}
+
+.scope-v2 .dossier-tabs-segment-active .dossier-tabs-segment-count {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* .dossier-template-block shares the same grey-100 background as the
@@ -2671,6 +2675,55 @@
   background: var(--color-primary-blue);
 }
 
+/* "Quelle option correspond à votre situation ?" — the question's own
+   sentence-length options need their own row below the label instead of
+   sharing dossier-question-row's side-by-side layout. */
+.scope-v2 .dossier-question-row-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* The three options sit side by side, each taking an equal share of the
+   row's width instead of sizing to their own text. */
+.scope-v2 .dossier-choice-column {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v2 .dossier-choice-column .dossier-toggle-btn {
+  flex: 1;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  text-align: left;
+  white-space: normal;
+}
+
+.scope-v2 .dossier-choice-column.dossier-choice-row-error .dossier-toggle-btn {
+  border-color: #e4032e;
+}
+
+.scope-v2 .dossier-choice-card-title {
+  font: var(--font-button-medium);
+  color: inherit;
+}
+
+.scope-v2 .dossier-choice-card-description {
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.scope-v2 .dossier-toggle-btn-active .dossier-choice-card-description {
+  color: var(--color-white);
+  opacity: 0.85;
+}
+
 .scope-v2 .dossier-section-meta {
   flex-shrink: 0;
   font: var(--font-body2);
@@ -2795,7 +2848,7 @@
 .scope-v2 .dossier-field-readonly-value {
   font: var(--font-input-text);
   letter-spacing: 0.15px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
 }
 
 .scope-v2 .dossier-field-chip-wrap {
@@ -2855,7 +2908,7 @@
   background: transparent;
   font: var(--font-input-text);
   letter-spacing: 0.15px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   padding: 16px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2871,14 +2924,31 @@
   background: transparent;
   font: var(--font-input-text);
   letter-spacing: 0.15px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   padding: 16px 0;
   min-height: 96px;
   field-sizing: content;
 }
 
+/* The browser draws the drag-to-resize grip flush with the textarea's own
+   border-box corner, not the bordered field box's — with the field's usual
+   12px side padding, that left the grip sitting oddly inset from the
+   visible corner instead of in it. Move that padding onto the textarea
+   itself (so the text keeps the same inset) and let the field box give the
+   textarea only a 2px margin, putting the grip exactly 2px from each edge
+   of the visible box, where it reads as belonging to it. */
+.scope-v2 .dossier-field-input-multiline {
+  padding: 0 0 0 12px;
+  align-items: stretch;
+}
+
+.scope-v2 .dossier-field-input-multiline textarea {
+  margin: 0 2px 2px 0;
+  padding: 16px 10px 2px 4px;
+}
+
 .scope-v2 .dossier-field-input input[readonly], .scope-v2 .dossier-field-input textarea[readonly] {
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   cursor: default;
 }
 
@@ -2905,6 +2975,29 @@
 .scope-v2 .dossier-field-input-readonly textarea {
   min-height: 0;
   field-sizing: content;
+}
+
+/* A "plain" multiline field's display-only text (see ExpandableFieldText) —
+   same look as the textarea it replaces, minus the resize handle that made
+   no sense on text nobody can drag to grow. */
+.scope-v2 .dossier-field-readonly-text-wrap {
+  width: 100%;
+}
+
+.scope-v2 .dossier-field-readonly-text {
+  width: 100%;
+  margin: 0;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v2 .dossier-field-readonly-text-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .scope-v2 .dossier-field-input-error {
@@ -3160,25 +3253,25 @@
   margin-top: 4px;
 }
 
+/* Label and value flow as one piece of text — the value starts right after
+   the label on the same line, and only wraps onto its own line (using the
+   block's full width) once it's too long to fit, instead of either being
+   squeezed into a fixed-width column or always forced below the label.
+   Short values stay plain inline text (see ExpandableHistoryValue), so
+   they align on the label's own baseline; only a genuinely overflowing
+   value switches to the -webkit-box needed for the line-clamp. */
 .scope-v2 .dossier-history-change-row {
-  display: flex;
-  gap: 8px;
   font: var(--font-body2);
   letter-spacing: 0.17px;
 }
 
 .scope-v2 .dossier-history-change-label {
-  flex-shrink: 0;
   color: var(--color-text-secondary);
+  margin-right: 4px;
 }
 
 .scope-v2 .dossier-history-change-label::after {
   content: ' :';
-}
-
-.scope-v2 .dossier-history-change-value-wrap {
-  flex: 1;
-  min-width: 0;
 }
 
 .scope-v2 .dossier-history-change-value {
@@ -3289,6 +3382,12 @@
 
 .scope-v2 .dossier-alert-neutral p {
   margin: 0;
+}
+
+.scope-v2 .dossier-alert-neutral-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
 }
 
 .scope-v2 .dossier-alert-neutral .btn-text {

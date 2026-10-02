@@ -13,6 +13,7 @@ import ComplaintsFiltersPanel, {
 } from './ComplaintsFiltersPanel';
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, {
+  type ClotureReason,
   type ReclamantDraftData,
   type ReclamationFormData,
 } from './CreateReclamationSlider';
@@ -35,6 +36,7 @@ import {
   complaints as initialComplaints,
   closedComplaints as initialClosedComplaints,
   getContactTag,
+  getEcheanceInfo,
   STATUT_CLIENT_LABEL,
   type Complaint,
   type HistoriqueEntry,
@@ -125,9 +127,9 @@ function ComplaintsContactSegmentedControl({
   clientCount: number;
   prospectCount: number;
 }) {
-  const segments: { id: ComplaintsContactSegment; label: string }[] = [
-    { id: 'client', label: `Client (${clientCount})` },
-    { id: 'prospect', label: `Prospect (${prospectCount})` },
+  const segments: { id: ComplaintsContactSegment; text: string; count: number }[] = [
+    { id: 'client', text: 'Réclamations clients', count: clientCount },
+    { id: 'prospect', text: 'Réclamations prospect', count: prospectCount },
   ];
   const index = Math.max(0, segments.findIndex((segment) => segment.id === value));
   const style = { '--segment-count': segments.length } as CSSProperties;
@@ -142,10 +144,11 @@ function ComplaintsContactSegmentedControl({
         <button
           key={segment.id}
           type="button"
-          className={`dossier-tabs-segment ${value === segment.id ? 'dossier-tabs-segment-active' : ''}`}
+          className={`dossier-tabs-segment dossier-tabs-segment-with-count ${value === segment.id ? 'dossier-tabs-segment-active' : ''}`}
           onClick={() => onChange(segment.id)}
         >
-          {segment.label}
+          <span>{segment.text}</span>
+          <span className="dossier-tabs-segment-count">{segment.count}</span>
         </button>
       ))}
     </div>
@@ -272,6 +275,15 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       statutClient: '',
     },
   });
+  // Historique entries added by the mention slider's "Enregistrer" action —
+  // kept alongside reclamantDrafts so the modification still shows in the
+  // Historique tab the next time the slider reopens, not just within the
+  // session that made it.
+  const [mentionDraftHistorique, setMentionDraftHistorique] = useState<Record<string, HistoriqueEntry[]>>({});
+  // Which clôture path closed a mention — kept so "Mention clôturée" still
+  // explains itself correctly after the slider's been fully closed and
+  // reopened, not just within the session that closed it.
+  const [mentionClotureReasons, setMentionClotureReasons] = useState<Record<string, ClotureReason>>({});
   const [snackbar, setSnackbar] = useState<{
     id: string;
     message: string;
@@ -719,6 +731,10 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     setCreatedIds((prev) => new Set(prev).add(id));
     setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
 
+    // Its own réclamation ticket, not the mention's — the mention's numéro
+    // de référence is drawn from a much larger pool (every mention, not
+    // just the ones turned into réclamations), so reusing it here could
+    // show a number well past the actual réclamation count.
     const nextTicketNumber =
       Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1;
     const requerant = `${formData.prenom} ${formData.nom}`.trim() || 'Réclamant inconnu';
@@ -728,9 +744,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
       requerant,
       dateReception: formData.dateReception,
-      echeanceLabel: '',
       avancement: 'a-traiter',
-      conformite: 'conforme',
       canal: formData.canal as Source,
       sourceUrl: createTarget.url.replace(/\.{3}$/, ''),
       denominateurSocial: formData.denominationSociale,
@@ -745,13 +759,14 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     newComplaint.classification.porteurDuRisque = formData.porteurDuRisque;
     newComplaint.notesInternes = formData.notesInternes;
 
-    // The "Création de la réclamation" entry (a key step, flagged as such in
-    // the Historique tab) should also carry the contact info gathered in the
-    // mention slider, not just the generic "créée depuis une mention"
-    // description — otherwise that information is lost from the trail. And
-    // the dossier's own historique picks up right where the mention's left
-    // off (réception, demande de contact, classement sans suite...) instead
-    // of starting blank — same trail, whichever slider it's viewed from.
+    // Création d'une réclamation is really two steps, not one: the
+    // réclamant's info gets saved first, then the réclamation itself is
+    // created from it — the historique should show both, in that order,
+    // even when nothing was actually edited (the save still happened).
+    // And the dossier's own historique picks up right where the mention's
+    // left off (réception, demande de contact, classement sans suite...)
+    // instead of starting blank — same trail, whichever slider it's viewed
+    // from.
     const contactChanges = [
       { label: 'Prénom', value: formData.prenom },
       { label: 'Nom', value: formData.nom },
@@ -762,12 +777,27 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       { label: 'Rattaché à un contrat', value: formData.rattacheContrat === 'oui' ? 'Oui' : formData.rattacheContrat === 'non' ? 'Non' : '' },
       { label: 'Statut du client', value: formData.statutClient ? STATUT_CLIENT_LABEL[formData.statutClient] : '' },
     ].filter((change) => change.value.trim() !== '');
-    const creationEntry = {
-      ...(newComplaint.historique.find((entry) => entry.title === 'Création de la réclamation') ??
-        newComplaint.historique[0]),
+    const baseCreationEntry =
+      newComplaint.historique.find((entry) => entry.title === 'Création de la réclamation') ??
+      newComplaint.historique[0];
+    const contactTag = getContactTag(formData.rattacheContrat);
+    const saveInfoEntry: HistoriqueEntry = {
+      title: 'Enregistrement des informations du réclamant',
+      description:
+        contactChanges.length > 0
+          ? `Champs modifiés : ${contactChanges.map((c) => c.label).join(', ')}.`
+          : 'Informations du réclamant enregistrées.',
+      date: baseCreationEntry.date,
+      author: 'Joe Bleau',
       changes: contactChanges,
     };
-    newComplaint.historique = [...mentionHistorique, creationEntry];
+    const creationEntry: HistoriqueEntry = {
+      title: `Création de la réclamation ${contactTag === 'Prospect' ? 'prospect' : 'client'}`,
+      description: baseCreationEntry.description,
+      date: baseCreationEntry.date,
+      author: baseCreationEntry.author,
+    };
+    newComplaint.historique = [...mentionHistorique, saveInfoEntry, creationEntry];
 
     setComplaintsList((prev) => [newComplaint, ...prev]);
 
@@ -819,6 +849,14 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
 
   const handleSaveReclamantDraft = (id: string, draft: ReclamantDraftData) => {
     setReclamantDrafts((prev) => ({ ...prev, [id]: draft }));
+  };
+
+  const handleAppendDraftHistorique = (id: string, entry: HistoriqueEntry) => {
+    setMentionDraftHistorique((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), entry] }));
+  };
+
+  const handleSetClotureReason = (id: string, reason: ClotureReason) => {
+    setMentionClotureReasons((prev) => ({ ...prev, [id]: reason }));
   };
 
   const handleSnackbarUndo = () => {
@@ -973,7 +1011,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       c.objet.toLowerCase().includes(complaintsQuery) ||
       c.description.toLowerCase().includes(complaintsQuery);
     const matchesProgression = progressionFilter === 'tous' || c.avancement === progressionFilter;
-    const matchesConformite = conformiteFilter === 'tous' || c.conformite === conformiteFilter;
+    const matchesConformite = conformiteFilter === 'tous' || getEcheanceInfo(c).conformite === conformiteFilter;
     return matchesSearch && matchesProgression && matchesConformite;
   });
   const clientComplaintsCount = complaintsBeforeContactSegment.filter(
@@ -990,7 +1028,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     )
     .sort((a, b) =>
       complaintsSortOrder === 'urgence'
-        ? (a.echeanceDays ?? Infinity) - (b.echeanceDays ?? Infinity)
+        ? (getEcheanceInfo(a).echeanceDays ?? Infinity) - (getEcheanceInfo(b).echeanceDays ?? Infinity)
         : parseDateReception(b.dateReception) - parseDateReception(a.dateReception),
     );
 
@@ -1331,10 +1369,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                 ) : (
                   <div className={`mentions-toolbar ${appbarStuck ? 'mentions-toolbar-stuck' : ''}`}>
                     <div className="mentions-toolbar-start">
-                      <span className="mentions-count-chip">
-                        <ListIcon />
-                        {filteredComplaints.length} Réclamations
-                      </span>
                       <ComplaintsContactSegmentedControl
                         value={complaintsContactSegment}
                         onChange={selectComplaintsContactSegment}
@@ -1472,6 +1506,10 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           }
           savedReclamantDraft={reclamantDrafts[createTarget.id]}
           onSaveReclamantDraft={(draft) => handleSaveReclamantDraft(createTarget.id, draft)}
+          savedDraftHistorique={mentionDraftHistorique[createTarget.id]}
+          onAppendDraftHistorique={(entry) => handleAppendDraftHistorique(createTarget.id, entry)}
+          savedClotureReason={mentionClotureReasons[createTarget.id]}
+          onSetClotureReason={(reason) => handleSetClotureReason(createTarget.id, reason)}
         />
       )}
 
