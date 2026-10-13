@@ -1360,10 +1360,9 @@ export default function ComplaintDetailDrawer({
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...), dans un délai
-            maximum de 10 jours. Une fois l'envoi effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
+            L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Une fois l'envoi
+            effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
           </p>
-          <p>En cas de contrôle, un justificatif pourra être demandé.</p>
         </div>
         {renderArDateField()}
         {renderArTemplateBlock()}
@@ -1392,11 +1391,9 @@ export default function ComplaintDetailDrawer({
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...), dans un délai
-            maximum de 60 jours afin de respecter les délais fixés par la réglementation ACPR. Une fois l'envoi
+            La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Une fois l'envoi
             effectué, renseignez ci-dessous la date à laquelle elle a été envoyée.
           </p>
-          <p>En cas de contrôle, un justificatif pourra être demandé.</p>
         </div>
         {renderReponseDateField()}
         <FormTextareaAutoGrow
@@ -1801,7 +1798,7 @@ export default function ComplaintDetailDrawer({
                 type="date"
                 placeholder="Ex: 05/05/2026"
                 readOnly={isClosed}
-                helpText="L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Renseignez ici la date à laquelle il a été envoyé. En cas de contrôle, un justificatif pourra être demandé."
+                helpText="L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Renseignez ici la date à laquelle il a été envoyé."
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateAR: v }))}
               />
               <SectionTextField
@@ -1810,7 +1807,7 @@ export default function ComplaintDetailDrawer({
                 type="date"
                 placeholder="Ex: 05/05/2026"
                 readOnly={isClosed}
-                helpText="La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Renseignez ici la date à laquelle elle a été envoyée. En cas de contrôle, un justificatif pourra être demandé."
+                helpText="La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Renseignez ici la date à laquelle elle a été envoyée."
                 helpAlign="right"
                 onChange={(v) => setSuiviDraft((d) => ({ ...d, dateReponse: v }))}
               />
