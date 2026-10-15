@@ -7,6 +7,7 @@ import {
   STATUT_CLIENT_DESCRIPTION,
   STATUT_CLIENT_LABEL,
   type HistoriqueEntry,
+  type MentionCanal,
   type StatutClient,
 } from './complaintsData';
 import type { Reclamation, ReclamationState } from './data';
@@ -44,14 +45,6 @@ function AlertTriangleIcon() {
   );
 }
 
-function addDaysToFrDate(value: string, days: number): string {
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return '';
-  const [, day, month, year] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
-  date.setDate(date.getDate() + days);
-  return date.toLocaleDateString('fr-FR');
-}
 
 // Placeholder wording pending the real template the client will provide —
 // covers the essentials (why we're writing, what we need, how to reply).
@@ -102,6 +95,15 @@ const STATE_BADGE: Partial<Record<ReclamationState, { label: string; className: 
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
   return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
+}
+
+function addDaysToFrDate(value: string, days: number): string {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return '';
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  date.setDate(date.getDate() + days);
+  return date.toLocaleDateString('fr-FR');
 }
 
 type MentionTabKey = 'informations' | 'historique';
@@ -292,15 +294,41 @@ type CreateReclamationSliderProps = {
   // continues the same trail instead of starting blank.
   onSubmit: (data: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => void;
   onViewComplaint: () => void;
-  // Called instead of onSubmit when the answer is "Non" — the mention isn't
-  // turned into a réclamation yet, it's just flagged "en attente" until its
-  // author replies with their contact details.
-  onConfirmEnAttente: (demandeContactDate: string) => void;
+  // True when this slider was opened from the réclamations page's "Non
+  // identifiés" segment (an existing réclamation whose author still isn't
+  // identified) rather than from the mentions list. Once a réclamation
+  // exists, reopening it from the mentions side just points back to the
+  // réclamations page (the "déjà existante" notice) — but opening it from
+  // there is exactly where its own continuation (en attente, relance,
+  // clôturée...) should actually show, since that's its new home.
+  isReclamationView?: boolean;
+  // Which canal originally created this réclamation (set once, see
+  // onConfirmContactAttempt) — only meaningful alongside isReclamationView,
+  // to know which continuation to resume (en attente vs clôturée).
+  savedCanalAnswer?: MentionCanal;
+  // Called when confirming the canal step's message/courrier (plateforme,
+  // administrateur, or rien) — creates (or updates) the réclamation right
+  // away (réclamant fields stay blank, author still "à déterminer"), but
+  // unlike onSubmit it doesn't navigate anywhere: the slider stays open,
+  // showing its own terminal notice instead of the réclamation's own detail.
+  // closeReason is passed for administrateur/rien — the réclamation lands
+  // clôturée right away, with this as its clôture entry/description —
+  // omitted for plateforme, which leaves it open awaiting a reply.
+  onConfirmContactAttempt: (
+    formData: ReclamationFormData,
+    mentionHistorique: HistoriqueEntry[],
+    sourceCanal: MentionCanal,
+    closeReason?: { title: string; description: string; date: string },
+  ) => void;
   onClotureMention: () => void;
   // Once a réclamation exists for this mention, its Historique tab shows
   // that dossier's actual historique instead of reconstructing its own —
   // one shared trail, whichever slider it's viewed from.
   linkedComplaintHistorique?: HistoriqueEntry[];
+  // The linked réclamation's own ticket — shown in the header instead of
+  // "Détail de la mention" when isReclamationView, since at that point this
+  // is really that réclamation's own continuation, not the mention's.
+  linkedComplaintTicket?: string;
   // Lets the reclamant fields be saved on their own (e.g. partially filled
   // in, to finish later) without creating a réclamation — persisted by the
   // parent and restored here when the slider reopens.
@@ -321,11 +349,14 @@ type CreateReclamationSliderProps = {
 };
 
 const CLOSE_ANIMATION_DURATION = 200;
+// Same duration as the réclamations page's own "Création de la
+// réclamation…" beat (CREATING_DELAY_MS there), for a consistent feel.
+const CREATING_DELAY_MS = 3000;
 
 type YesNo = 'oui' | 'non' | null;
 // Q1=Non branch — which of the three options the user picked when the
 // comment's author hasn't been identified.
-type CanalAnswer = 'plateforme' | 'administrateur' | 'rien' | null;
+type CanalAnswer = MentionCanal | null;
 // Which of the six "cloture-offer" paths actually closed a mention —
 // 'administrateur' / 'qa': Q1's own two dead ends, the author was never
 // reached at all. 'hebergeur-apres-reponse' / 'qa-apres-reponse': the author
@@ -360,9 +391,12 @@ export default function CreateReclamationSlider({
   onClose,
   onSubmit,
   onViewComplaint,
-  onConfirmEnAttente,
+  isReclamationView = false,
+  savedCanalAnswer,
+  onConfirmContactAttempt,
   onClotureMention,
   linkedComplaintHistorique,
+  linkedComplaintTicket,
   savedReclamantDraft,
   onSaveReclamantDraft,
   savedDraftHistorique,
@@ -401,20 +435,37 @@ export default function CreateReclamationSlider({
   // "Avez-vous les coordonnées...?" checkpoint reached once waiting on a
   // reply is the same question in the diagram, so they all share
   // coordonneesCheckpoint below rather than being separate fields.
-  // Q1 — reopening an "en attente" mention pre-fills this with "Non" (the
-  // author wasn't identified directly, hence going through the "plateforme"
-  // canal to request their coordonnées), since the wait loop is reached the
-  // same way regardless of which sub-path led there.
-  const [identifiedAnswer, setIdentifiedAnswer] = useState<YesNo>(isEnAttente ? 'non' : null);
-  // Q1=Non branch — reopening an "en attente" mention pre-fills this with
-  // "plateforme" (the demande was sent via the platform, hence the wait).
-  const [canalAnswer, setCanalAnswer] = useState<CanalAnswer>(isEnAttente ? 'plateforme' : null);
+  // Q0 — asked before Q1: whether the mention even qualifies as a
+  // réclamation at all. Reopening an "en attente" mention, or opening an
+  // existing réclamation from "Non identifiés" (isReclamationView), both
+  // pre-fill "oui" — the réclamation already exists either way.
+  const [reclamationTypeAnswer, setReclamationTypeAnswer] = useState<YesNo>(
+    isEnAttente || isReclamationView ? 'oui' : null,
+  );
+  // Q1 — same pre-fill logic as above: the author wasn't identified
+  // directly, hence going through a canal to request their coordonnées —
+  // the continuation is reached the same way regardless of which sub-path
+  // led there.
+  const [identifiedAnswer, setIdentifiedAnswer] = useState<YesNo>(isEnAttente || isReclamationView ? 'non' : null);
+  // Q1=Non branch — reopening an "en attente" mention always means
+  // "plateforme" (the only canal that used to leave a mention en-attente);
+  // opening an existing réclamation from "Non identifiés" uses whichever
+  // canal actually created it (savedCanalAnswer), since all three can now
+  // land there.
+  const [canalAnswer, setCanalAnswer] = useState<CanalAnswer>(
+    isEnAttente ? 'plateforme' : isReclamationView ? (savedCanalAnswer ?? 'plateforme') : null,
+  );
   const [demandeDateDraft, setDemandeDateDraft] = useState(reclamation.demandeContactDate ?? '');
   // Once the demande de contact is confirmed, the slider stays open (it's
   // not creating a réclamation yet) and swaps the form for the wait loop
   // instead — no need to wait on the parent re-passing an updated
-  // reclamation prop.
-  const [enAttenteConfirmed, setEnAttenteConfirmed] = useState(isEnAttente);
+  // reclamation prop. Also true from the start when opening an existing
+  // réclamation from "Non identifiés" — its canal was already confirmed.
+  const [enAttenteConfirmed, setEnAttenteConfirmed] = useState(isEnAttente || isReclamationView);
+  // Brief full-slider "Création de la réclamation…" loading beat shown right
+  // after confirming the canal step (plateforme/administrateur/rien) and
+  // before its terminal notice (en attente, or clôturée) appears.
+  const [canalConfirming, setCanalConfirming] = useState(false);
   const [eusReponseAnswer, setEusReponseAnswer] = useState<YesNo>(null);
   const [retourTexte, setRetourTexte] = useState('');
   const [retourDateDraft, setRetourDateDraft] = useState('');
@@ -509,6 +560,11 @@ export default function CreateReclamationSlider({
   // Each handler below only resets the *next* answer down the tree — deeper
   // answers are left untouched, so flipping back to a combination already
   // answered before re-reveals it pre-filled instead of blank.
+  const handleReclamationTypeAnswerChange = (value: 'oui' | 'non') => {
+    setReclamationTypeAnswer(value);
+    setIdentifiedAnswer(null);
+    setCanalAnswer(null);
+  };
   const handleIdentifiedAnswerChange = (value: 'oui' | 'non') => {
     setIdentifiedAnswer(value);
     setCanalAnswer(null);
@@ -556,12 +612,24 @@ export default function CreateReclamationSlider({
   // get refreshed as the parent's state updates while it stays open, so the
   // badge is derived from the same local flags the rest of the flow already
   // reacts to instead of the (potentially stale) reclamation.state.
-  const badgeState: ReclamationState = isMesReclamations
-    ? 'mes-reclamations'
-    : mentionCloturee
-      ? 'cloturee'
-      : enAttenteConfirmed
-        ? 'en-attente'
+  // Once a réclamation exists (isMesReclamations, or enAttenteConfirmed —
+  // confirmed within this same session, before the mention prop itself
+  // refreshes), the mentions-page view of it always reads "Réclamation
+  // ouverte" — it only cares that one exists. But this *is* the
+  // réclamation's own page once isReclamationView: visually it looks like
+  // the same slider, but it isn't the same thing, and its badge needs to
+  // show its real état instead — "En attente" for plateforme (still
+  // waiting on a reply), "Clôturée" for administrateur/rien (closed right
+  // away).
+  const badgeState: ReclamationState =
+    isMesReclamations || enAttenteConfirmed
+      ? isReclamationView
+        ? canalAnswer === 'plateforme'
+          ? 'en-attente'
+          : 'cloturee'
+        : 'mes-reclamations'
+      : mentionCloturee
+        ? 'cloturee'
         // Once réouverte (even before that's saved), the mention isn't
         // "cloturée" any more either — falling through to reclamation.state
         // here would show its stale clôturée badge again, since that prop
@@ -577,6 +645,7 @@ export default function CreateReclamationSlider({
   // automatically for now.
   const needsManualDate = false;
 
+  const reclamationTypeAnswerMissing = showContactErrors && !reclamationTypeAnswer;
   const identifiedAnswerMissing = showContactErrors && !identifiedAnswer;
   const canalAnswerMissing = showContactErrors && identifiedAnswer === 'non' && !canalAnswer;
   const peutContacterHebergeurAnswerMissing =
@@ -1061,6 +1130,29 @@ export default function CreateReclamationSlider({
     );
   };
 
+  // The wording for why the mention was clôturée differs by clotureReason —
+  // in particular, the "-apres-reponse" / "-sans-reponse" variants need to
+  // say whether the author actually replied (just without their
+  // coordonnées) or never replied at all, even after the relance. Shared by
+  // the historique entry and the "Mention clôturée" summary so the two
+  // don't drift apart. Declared here (ahead of getCanalBranch, which also
+  // reads it) rather than down by clotureReason's other usages, since
+  // getCanalBranch runs during this same render, before that point.
+  const CLOTURE_DESCRIPTIONS: Record<Exclude<typeof clotureReason, null>, string> = {
+    administrateur:
+      "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées.",
+    qa: "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'hebergeur-apres-reponse':
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées, un courrier a donc été envoyé à l'hébergeur du site afin de les obtenir.",
+    'qa-apres-reponse':
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'hebergeur-sans-reponse':
+      "L'auteur du commentaire n'a pas répondu, même après la relance. Un courrier a été envoyé à l'hébergeur du site afin d'obtenir ses coordonnées.",
+    'qa-sans-reponse':
+      "L'auteur du commentaire n'a pas répondu, même après la relance, et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+  };
+  const clotureDescription = clotureReason ? CLOTURE_DESCRIPTIONS[clotureReason] : '';
+
   const CANAL_OPTIONS: { value: Exclude<CanalAnswer, null>; title: string; description: string }[] = [
     {
       value: 'plateforme',
@@ -1095,11 +1187,80 @@ export default function CreateReclamationSlider({
     if (canalAnswer === 'plateforme') {
       next = enAttenteConfirmed ? getWaitLoopStep() : { phase: 'envoi', node: renderEnvoiDemandeFields() };
     } else if (canalAnswer === 'administrateur') {
-      next = { phase: 'cloture-offer', node: renderClotureOfferFields() };
+      // Same "Confirmer et créer la réclamation" as plateforme, but the
+      // réclamation lands clôturée right away instead of waiting on a
+      // reply — courrier à l'hébergeur, same content as before this button
+      // used to close the mention outright (see renderClotureOfferFields).
+      next = enAttenteConfirmed
+        ? {
+            phase: 'waiting',
+            node: (
+              <div className="dossier-alert-neutral">
+                <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
+                <p>
+                  {CLOTURE_DESCRIPTIONS.administrateur} Si ces coordonnées sont obtenues par la suite, la réclamation
+                  peut être rouverte pour reprendre son traitement.
+                </p>
+              </div>
+            ),
+          }
+        : { phase: 'envoi', node: renderClotureOfferFields() };
     } else {
-      next = { phase: 'cloture-offer', node: renderQaNotifieeFields() };
+      // "Aucune action possible" — same QA-notified content as before, but
+      // now also creates (then immediately clôture) the réclamation.
+      next = enAttenteConfirmed
+        ? {
+            phase: 'waiting',
+            node: (
+              <div className="dossier-alert-neutral">
+                <span className="dossier-alert-neutral-title">Mention clôturée</span>
+                <p>
+                  {CLOTURE_DESCRIPTIONS.qa} Si ces coordonnées sont obtenues par la suite, la mention peut être
+                  rouverte pour reprendre son traitement.
+                </p>
+              </div>
+            ),
+          }
+        : { phase: 'envoi', node: renderQaNotifieeFields() };
     }
     return { phase: next.phase, node: (<>{row}<Fragment key={canalAnswer}>{next.node}</Fragment></>) };
+  };
+
+  // Shown instead of Q0/Q1/canal (isReclamationView — opening an existing
+  // réclamation from "Non identifiés") — those questions are already
+  // answered, so this jumps straight to the continuation itself: the wait
+  // loop for plateforme, or the clôturée notice for administrateur/rien.
+  const renderReclamationContinuation = (): ReactNode => {
+    if (canalAnswer === 'administrateur') {
+      return (
+        <div className="dossier-alert-neutral">
+          <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
+          <p>
+            {CLOTURE_DESCRIPTIONS.administrateur} Si ces coordonnées sont obtenues par la suite, la réclamation peut
+            être rouverte pour reprendre son traitement.
+          </p>
+        </div>
+      );
+    }
+    if (canalAnswer === 'rien') {
+      return (
+        <div className="dossier-alert-neutral">
+          <span className="dossier-alert-neutral-title">Mention clôturée</span>
+          <p>
+            {CLOTURE_DESCRIPTIONS.qa} Si ces coordonnées sont obtenues par la suite, la mention peut être rouverte
+            pour reprendre son traitement.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <>
+        {renderEnAttenteAlert(
+          `Demande d'information envoyée à l'auteur de la mention le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
+        )}
+        {getWaitLoopStep().node}
+      </>
+    );
   };
 
   // Walks the flowchart node by node from Q1 — each question stays visible
@@ -1112,6 +1273,43 @@ export default function CreateReclamationSlider({
       () => (identifiedAnswer === 'oui' ? { phase: 'reclamant', node: renderReclamantFields() } : getCanalBranch()),
       { error: identifiedAnswerMissing },
     );
+
+  const RECLAMATION_TYPE_OPTIONS: { value: Exclude<YesNo, null>; title: string; description: string }[] = [
+    {
+      value: 'oui',
+      title: 'Oui, c’est une réclamation',
+      description: 'L’auteur exprime un mécontentement, conteste une décision ou demande de revoir sa situation.',
+    },
+    {
+      value: 'non',
+      title: 'Non, ce n’est pas une réclamation',
+      description: 'L’auteur pose une question, demande une information ou un conseil, sans exprimer de mécontentement.',
+    },
+  ];
+
+  // Q0 — asked before Q1: does this mention even qualify as a réclamation?
+  // "Oui" carries on directly into the existing Q1 flow — no confirm/loading
+  // step in between (that only happens once, at the end of the canal
+  // branch). "Non" has no outcome defined yet, so it just leaves the
+  // question showing for now.
+  const getReclamationTypeStep = (): Step => {
+    const row = (
+      <div className="dossier-question-row dossier-question-row-stacked">
+        <span className="dossier-question-text">
+          Considérez-vous cette mention comme étant une réclamation ?<span className="field-required">*</span>
+        </span>
+        <ChoiceColumn
+          value={reclamationTypeAnswer}
+          onChange={handleReclamationTypeAnswerChange}
+          options={RECLAMATION_TYPE_OPTIONS}
+          error={reclamationTypeAnswerMissing}
+        />
+      </div>
+    );
+    if (!reclamationTypeAnswer || reclamationTypeAnswer === 'non') return { phase: 'question', node: row };
+    const next = getTreatmentStep();
+    return { phase: next.phase, node: (<>{row}<Fragment key="oui">{next.node}</Fragment></>) };
+  };
 
   // True as soon as "Rouvrir la mention" is clicked — drives what's shown
   // locally (skipping Q1, the historique preview) even though nothing about
@@ -1149,12 +1347,8 @@ export default function CreateReclamationSlider({
     );
   };
 
-  const step = reouvertureActive ? null : getTreatmentStep();
+  const step = reouvertureActive ? null : getReclamationTypeStep();
   const reouvertureStep = reouvertureActive ? getReouvertureStep() : null;
-  // Once the demande de contact is confirmed, the guiding questions that led
-  // here (Q1, Q2, Q3...) are no longer relevant to show — only the wait
-  // loop itself, under a single persistent "en attente" notice.
-  const waitStep = enAttenteConfirmed ? getWaitLoopStep() : null;
   const showingReclamantFields = reouvertureActive
     ? reouvertureStep?.phase === 'reclamant'
     : step?.phase === 'reclamant' && !mentionCloturee;
@@ -1166,7 +1360,8 @@ export default function CreateReclamationSlider({
   // a retour answer, no action applies yet, so the footer itself shouldn't
   // render (an empty bar would just clip the content above it).
   const hasFooterActions =
-    isMesReclamations ||
+    (isMesReclamations && !isReclamationView) ||
+    (enAttenteConfirmed && !isReclamationView) ||
     (activeTab === 'informations' &&
       (showingClotureOffer ||
         showingReclamantFields ||
@@ -1180,27 +1375,6 @@ export default function CreateReclamationSlider({
     !reclamantDraft.prenom ||
     !reclamantDraft.rattacheContrat ||
     (reclamantDraft.rattacheContrat === 'oui' && !reclamantDraft.statutClient);
-
-  // The wording for why the mention was clôturée differs by clotureReason —
-  // in particular, the "-apres-reponse" / "-sans-reponse" variants need to
-  // say whether the author actually replied (just without their
-  // coordonnées) or never replied at all, even after the relance. Shared by
-  // the historique entry and the "Mention clôturée" summary so the two
-  // don't drift apart.
-  const CLOTURE_DESCRIPTIONS: Record<Exclude<typeof clotureReason, null>, string> = {
-    administrateur:
-      "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées.",
-    qa: "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
-    'hebergeur-apres-reponse':
-      "L'auteur du commentaire a répondu sans transmettre ses coordonnées, un courrier a donc été envoyé à l'hébergeur du site afin de les obtenir.",
-    'qa-apres-reponse':
-      "L'auteur du commentaire a répondu sans transmettre ses coordonnées et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
-    'hebergeur-sans-reponse':
-      "L'auteur du commentaire n'a pas répondu, même après la relance. Un courrier a été envoyé à l'hébergeur du site afin d'obtenir ses coordonnées.",
-    'qa-sans-reponse':
-      "L'auteur du commentaire n'a pas répondu, même après la relance, et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
-  };
-  const clotureDescription = clotureReason ? CLOTURE_DESCRIPTIONS[clotureReason] : '';
 
   // The mention's own trail so far — carried over into the new réclamation's
   // historique on submit, and shown as-is here until a réclamation exists.
@@ -1411,22 +1585,129 @@ export default function CreateReclamationSlider({
     setMentionCloturee(true);
   };
 
-  // Confirms the demande de contact — the date is entered by hand only when
+  // Confirms the message/courrier sent to try and reach the author (canal
+  // plateforme ou administrateur) — the date is entered by hand only when
   // needsManualDate; otherwise it's today's date, added automatically.
+  // Unlike the rest of the flow, this doesn't wait on a reply: the
+  // réclamation is created right away (author still "à déterminer" — the
+  // réclamant fields stay blank, to be filled in once identified), and its
+  // own continuation happens from the réclamations page's "Auteur à
+  // déterminer" segment instead of this slider.
+  // Builds and upserts the réclamation for whichever canal step is being
+  // confirmed, with the same full-slider "Création de la réclamation…" beat
+  // as the réclamations page's own create flow (just shown in place, since
+  // the mention slider stays open throughout). "Plateforme" leaves the
+  // réclamation open, waiting on a reply; "administrateur"/"rien" close it
+  // right away — there's nobody left to hear back from directly.
   const handleConfirmDemande = () => {
-    const dateMissing = needsManualDate && !demandeDateDraft;
-    const certifyMissing = !needsManualDate && !demandeCertified;
-    if (dateMissing || certifyMissing) {
-      if (dateMissing) setShowContactErrors(true);
-      if (certifyMissing) setDemandeCertifyMissing(true);
+    if (canalAnswer === 'plateforme') {
+      const dateMissing = needsManualDate && !demandeDateDraft;
+      const certifyMissing = !needsManualDate && !demandeCertified;
+      if (dateMissing || certifyMissing) {
+        if (dateMissing) setShowContactErrors(true);
+        if (certifyMissing) setDemandeCertifyMissing(true);
+        setActiveTab('informations');
+        scrollToFirstError();
+        return;
+      }
+      const date = needsManualDate ? demandeDateDraft : todayLabel;
+      if (!needsManualDate) setDemandeDateDraft(date);
+      setCanalConfirming(true);
+      onConfirmContactAttempt(
+        {
+          // Blank, not reclamantDraft's — this canal means the author isn't
+          // identified, and reclamantDraft can hold stale answers from a
+          // brief earlier detour through "identifié ? Oui" (switching Q1
+          // back and forth doesn't clear it, by design — see
+          // handleIdentifiedAnswerChange). Trusting it here would wrongly
+          // classify this réclamation as Client/Prospect instead of landing
+          // it in "Non identifiés".
+          prenom: '',
+          nom: '',
+          canal,
+          dateReception,
+          email: '',
+          telephone: '',
+          denominationSociale: '',
+          porteurDuRisque: '',
+          rattacheContrat: '',
+          statutClient: '',
+          objet,
+          notesInternes: '',
+          description: reclamation.text,
+        },
+        [
+          { title: 'Réception de la mention', description: `Mention reçue via ${canal}.`, date: reclamation.date, author: 'Système' },
+          {
+            title: "Message envoyé à l'auteur du commentaire",
+            description: "Message de demande de coordonnées envoyé à l'auteur du commentaire.",
+            date,
+            author: 'Joe Bleau',
+          },
+        ],
+        'plateforme',
+      );
+      setTimeout(() => {
+        setCanalConfirming(false);
+        setEnAttenteConfirmed(true);
+      }, CREATING_DELAY_MS);
+      return;
+    }
+
+    // administrateur / rien — both share the courrier/QA certify checkbox.
+    if (!clotureCertified) {
+      setClotureCertifyMissing(true);
       setActiveTab('informations');
       scrollToFirstError();
       return;
     }
-    const date = needsManualDate ? demandeDateDraft : todayLabel;
-    if (!needsManualDate) setDemandeDateDraft(date);
-    onConfirmEnAttente(date);
-    setEnAttenteConfirmed(true);
+    const isAdministrateur = canalAnswer === 'administrateur';
+    setCanalConfirming(true);
+    onConfirmContactAttempt(
+      {
+        // Blank, not reclamantDraft's — see the plateforme branch above for
+        // why this canal must never trust it.
+        prenom: '',
+        nom: '',
+        canal,
+        dateReception,
+        email: '',
+        telephone: '',
+        denominationSociale: '',
+        porteurDuRisque: '',
+        rattacheContrat: '',
+        statutClient: '',
+        objet,
+        notesInternes: '',
+        description: reclamation.text,
+      },
+      [
+        { title: 'Réception de la mention', description: `Mention reçue via ${canal}.`, date: reclamation.date, author: 'Système' },
+        isAdministrateur
+          ? {
+              title: "Courrier envoyé à l'hébergeur du site",
+              description: "Courrier envoyé à l'hébergeur du site afin d'obtenir les informations de l'auteur du commentaire.",
+              date: todayLabel,
+              author: 'Joe Bleau',
+            }
+          : {
+              title: 'Qualité Assurance notifiée',
+              description: CLOTURE_DESCRIPTIONS.qa,
+              date: todayLabel,
+              author: 'Joe Bleau',
+            },
+      ],
+      isAdministrateur ? 'administrateur' : 'rien',
+      {
+        title: isAdministrateur ? 'Réclamation clôturée' : 'Mention clôturée',
+        description: `${isAdministrateur ? CLOTURE_DESCRIPTIONS.administrateur : CLOTURE_DESCRIPTIONS.qa} Si ces coordonnées sont obtenues par la suite, ${isAdministrateur ? 'la réclamation' : 'la mention'} peut être rouverte pour reprendre son traitement.`,
+        date: todayLabel,
+      },
+    );
+    setTimeout(() => {
+      setCanalConfirming(false);
+      setEnAttenteConfirmed(true);
+    }, CREATING_DELAY_MS);
   };
 
   // Confirms the relance was sent — the date is always today's, added
@@ -1474,8 +1755,21 @@ export default function CreateReclamationSlider({
   return (
     <div className={`drawer-backdrop ${closing ? 'drawer-closing' : ''}`} onClick={handleClose}>
       <div className="drawer-panel create-claim-panel" onClick={(e) => e.stopPropagation()}>
+        {/* Same full-panel loading look as the réclamations page's own
+            "Création de la réclamation…" beat — just shown in place here
+            instead of swapping to a different panel, since the mention
+            slider stays open through the canal step's own confirmation. */}
+        {canalConfirming ? (
+          <div className="dossier-panel-loading">
+            <span className="dossier-panel-loader" />
+            <p className="dossier-panel-loading-text">Création de la réclamation…</p>
+          </div>
+        ) : (
+          <>
         <div className="drawer-appbar">
-          <span className="drawer-title">Détail de la mention</span>
+          <span className="drawer-title">
+            {isReclamationView && linkedComplaintTicket ? `Réclamation ${linkedComplaintTicket}` : 'Détail de la mention'}
+          </span>
           <button type="button" className="drawer-close-button" aria-label="Fermer" onClick={handleClose}>
             <img src={drawerClose} alt="" width={14} height={14} />
           </button>
@@ -1532,18 +1826,27 @@ export default function CreateReclamationSlider({
                 </div>
               </div>
 
-              {isMesReclamations && (
-                <div className={treatmentBlockClassName('dossier-treatment-block-spaced')}>
-                  <div className="dossier-alert-info">
+              {/* Same "déjà existante" box whether this is the very first time
+                  (right after confirming, within this session — enAttenteConfirmed)
+                  or a later reopen (isMesReclamations, from the prop) — once a
+                  réclamation exists for this mention, its own treatment (en
+                  attente, clôturée...) lives entirely on the réclamation's own
+                  page, not here — unless this *is* that réclamation's own page
+                  (isReclamationView), in which case that continuation is
+                  exactly what shows below instead of this notice. */}
+              {!isReclamationView && (isMesReclamations || enAttenteConfirmed) && !mentionCloturee && (
+                <div className={treatmentBlockClassName()}>
+                  <div className="dossier-alert-neutral">
+                    <span className="dossier-alert-neutral-title">Réclamation déjà existante</span>
                     <p>
-                      Une réclamation a déjà été ouverte pour cette mention. Son traitement se poursuit dans la page
-                      des réclamations.
+                      Une réclamation a été ouverte à partir de cette mention. La suite de son traitement se poursuit
+                      dans la page « Mes réclamations ».
                     </p>
                   </div>
                 </div>
               )}
 
-              {!isMesReclamations && mentionCloturee && (
+              {!isReclamationView && !isMesReclamations && mentionCloturee && (
                 <div className={treatmentBlockClassName('dossier-treatment-block-spaced')}>
                   <div className="dossier-alert-neutral">
                     <span className="dossier-alert-neutral-title">Mention clôturée</span>
@@ -1556,23 +1859,31 @@ export default function CreateReclamationSlider({
                 </div>
               )}
 
-              {!isMesReclamations && !mentionCloturee && enAttenteConfirmed && waitStep && (
+              {!isReclamationView && !isMesReclamations && !mentionCloturee && !enAttenteConfirmed && (
+                // No key here on purpose — each question's own answer keys
+                // its Fragment further down (see stepQuestion/getCanalBranch/
+                // getReclamationTypeStep), so only the newly-revealed content
+                // underneath mounts (and animates) fresh; remounting this
+                // whole block on every click would replay every already-
+                // answered question's entrance too.
                 <div className={treatmentBlockClassName()}>
-                  {!relanceConfirmed &&
-                    renderEnAttenteAlert(
-                      `Demande d'information envoyée à l'auteur du commentaire le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
-                    )}
-                  {waitStep.node}
+                  {/* A réouverture skips Q0/Q1 — those questions don't apply any
+                      more, since reopening the mention already answers them
+                      (see getReouvertureStep). */}
+                  {reouvertureActive ? reouvertureStep?.node : step?.node}
                 </div>
               )}
 
-              {!isMesReclamations && !mentionCloturee && !enAttenteConfirmed && (
-                <div key={identifiedAnswer} className={treatmentBlockClassName()}>
-                  {/* A réouverture skips Q1 — the "avez-vous identifié l'auteur ?"
-                      question doesn't apply any more, since reopening the mention
-                      already answers it (see getReouvertureStep). */}
-                  {reouvertureActive ? reouvertureStep?.node : step?.node}
-                </div>
+              {/* isReclamationView: Q0/Q1/canal are already resolved, so this
+                  jumps straight to the continuation instead of re-showing
+                  them — renderReclamationContinuation reuses the same wait
+                  loop (getWaitLoopStep), so it still carries through to the
+                  reclamant fields once coordonnées are obtenues, same as the
+                  normal flow; step?.phase bubbles up the same way too, so
+                  the footer's "Créer une réclamation" button still shows
+                  right on cue. */}
+              {isReclamationView && !mentionCloturee && (
+                <div className={treatmentBlockClassName()}>{renderReclamationContinuation()}</div>
               )}
             </div>
           )}
@@ -1633,7 +1944,7 @@ export default function CreateReclamationSlider({
           />
           {hasFooterActions && (
           <div className="modal-actions create-claim-actions">
-            {isMesReclamations ? (
+            {(isMesReclamations || enAttenteConfirmed) && !isReclamationView ? (
               <button type="button" className="btn-filled" onClick={onViewComplaint}>
                 Voir la réclamation
               </button>
@@ -1671,7 +1982,7 @@ export default function CreateReclamationSlider({
                 )}
                 {activeTab === 'informations' && isEnvoiStep && (
                   <button type="button" className="btn-filled" onClick={handleConfirmDemande}>
-                    Confirmer
+                    Confirmer et créer la réclamation
                   </button>
                 )}
                 {activeTab === 'informations' && isRelanceEnvoiStep && (
@@ -1684,6 +1995,8 @@ export default function CreateReclamationSlider({
           </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

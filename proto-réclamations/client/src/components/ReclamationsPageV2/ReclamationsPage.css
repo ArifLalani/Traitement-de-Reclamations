@@ -1353,6 +1353,18 @@
   min-height: 72px;
 }
 
+/* The mention slider (.create-claim-section — card-body is shared with the
+   list cards, so scoping to it alone would also strip their min-height)
+   shows the full, unclamped text for a single mention — not a list of
+   cards needing equal height for a tidy grid, which is what the 72px
+   (3-line) min-height above is for. Left in place here, a short mention
+   would leave dead space below it before whatever comes next (e.g.
+   "Réclamation déjà existante"), uneven with the rest of the section's
+   rhythm. */
+.scope-v2 .create-claim-section .card-text {
+  min-height: 0;
+}
+
 .scope-v2 .card-text-clamped {
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -2228,24 +2240,15 @@
   animation-delay: 0.5s;
 }
 
-/* The step block remounts wholesale (via its React `key`) whenever Q1
-   itself changes — inheriting the positional delay above (up to 0.5s, meant
-   for the slider's initial open) would make that replay wait before even
-   starting, reading as a stuck/laggy click. Its own children still cascade
-   normally among themselves (see .dossier-treatment-block > * below), so a
-   tab switch still looks like a proper reveal — it just all starts at once
-   instead of waiting on card-top/card-body first. */
-.scope-v2 .create-claim-section > .dossier-treatment-block {
-  animation-delay: 0s;
-}
-
-/* ...except on the slider's very first open (see initialCascadeDone in
-   CreateReclamationSlider), where the treatment block should join the
-   cascade above instead of popping in immediately — same position/delay a
-   plain nth-child(4) would get if the override above didn't exist. */
-.scope-v2 .create-claim-section > .dossier-treatment-block.dossier-treatment-block-first-reveal {
-  animation-delay: 0.3s;
-}
+/* No override here on purpose: the treatment block used to remount
+   wholesale (via a React `key`) on every answer change, so it needed to
+   skip the positional delay above (0.1s increments, up to 0.5s) and start
+   immediately instead of reading as a stuck/laggy click. It no longer
+   remounts that way (only each question's own answer keys its own
+   Fragment further down, individually) — only mounting fresh here on the
+   slider's first open, or right after a "Confirmer et créer la
+   réclamation" loading beat closes, both of which now correctly join the
+   cascade above like any other child instead of popping in on its own. */
 
 /* "Une réclamation a déjà été ouverte..." / "Mention clôturée" — these two
    terminal notices read better with more air above them than the section's
@@ -2492,12 +2495,25 @@
 
 /* "Réclamations clients  22" — the count sits in its own light pill next to
    the label instead of being folded into the text, 8px apart and both
-   centered as a group within the segment. */
+   centered as a group within the segment. The chip's own 8px of internal
+   padding (.dossier-tabs-segment-count) already reads as part of the gap
+   to the segment's right edge, so the segment's own right padding is
+   trimmed by that much (14px -> 6px) to keep the two sides visually even —
+   otherwise the chip's text sits noticeably closer to the left edge than
+   to the right. */
 .scope-v2 .dossier-tabs-segment-with-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+/* Specificity note: .dossier-tabs-segmented-small .dossier-tabs-segment
+   (below) already sets this button's padding on all sides, so overriding
+   just padding-right needs to match that descendant selector's specificity
+   — a bare .dossier-tabs-segment-with-count rule would lose to it. */
+.scope-v2 .dossier-tabs-segmented-small .dossier-tabs-segment-with-count {
+  padding-right: 6px;
 }
 
 .scope-v2 .dossier-tabs-segment-count {

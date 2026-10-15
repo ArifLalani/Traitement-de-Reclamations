@@ -42,6 +42,17 @@ export default function ComplaintCard({
   } = complaint;
   const contactTag = getContactTag(reclamant.rattacheContrat);
   const { conformite, echeanceLabel, echeanceWarning } = getEcheanceInfo(complaint);
+  // "À traiter" only really means something once the author is identified
+  // and the AR/RD process actually applies — while contactTag is still
+  // unknown (canal plateforme, "Non identifiés"), the dossier is really
+  // just waiting on a reply, not "being processed". avancement itself stays
+  // 'a-traiter' (so the progression filter etc. keep working normally);
+  // only this card's own label reads "En attente" instead.
+  const isAwaitingIdentification = contactTag === null && avancement === 'a-traiter';
+  const progressionLabel = isAwaitingIdentification ? 'En attente' : AVANCEMENT_LABEL[avancement];
+  const progressionClassName = isAwaitingIdentification
+    ? 'chip-en-attente'
+    : `complaints-chip-avancement-${avancement}`;
   // The réclamant's real identity (set on the dossier's own Informations tab)
   // is what the card should show — not the mention's author handle, which
   // can be a pseudo rather than a name.
@@ -128,7 +139,7 @@ export default function ComplaintCard({
                     {echeanceLabel}
                   </span>
                 )}
-                {contactTag !== 'Prospect' && (
+                {contactTag === 'Client' && (
                   <HoverTooltip text="Statut de conformité" align="right">
                     <span className={`chip complaints-chip-conformite-${conformite}`}>
                       {CONFORMITE_LABEL[conformite]}
@@ -136,9 +147,7 @@ export default function ComplaintCard({
                   </HoverTooltip>
                 )}
                 <HoverTooltip text="Statut de progression" align="right">
-                  <span className={`chip complaints-chip-avancement-${avancement}`}>
-                    {AVANCEMENT_LABEL[avancement]}
-                  </span>
+                  <span className={`chip ${progressionClassName}`}>{progressionLabel}</span>
                 </HoverTooltip>
               </div>
             </div>

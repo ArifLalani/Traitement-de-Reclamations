@@ -40,15 +40,19 @@ import {
   STATUT_CLIENT_LABEL,
   type Complaint,
   type HistoriqueEntry,
+  type MentionCanal,
 } from './complaintsData';
 import { exportComplaintsToCsv, filterComplaintsByRange } from './exportComplaints';
 import type { Source } from './SourceIcon';
 import './ReclamationsPage.css';
 
-// The réclamations page's own primary view switch — always one segment or
-// the other (unlike a filter, there's no "tous"), so it lives next to the
-// count chip instead of in the filters panel.
-type ComplaintsContactSegment = 'client' | 'prospect';
+// The réclamations page's own primary view switch — always exactly one
+// segment active (unlike a filter, there's no "tous"), so it lives next to
+// the count chip instead of in the filters panel. "auteur-a-determiner"
+// isn't a réclamation yet — it's mentions still waiting on their author to
+// be identified/contacted (state 'en-attente'), surfaced here since that's
+// where they're headed once resolved.
+type ComplaintsContactSegment = 'client' | 'prospect' | 'auteur-a-determiner';
 
 function FunnelIcon() {
   return (
@@ -115,35 +119,66 @@ function ListIcon() {
 
 // Same sliding-pill segmented control pattern as CreateReclamationSlider's
 // MentionTabsControl — the réclamations page's primary switch between the
-// client and prospect segments, each option showing its own count.
+// client, prospect and "non identifiés" segments, each showing its own
+// count. Unlike that simpler control, these three labels vary a lot in
+// length ("Réclamations clients" vs "Non identifiés"), and this control
+// fits its segments to their own content rather than stretching evenly —
+// so the indicator can't rely on dividing the track into N equal slices
+// (that's what MentionTabsControl's CSS-only version does); it measures
+// the active segment's actual rendered position/width instead.
 function ComplaintsContactSegmentedControl({
   value,
   onChange,
   clientCount,
   prospectCount,
+  auteurADeterminerCount,
 }: {
   value: ComplaintsContactSegment;
   onChange: (segment: ComplaintsContactSegment) => void;
   clientCount: number;
   prospectCount: number;
+  auteurADeterminerCount: number;
 }) {
+  // Non identifiés first (needs attention before anything else), then
+  // clients (bound by ACPR deadlines) before prospects (no regulatory
+  // deadline, so the least urgent of the three).
   const segments: { id: ComplaintsContactSegment; text: string; count: number }[] = [
+    { id: 'auteur-a-determiner', text: 'Auteurs à identifier', count: auteurADeterminerCount },
     { id: 'client', text: 'Réclamations clients', count: clientCount },
     { id: 'prospect', text: 'Réclamations prospect', count: prospectCount },
   ];
-  const index = Math.max(0, segments.findIndex((segment) => segment.id === value));
-  const style = { '--segment-count': segments.length } as CSSProperties;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const segmentRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [indicatorStyle, setIndicatorStyle] = useState<CSSProperties>({ opacity: 0 });
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const activeButton = segmentRefs.current.get(value);
+    if (!container || !activeButton) return;
+    // offsetLeft already measures from the container's own padding edge
+    // (4px, same as the indicator's CSS `left: 4px`) — translateX-ing by
+    // that same amount on top of the CSS left would double the offset, so
+    // this overrides left to 0 and lets the transform be the only thing
+    // positioning it horizontally.
+    setIndicatorStyle({
+      left: 0,
+      transform: `translateX(${activeButton.offsetLeft}px)`,
+      width: `${activeButton.offsetWidth}px`,
+      opacity: 1,
+    });
+  }, [value, clientCount, prospectCount, auteurADeterminerCount]);
 
   return (
-    <div className="dossier-tabs-segmented dossier-tabs-segmented-small" style={style}>
-      <div
-        className="dossier-tabs-segment-indicator"
-        style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
-      />
+    <div className="dossier-tabs-segmented dossier-tabs-segmented-small" ref={containerRef}>
+      <div className="dossier-tabs-segment-indicator" style={indicatorStyle} />
       {segments.map((segment) => (
         <button
           key={segment.id}
           type="button"
+          ref={(el) => {
+            if (el) segmentRefs.current.set(segment.id, el);
+            else segmentRefs.current.delete(segment.id);
+          }}
           className={`dossier-tabs-segment dossier-tabs-segment-with-count ${value === segment.id ? 'dossier-tabs-segment-active' : ''}`}
           onClick={() => onChange(segment.id)}
         >
@@ -233,9 +268,11 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [createdIds, setCreatedIds] = useState<Set<string>>(new Set());
   const [stateOverrides, setStateOverrides] = useState<Record<string, ReclamationState>>({});
-  // Date a demande de contact was sent for a mention now "en attente" —
-  // keyed alongside stateOverrides so reopening the slider can pre-fill it.
-  const [demandeContactDates, setDemandeContactDates] = useState<Record<string, string>>({});
+  // Date a demande de contact was sent for a mention now "en attente" — no
+  // longer reachable (see handleConfirmContactAttempt), kept only so a
+  // mention's own demandeContactDate fallback below still compiles against
+  // the same shape.
+  const [demandeContactDates] = useState<Record<string, string>>({});
   // Reclamant fields saved via the mention slider's "Enregistrer" action
   // (without creating a réclamation) — keyed by mention id so reopening the
   // slider picks up right where the user left off. A few curated mentions
@@ -291,6 +328,10 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     onUndo?: () => void;
   } | null>(null);
   const [createTarget, setCreateTarget] = useState<Reclamation | null>(null);
+  // True when createTarget was opened from the réclamations page's "Non
+  // identifiés" segment (an existing réclamation) rather than from the
+  // mentions list — see CreateReclamationSlider's isReclamationView.
+  const [createTargetIsReclamationView, setCreateTargetIsReclamationView] = useState(false);
   const [complaintsList, setComplaintsList] = useState<Complaint[]>(() => [
     ...initialComplaints,
     ...initialClosedComplaints,
@@ -319,6 +360,10 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   // treatment) and would otherwise tear down the toast's timers early.
   const [toastTrigger, setToastTrigger] = useState(0);
   const [showCreatedToast, setShowCreatedToast] = useState(false);
+  // The just-created/updated réclamation's own ticket, shown in the success
+  // toast ("Réclamation #0027 créée avec succès !") — null falls back to a
+  // generic message.
+  const [createdToastTicket, setCreatedToastTicket] = useState<string | null>(null);
   const [complaintsMoreMenuOpen, setComplaintsMoreMenuOpen] = useState(false);
   const [complaintsSelectionMode, setComplaintsSelectionMode] = useState(false);
   const [complaintsSelectionModeClosing, setComplaintsSelectionModeClosing] = useState(false);
@@ -580,7 +625,37 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
 
   const handleRequestCreate = (r: (typeof reclamations)[number]) => {
     setCreateTarget(r);
+    setCreateTargetIsReclamationView(false);
     if (isEffectivelyNew(r)) markIdsAsRead([r.id]);
+  };
+
+  // Opening a réclamation from "Non identifiés" reuses the mention slider
+  // (same component as handleRequestCreate), but in its continuation view —
+  // the underlying mention is what the slider actually needs (reclamation
+  // prop), found via sourceReclamationId.
+  // Opens the mention slider's continuation view for a réclamation whose
+  // author isn't identified yet (instead of ComplaintDetailDrawer, which
+  // assumes a known contact type) — instant, same as clicking any other
+  // complaint card straight from the list (setSelectedComplaint), since
+  // we're already on the réclamations page: no tab switch, no entrance
+  // animation to wait out.
+  const openUnidentifiedComplaintSlider = (complaint: Complaint) => {
+    const mention = effectiveReclamations.find((r) => r.id === complaint.sourceReclamationId);
+    if (!mention) return;
+    setCreateTarget(mention);
+    setCreateTargetIsReclamationView(true);
+  };
+
+  // Same thing, but reached from "Voir la réclamation" inside an
+  // already-open mention slider — that *does* need the close + navigate +
+  // delay dance (same rhythm as openComplaintDetail), since it's coming
+  // from the mentions tab and the réclamations list itself still has to
+  // mount and play its own card entrance animation first.
+  const handleOpenUnidentifiedComplaint = (complaint: Complaint) => {
+    setCreateTarget(null);
+    handleSelectTab('reclamations');
+    setComplaintsContactSegment('auteur-a-determiner');
+    setTimeout(() => openUnidentifiedComplaintSlider(complaint), 650);
   };
 
   const markIdsAsRead = (ids: string[]) => {
@@ -724,29 +799,41 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     if (hasSelection) handleCancelComplaintsSelection();
   };
 
-  const handleConfirmCreate = (formData: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => {
-    if (!createTarget) return;
-    const id = createTarget.id;
-    prevTops.current = measureTops();
-    setCreatedIds((prev) => new Set(prev).add(id));
-    setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
-
+  // Shared by handleConfirmCreate and handleConfirmContactAttempt — builds
+  // (or, if this mention already has a réclamation from an earlier
+  // confirmation — see Q0's "Confirmer et créer une réclamation" — rebuilds
+  // in place) the réclamation from the mention slider's current state. The
+  // historique passed in is the slider's own full, freshly-recomputed trail
+  // (not just what's new since last time), so overwriting the existing
+  // complaint's historique with it never duplicates past entries.
+  const buildComplaintFromMention = (
+    mentionId: string,
+    mentionUrl: string,
+    formData: ReclamationFormData,
+    mentionHistorique: HistoriqueEntry[],
+    sourceCanal?: MentionCanal,
+    closeReason?: { title: string; description: string; date: string },
+  ): Complaint => {
+    const existing = complaintsList.find((c) => c.sourceReclamationId === mentionId);
     // Its own réclamation ticket, not the mention's — the mention's numéro
     // de référence is drawn from a much larger pool (every mention, not
     // just the ones turned into réclamations), so reusing it here could
-    // show a number well past the actual réclamation count.
-    const nextTicketNumber =
-      Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1;
+    // show a number well past the actual réclamation count. Once assigned
+    // (first confirmation), it stays fixed across later ones for the same
+    // mention rather than drifting up each time.
+    const ticket =
+      existing?.ticket ??
+      `#${String(Math.max(0, ...complaintsList.map((c) => Number(c.ticket.replace('#', '')) || 0)) + 1).padStart(4, '0')}`;
     const requerant = `${formData.prenom} ${formData.nom}`.trim() || 'Réclamant inconnu';
     const newComplaint: Complaint = attachDetails({
-      id: `created-${id}`,
-      sourceReclamationId: id,
-      ticket: `#${String(nextTicketNumber).padStart(4, '0')}`,
+      id: existing?.id ?? `created-${mentionId}`,
+      sourceReclamationId: mentionId,
+      ticket,
       requerant,
       dateReception: formData.dateReception,
-      avancement: 'a-traiter',
+      avancement: closeReason ? 'cloture' : existing?.avancement ?? 'a-traiter',
       canal: formData.canal as Source,
-      sourceUrl: createTarget.url.replace(/\.{3}$/, ''),
+      sourceUrl: mentionUrl.replace(/\.{3}$/, ''),
       denominateurSocial: formData.denominationSociale,
       assureur: '',
       email: formData.email,
@@ -758,6 +845,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     newComplaint.reclamant.statutClient = formData.statutClient;
     newComplaint.classification.porteurDuRisque = formData.porteurDuRisque;
     newComplaint.notesInternes = formData.notesInternes;
+    newComplaint.sourceCanal = sourceCanal ?? existing?.sourceCanal;
 
     // Création d'une réclamation is really two steps, not one: the
     // réclamant's info gets saved first, then the réclamation itself is
@@ -792,14 +880,44 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       changes: contactChanges,
     };
     const creationEntry: HistoriqueEntry = {
-      title: `Création de la réclamation ${contactTag === 'Prospect' ? 'prospect' : 'client'}`,
+      title: `Création de la réclamation${contactTag === 'Prospect' ? ' prospect' : contactTag === 'Client' ? ' client' : ''}`,
       description: baseCreationEntry.description,
       date: baseCreationEntry.date,
       author: baseCreationEntry.author,
     };
-    newComplaint.historique = [...mentionHistorique, saveInfoEntry, creationEntry];
+    newComplaint.historique = closeReason
+      ? [
+          ...mentionHistorique,
+          saveInfoEntry,
+          creationEntry,
+          { title: closeReason.title, description: closeReason.description, date: closeReason.date, author: 'Joe Bleau' },
+        ]
+      : [...mentionHistorique, saveInfoEntry, creationEntry];
+    return newComplaint;
+  };
 
-    setComplaintsList((prev) => [newComplaint, ...prev]);
+  // Inserts a freshly-built complaint, or replaces the existing one for the
+  // same mention in place (same position, no duplicate card) when one
+  // already exists.
+  const upsertComplaint = (newComplaint: Complaint) => {
+    setComplaintsList((prev) => {
+      const index = prev.findIndex((c) => c.sourceReclamationId === newComplaint.sourceReclamationId);
+      if (index === -1) return [newComplaint, ...prev];
+      const next = [...prev];
+      next[index] = newComplaint;
+      return next;
+    });
+  };
+
+  const handleConfirmCreate = (formData: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => {
+    if (!createTarget) return;
+    const id = createTarget.id;
+    prevTops.current = measureTops();
+    setCreatedIds((prev) => new Set(prev).add(id));
+    setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
+
+    const newComplaint = buildComplaintFromMention(id, createTarget.url, formData, mentionHistorique);
+    upsertComplaint(newComplaint);
 
     // Rather than closing the create slider and reopening a separate detail
     // drawer, swap what's shown inside the same panel — the réclamation was
@@ -808,6 +926,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     justCreatedIdRef.current = newComplaint.id;
     setCreateTarget(null);
     setCreatingComplaint(newComplaint);
+    setCreatedToastTicket(newComplaint.ticket);
     setToastTrigger((t) => t + 1);
   };
 
@@ -818,6 +937,13 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
 
   const openComplaintDetail = (complaint: Complaint) => {
     handleSelectTab('reclamations');
+    // Switch the segmented control to whichever segment this complaint
+    // actually belongs to — otherwise the list behind the drawer stays on
+    // whatever was last selected (e.g. "Réclamations clients"), which reads
+    // as if the complaint just opened were misclassified even when it isn't
+    // (its own title/segment membership is correct either way).
+    const tag = getContactTag(complaint.reclamant.rattacheContrat);
+    setComplaintsContactSegment(tag === 'Prospect' ? 'prospect' : tag === 'Client' ? 'client' : 'auteur-a-determiner');
     // Let the réclamations list finish mounting and playing its card entrance
     // animation (0.6s, see .card-list > * in ReclamationsPage.css) before the
     // detail drawer slides in, so the two animations don't overlap.
@@ -825,18 +951,46 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   };
 
   const handleViewComplaintFromMention = (reclamationId: string) => {
-    setCreateTarget(null);
     const complaint = complaintsList.find((c) => c.sourceReclamationId === reclamationId);
-    if (complaint) openComplaintDetail(complaint);
+    if (!complaint) {
+      setCreateTarget(null);
+      return;
+    }
+    if (getContactTag(complaint.reclamant.rattacheContrat) === null) {
+      // Still unidentified — stay in the mention slider, just switch it
+      // into the réclamation's own continuation view (same as opening it
+      // from "Non identifiés"), instead of ComplaintDetailDrawer's AR/RD
+      // flow, which assumes a known contact type.
+      handleOpenUnidentifiedComplaint(complaint);
+      return;
+    }
+    setCreateTarget(null);
+    openComplaintDetail(complaint);
   };
 
-  // The mention isn't turned into a réclamation yet here — its author hasn't
-  // given their contact details, so there's nothing to open a dossier with.
-  // It's just flagged "en attente" until they reply.
-  const handleConfirmEnAttente = (id: string, demandeContactDate: string) => {
+  // Confirms either Q0's "Considérez-vous cette mention comme étant une
+  // réclamation ?" or, further down, the plateforme/administrateur canal's
+  // own message/courrier — both create (or, if the dossier already exists
+  // from an earlier confirmation in this same slider session, update) the
+  // réclamation right away, but don't navigate anywhere: the mention slider
+  // stays open, showing its own terminal notice or continuing to Q1,
+  // depending on which confirmation this was.
+  const handleConfirmContactAttempt = (
+    formData: ReclamationFormData,
+    mentionHistorique: HistoriqueEntry[],
+    sourceCanal: MentionCanal,
+    closeReason?: { title: string; description: string; date: string },
+  ) => {
+    if (!createTarget) return;
+    const id = createTarget.id;
     prevTops.current = measureTops();
-    setStateOverrides((prev) => ({ ...prev, [id]: 'en-attente' }));
-    setDemandeContactDates((prev) => ({ ...prev, [id]: demandeContactDate }));
+    setCreatedIds((prev) => new Set(prev).add(id));
+    setStateOverrides((prev) => ({ ...prev, [id]: 'mes-reclamations' }));
+
+    const newComplaint = buildComplaintFromMention(id, createTarget.url, formData, mentionHistorique, sourceCanal, closeReason);
+    upsertComplaint(newComplaint);
+    setCreatedToastTicket(newComplaint.ticket);
+    setToastTrigger((t) => t + 1);
   };
 
   // The mention can't be answered directly on the source platform — a
@@ -1021,11 +1175,20 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     (c) => getContactTag(c.reclamant.rattacheContrat) === 'Prospect',
   ).length;
 
+  // A réclamation created straight from the "plateforme"/"administrateur"
+  // canal (author not yet identified) starts out with no rattacheContrat
+  // answer at all — getContactTag reads that as neither Client nor
+  // Prospect, which is exactly the "Auteur à déterminer" segment below.
+  const auteurADeterminerComplaintsCount = complaintsBeforeContactSegment.filter(
+    (c) => getContactTag(c.reclamant.rattacheContrat) === null,
+  ).length;
+
   const filteredComplaints = complaintsBeforeContactSegment
-    .filter(
-      (c) =>
-        getContactTag(c.reclamant.rattacheContrat) === (complaintsContactSegment === 'prospect' ? 'Prospect' : 'Client'),
-    )
+    .filter((c) => {
+      const tag = getContactTag(c.reclamant.rattacheContrat);
+      if (complaintsContactSegment === 'auteur-a-determiner') return tag === null;
+      return tag === (complaintsContactSegment === 'prospect' ? 'Prospect' : 'Client');
+    })
     .sort((a, b) =>
       complaintsSortOrder === 'urgence'
         ? (getEcheanceInfo(a).echeanceDays ?? Infinity) - (getEcheanceInfo(b).echeanceDays ?? Infinity)
@@ -1374,32 +1537,37 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                         onChange={selectComplaintsContactSegment}
                         clientCount={clientComplaintsCount}
                         prospectCount={prospectComplaintsCount}
+                        auteurADeterminerCount={auteurADeterminerComplaintsCount}
                       />
                     </div>
-                    <div className="export-menu-wrap" ref={exportMenuRef}>
-                      <button
-                        type="button"
-                        className="btn-filled export-button"
-                        onClick={() => setExportMenuOpen((v) => !v)}
-                      >
-                        Exporter
-                        <svg
-                          viewBox="0 0 9 5.5575"
-                          width={12}
-                          height={7.4}
-                          fill="currentColor"
-                          className={`btn-link-icon ${exportMenuOpen ? 'btn-link-icon-flipped' : ''}`}
+                    {/* Nothing to export yet — the author isn't identified, so
+                        there's no réclamant/contact info to put in a file. */}
+                    {complaintsContactSegment !== 'auteur-a-determiner' && (
+                      <div className="export-menu-wrap" ref={exportMenuRef}>
+                        <button
+                          type="button"
+                          className="btn-filled export-button"
+                          onClick={() => setExportMenuOpen((v) => !v)}
                         >
-                          <path d="M7.9425 0L4.5 3.435L1.0575 0L0 1.0575L4.5 5.5575L9 1.0575L7.9425 0Z" />
-                        </svg>
-                      </button>
-                      <ExportMenu
-                        open={exportMenuOpen}
-                        preferences={exportPreferences}
-                        onChange={setExportPreferences}
-                        onExport={handleExportWithPreferences}
-                      />
-                    </div>
+                          Exporter
+                          <svg
+                            viewBox="0 0 9 5.5575"
+                            width={12}
+                            height={7.4}
+                            fill="currentColor"
+                            className={`btn-link-icon ${exportMenuOpen ? 'btn-link-icon-flipped' : ''}`}
+                          >
+                            <path d="M7.9425 0L4.5 3.435L1.0575 0L0 1.0575L4.5 5.5575L9 1.0575L7.9425 0Z" />
+                          </svg>
+                        </button>
+                        <ExportMenu
+                          open={exportMenuOpen}
+                          preferences={exportPreferences}
+                          onChange={setExportPreferences}
+                          onExport={handleExportWithPreferences}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1414,7 +1582,11 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                     >
                       <ComplaintCard
                         complaint={complaint}
-                        onOpen={() => setSelectedComplaint(complaint)}
+                        onOpen={() =>
+                          complaintsContactSegment === 'auteur-a-determiner'
+                            ? openUnidentifiedComplaintSlider(complaint)
+                            : setSelectedComplaint(complaint)
+                        }
                         selectionMode={complaintsSelectionMode}
                         selected={selectedComplaintIds.has(complaint.id)}
                         onToggleSelect={() => toggleSelectComplaintId(complaint.id)}
@@ -1424,7 +1596,11 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                 </div>
 
                 {filteredComplaints.length === 0 && (
-                  <div className="panel-empty">Aucune réclamation ne correspond à ces filtres.</div>
+                  <div className="panel-empty">
+                    {complaintsContactSegment === 'auteur-a-determiner'
+                      ? "Aucune réclamation en attente d'identification de l'auteur."
+                      : 'Aucune réclamation ne correspond à ces filtres.'}
+                  </div>
                 )}
 
                 {hasMoreComplaints && (
@@ -1499,11 +1675,14 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           onClose={() => setCreateTarget(null)}
           onSubmit={handleConfirmCreate}
           onViewComplaint={() => handleViewComplaintFromMention(createTarget.id)}
-          onConfirmEnAttente={(date) => handleConfirmEnAttente(createTarget.id, date)}
+          onConfirmContactAttempt={handleConfirmContactAttempt}
           onClotureMention={() => handleClotureMention(createTarget.id)}
+          isReclamationView={createTargetIsReclamationView}
+          savedCanalAnswer={complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.sourceCanal}
           linkedComplaintHistorique={
             complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.historique
           }
+          linkedComplaintTicket={complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.ticket}
           savedReclamantDraft={reclamantDrafts[createTarget.id]}
           onSaveReclamantDraft={(draft) => handleSaveReclamantDraft(createTarget.id, draft)}
           savedDraftHistorique={mentionDraftHistorique[createTarget.id]}
@@ -1539,7 +1718,9 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       {showCreatedToast && (createTarget || creatingComplaint || selectedComplaint) && (
         <div className="created-toast-overlay">
           <div className="created-toast-band">
-            <div className="dossier-created-toast">Réclamation créée avec succès</div>
+            <div className="dossier-created-toast">
+              {createdToastTicket ? `Réclamation ${createdToastTicket} créée avec succès !` : 'Réclamation créée avec succès'}
+            </div>
           </div>
         </div>
       )}

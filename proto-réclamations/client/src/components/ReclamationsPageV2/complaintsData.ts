@@ -65,9 +65,18 @@ export type HistoriqueEntry = {
   changes?: { label: string; value: string }[];
 };
 
+// Which of the three "Quelle option correspond à votre situation ?" canaux
+// led to this réclamation — only ever set while its author is still
+// unidentified (see CreateReclamationSlider's getCanalBranch); lets
+// reopening it from "Non identifiés" resume the right continuation
+// (en attente for plateforme, clôturée for administrateur/rien) instead of
+// starting the guiding questions over from scratch.
+export type MentionCanal = 'plateforme' | 'administrateur' | 'rien';
+
 export type Complaint = {
   id: string;
   sourceReclamationId?: string;
+  sourceCanal?: MentionCanal;
   ticket: string;
   requerant: string;
   dateReception: string;

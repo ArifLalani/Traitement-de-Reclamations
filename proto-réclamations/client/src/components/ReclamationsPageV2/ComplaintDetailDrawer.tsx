@@ -946,11 +946,40 @@ export default function ComplaintDetailDrawer({
       changed.push({ label: 'Dénomination sociale', value: denominateurSocialDraft || '-' });
     if (porteurDuRisqueDraft !== complaint.classification.porteurDuRisque)
       changed.push({ label: 'Assureur / Porteur du risque', value: porteurDuRisqueDraft || '-' });
+    // A réclamation clôturée faute d'avoir identifié l'auteur (canal
+    // administrateur/rien) reprend son traitement dès que cette
+    // identification vient d'être faite — this is the only save that can
+    // happen on a clôturée dossier (see reclamantFieldsLocked), so reaching
+    // here with a newly-set rattacheContrat always means exactly that.
+    const reopening =
+      complaint.avancement === 'cloture' &&
+      complaint.reclamant.rattacheContrat === '' &&
+      reclamantDraft.rattacheContrat !== '';
+    const newEntries: HistoriqueEntry[] = [
+      ...(changed.length > 0
+        ? [
+            buildHistoryEntry(
+              'Modification des informations du réclamant',
+              `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
+              changed,
+            ),
+          ]
+        : []),
+      ...(reopening
+        ? [
+            buildHistoryEntry(
+              'Réclamation rouverte',
+              "L'auteur du commentaire a été identifié : la réclamation reprend son traitement.",
+            ),
+          ]
+        : []),
+    ];
     onUpdate?.(complaint.id, {
       reclamant: reclamantDraft,
       denominateurSocial: denominateurSocialDraft,
       classification: { ...complaint.classification, porteurDuRisque: porteurDuRisqueDraft },
-      ...withHistory('Modification des informations du réclamant', changed),
+      ...(reopening ? { avancement: 'a-traiter' as const } : {}),
+      ...(newEntries.length > 0 ? { historique: [...complaint.historique, ...newEntries] } : {}),
     });
   };
   // Highlights the specific missing fields in "Informations du réclamant"
@@ -1148,6 +1177,14 @@ export default function ComplaintDetailDrawer({
   // Prospects aren't bound by the ACPR deadlines that "conformité" tracks —
   // only clients are, so the field doesn't apply to them.
   const contactTag = getContactTag(complaint.reclamant.rattacheContrat);
+  // A réclamation clôturée faute d'avoir identifié l'auteur (canal
+  // administrateur/rien) is explicitly reopenable once that identity is
+  // found — so unlike the rest of the Informations tab, "Informations du
+  // réclamant" stays editable while contactTag is still unknown, even on a
+  // clôturée dossier. Once it has a contact type, it's a normally-treated
+  // (or normally-closed) dossier again, and this section locks like the
+  // rest of the tab.
+  const reclamantFieldsLocked = isClosed && contactTag !== null;
   const { conformite } = getEcheanceInfo(complaint);
   // Analyse de la cause is an optional follow-up step that only happens
   // once the dossier is already clôturé — its fields are all optional, so
@@ -1541,7 +1578,12 @@ export default function ComplaintDetailDrawer({
       >
         <div className={`dossier-header ${headerStuck ? 'dossier-header-stuck' : ''}`}>
           <span className="dossier-title">
-            {contactTag === 'Prospect' ? 'Réclamation Prospect' : 'Réclamation client'} {complaint.ticket}
+            {contactTag === 'Prospect'
+              ? 'Réclamation Prospect'
+              : contactTag === 'Client'
+                ? 'Réclamation client'
+                : 'Réclamation — auteur à déterminer'}{' '}
+            {complaint.ticket}
           </span>
           <div className="dossier-header-spacer" />
           <button type="button" className="btn-filled dossier-export-btn" onClick={handleExportComplaint}>
@@ -1612,7 +1654,7 @@ export default function ComplaintDetailDrawer({
                   <span className={statusChipClassName}>{statusChipLabel}</span>
                 </HoverTooltip>
               </div>
-              {contactTag !== 'Prospect' && (
+              {contactTag === 'Client' && (
                 <div className="dossier-field">
                   <span className="dossier-field-label">Statut de conformité</span>
                   <HoverTooltip
@@ -1705,7 +1747,7 @@ export default function ComplaintDetailDrawer({
                 value={reclamantDraft.nom}
                 error={nomMissing}
                 errorText={nomMissing ? 'Champ requis' : undefined}
-                readOnly={isClosed}
+                readOnly={reclamantFieldsLocked}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
               />
               <SectionTextField
@@ -1715,7 +1757,7 @@ export default function ComplaintDetailDrawer({
                 value={reclamantDraft.prenom}
                 error={prenomMissing}
                 errorText={prenomMissing ? 'Champ requis' : undefined}
-                readOnly={isClosed}
+                readOnly={reclamantFieldsLocked}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, prenom: v }))}
               />
             </div>
@@ -1727,7 +1769,7 @@ export default function ComplaintDetailDrawer({
                 value={reclamantDraft.email}
                 error={contactMissing}
                 errorText={contactMissing ? 'Un email ou un numéro de téléphone est requis' : undefined}
-                readOnly={isClosed}
+                readOnly={reclamantFieldsLocked}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
               />
               <SectionTextField
@@ -1737,7 +1779,7 @@ export default function ComplaintDetailDrawer({
                 value={reclamantDraft.telephone}
                 error={contactMissing}
                 errorText={contactMissing ? 'Un email ou un numéro de téléphone est requis' : undefined}
-                readOnly={isClosed}
+                readOnly={reclamantFieldsLocked}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
               />
             </div>
@@ -1745,14 +1787,14 @@ export default function ComplaintDetailDrawer({
               <SectionTextField
                 label="Dénomination sociale"
                 value={denominateurSocialDraft}
-                readOnly={isClosed}
+                readOnly={reclamantFieldsLocked}
                 onChange={setDenominateurSocialDraft}
               />
               <SectionTextField
                 label="Assureur / Porteur du risque"
                 placeholder="Entrez le nom du porteur du risque"
                 value={porteurDuRisqueDraft}
-                readOnly={isClosed}
+                readOnly={reclamantFieldsLocked}
                 onChange={setPorteurDuRisqueDraft}
               />
             </div>
@@ -1762,7 +1804,7 @@ export default function ComplaintDetailDrawer({
               </span>
               <ChoiceToggle
                 value={reclamantDraft.rattacheContrat || null}
-                disabled={isClosed}
+                disabled={reclamantFieldsLocked}
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, rattacheContrat: v }))}
               />
             </div>
@@ -1772,7 +1814,7 @@ export default function ComplaintDetailDrawer({
                   label="Statut du client"
                   required
                   value={reclamantDraft.statutClient}
-                  disabled={isClosed}
+                  disabled={reclamantFieldsLocked}
                   options={(Object.keys(STATUT_CLIENT_LABEL) as StatutClient[]).map((id) => ({
                     id,
                     label: STATUT_CLIENT_LABEL[id],
