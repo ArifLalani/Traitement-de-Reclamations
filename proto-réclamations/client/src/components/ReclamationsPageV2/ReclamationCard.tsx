@@ -29,6 +29,10 @@ type ReclamationCardProps = {
   selected?: boolean;
   onToggleSelect?: () => void;
   onCreate: () => void;
+  // Only called (and the button only shown) once a réclamation already
+  // exists for this mention (state 'mes-reclamations') — jumps straight to
+  // it instead of reopening the mention slider.
+  onViewComplaint?: () => void;
   // Whether the author turned out to be a prospect ("non" to "rattaché à un
   // contrat") or a client (rattaché + statut précisé) — unknown until that
   // question's been answered, hence optional.
@@ -42,6 +46,7 @@ export default function ReclamationCard({
   selected = false,
   onToggleSelect,
   onCreate,
+  onViewComplaint,
   contactTag,
 }: ReclamationCardProps) {
   const { ticket, state, source, date, url, author, text } = reclamation;
@@ -115,6 +120,18 @@ export default function ReclamationCard({
             >
               Voir les détails
             </button>
+            {state === 'mes-reclamations' && onViewComplaint && (
+              <button
+                type="button"
+                className="btn-filled"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewComplaint();
+                }}
+              >
+                Voir la réclamation
+              </button>
+            )}
           </div>
         </div>
       </div>

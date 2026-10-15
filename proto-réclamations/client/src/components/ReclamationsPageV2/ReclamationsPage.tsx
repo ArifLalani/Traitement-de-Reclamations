@@ -1474,6 +1474,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                         selected={selectedIds.has(reclamation.id)}
                         onToggleSelect={() => toggleSelectId(reclamation.id)}
                         onCreate={() => handleRequestCreate(reclamation)}
+                        onViewComplaint={() => handleViewComplaintFromMention(reclamation.id)}
                         contactTag={getMentionContactTag(reclamation)}
                       />
                     </div>

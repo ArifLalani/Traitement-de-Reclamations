@@ -383,6 +383,14 @@ export type ComplaintCore = Omit<
   // actual conformité is computed (getEcheanceInfo) from that date, not set
   // directly, so this only needs to pick which offset produces a late one.
   lateAR?: boolean;
+  // Mocks a réclamation whose author was never identified (canal
+  // plateforme/administrateur/rien, same as the live "Non identifiés"
+  // flow) instead of a normally-treated one — attachDetails takes a
+  // dedicated, much simpler path for these (see forceUnidentified below),
+  // skipping réclamant identity, AR/RD and the normal creation historique.
+  // sourceCanal (inherited from Complaint) says which of the three it was;
+  // defaults to 'plateforme' (still open) if left unset.
+  forceUnidentified?: boolean;
 };
 
 const NOTES_TEMPLATES = [
@@ -400,6 +408,85 @@ const EDIT_ENTRIES: { title: string; description: string }[] = [
 ];
 
 export function attachDetails(c: ComplaintCore, index = 0): Complaint {
+  if (c.forceUnidentified) {
+    const dateReception = padFrDate(c.dateReception);
+    const sourceCanal = c.sourceCanal ?? 'plateforme';
+    const isClosed = sourceCanal !== 'plateforme';
+    const canalEntry: HistoriqueEntry =
+      sourceCanal === 'administrateur'
+        ? {
+            title: "Courrier envoyé à l'hébergeur du site",
+            description: "Courrier envoyé à l'hébergeur du site afin d'obtenir les informations de l'auteur du commentaire.",
+            date: dateReception,
+            author: 'Joe Bleau',
+          }
+        : sourceCanal === 'rien'
+          ? {
+              title: 'Qualité Assurance notifiée',
+              description:
+                "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
+              date: dateReception,
+              author: 'Joe Bleau',
+            }
+          : {
+              title: "Message envoyé à l'auteur du commentaire",
+              description: "Message de demande de coordonnées envoyé à l'auteur du commentaire.",
+              date: dateReception,
+              author: 'Joe Bleau',
+            };
+    const historique: HistoriqueEntry[] = [
+      { title: 'Réception de la mention', description: `Mention reçue via ${c.canal}.`, date: dateReception, author: 'Système' },
+      {
+        title: 'Création de la réclamation',
+        description: `Créée depuis une mention ${c.canal} — « ${c.objet} »`,
+        date: dateReception,
+        author: 'Système',
+      },
+      canalEntry,
+      ...(isClosed
+        ? [
+            {
+              title: sourceCanal === 'administrateur' ? 'Réclamation clôturée' : 'Mention clôturée',
+              description:
+                sourceCanal === 'administrateur'
+                  ? "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées. Si ces coordonnées sont obtenues par la suite, la réclamation peut être rouverte pour reprendre son traitement."
+                  : "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation. Si ces coordonnées sont obtenues par la suite, la mention peut être rouverte pour reprendre son traitement.",
+              date: dateReception,
+              author: 'Joe Bleau',
+            },
+          ]
+        : []),
+    ];
+    return {
+      ...c,
+      dateReception,
+      requerant: 'Réclamant inconnu',
+      email: '',
+      avancement: isClosed ? 'cloture' : 'a-traiter',
+      sourceCanal,
+      reclamant: { prenom: '', nom: '', email: '', telephone: '', adresse: '', rattacheContrat: '', statutClient: '' },
+      classification: { porteurDuRisque: '', typeSinistre: '' },
+      traitement: { statut: AVANCEMENT_LABEL[isClosed ? 'cloture' : 'a-traiter'], interlocuteur: '', priorite: '' },
+      suiviCloture: {
+        dateAR: '',
+        dateReponse: '',
+        reponseMessage: '',
+        demandeContactDate: '',
+        actionImmediate: '',
+        actionCorrective: '',
+        actionRealisee: '',
+        actionsCorrectives: '',
+        exigence: '',
+        defaillance: '',
+        preuve: '',
+        verificationEfficacite: '',
+        analyseTerminee: false,
+      },
+      notesInternes: '',
+      historique,
+    };
+  }
+
   const hasRealName = looksLikeFullName(c.requerant);
   const [splitPrenom, splitNom] = splitName(c.requerant);
   const prenom = hasRealName ? splitPrenom : REALISTIC_PRENOMS[index % REALISTIC_PRENOMS.length];
@@ -850,6 +937,11 @@ const complaintsCore: ComplaintCore[] = reclamations
       objet: suggestObjet(description),
       description,
       forceProspect: index === 1 || index === 4,
+      // A few "Non identifiés" mocks — one per canal, so the segment isn't
+      // empty and shows its three possible situations (still waiting,
+      // closed with a courrier sent, closed with nobody left to contact).
+      forceUnidentified: index === 2 || index === 7 || index === 10,
+      sourceCanal: index === 2 ? 'plateforme' : index === 7 ? 'administrateur' : index === 10 ? 'rien' : undefined,
     };
   });
 
