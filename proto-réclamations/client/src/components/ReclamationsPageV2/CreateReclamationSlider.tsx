@@ -1837,7 +1837,7 @@ export default function CreateReclamationSlider({
               {!isReclamationView && (isMesReclamations || enAttenteConfirmed) && !mentionCloturee && (
                 <div className={treatmentBlockClassName()}>
                   <div className="dossier-alert-neutral">
-                    <span className="dossier-alert-neutral-title">Réclamation déjà existante</span>
+                    <span className="dossier-alert-neutral-title">Réclamation ouverte</span>
                     <p>
                       Une réclamation a été ouverte à partir de cette mention. La suite de son traitement se poursuit
                       dans la page « Mes réclamations ».

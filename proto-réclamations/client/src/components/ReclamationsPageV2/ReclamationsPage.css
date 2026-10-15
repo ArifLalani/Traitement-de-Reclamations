@@ -1353,15 +1353,10 @@
   min-height: 72px;
 }
 
-/* The mention slider (.create-claim-section — card-body is shared with the
-   list cards, so scoping to it alone would also strip their min-height)
-   shows the full, unclamped text for a single mention — not a list of
-   cards needing equal height for a tidy grid, which is what the 72px
-   (3-line) min-height above is for. Left in place here, a short mention
-   would leave dead space below it before whatever comes next (e.g.
-   "Réclamation déjà existante"), uneven with the rest of the section's
-   rhythm. */
-.scope-v2 .create-claim-section .card-text {
+/* Same deal for the mentions list's own cards (.card-mention) — equal card
+   height isn't worth the dead space a short mention leaves below its text
+   before "Voir les détails" / "Voir la réclamation". */
+.scope-v2 .card-mention .card-text {
   min-height: 0;
 }
 
@@ -1427,6 +1422,7 @@
 .scope-v2 .card-actions {
   display: flex;
   align-items: center;
+  gap: 16px;
 }
 
 .scope-v2 .btn-text {
