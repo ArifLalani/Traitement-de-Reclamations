@@ -1708,7 +1708,8 @@
 }
 
 .scope-v2 .btn-filled:disabled {
-  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--color-text-disabled);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -2685,6 +2686,52 @@
 
 .scope-v2 .dossier-toggle-btn-active:hover {
   background: var(--color-primary-blue);
+}
+
+/* Oui/Non — a single segmented group (border + internal divider), matching
+   the design system's <ButtonSelection> component, instead of two separate
+   pill buttons with a gap between them. Overrides dossier-toggle-btn's own
+   base rules above with higher specificity, rather than changing them
+   directly — ChoiceColumn's option cards share that same base class for
+   their own (unrelated) sizing/border. */
+.scope-v2 .dossier-choice-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-primary-blue);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.scope-v2 .dossier-choice-row-error .dossier-choice-segmented {
+  border-color: #e4032e;
+}
+
+.scope-v2 .dossier-choice-segmented .dossier-toggle-btn {
+  height: 32px;
+  width: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
+}
+
+.scope-v2 .dossier-choice-segmented .dossier-toggle-btn-active,
+.scope-v2 .dossier-choice-segmented .dossier-toggle-btn-active:hover {
+  border-color: transparent;
+}
+
+.scope-v2 .dossier-toggle-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-primary-blue);
+}
+
+.scope-v2 .dossier-choice-row-error .dossier-toggle-divider {
+  background: #e4032e;
 }
 
 /* "Quelle option correspond à votre situation ?" — the question's own

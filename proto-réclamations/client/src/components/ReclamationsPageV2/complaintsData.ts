@@ -411,12 +411,14 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   if (c.forceUnidentified) {
     const dateReception = padFrDate(c.dateReception);
     const sourceCanal = c.sourceCanal ?? 'plateforme';
-    const isClosed = sourceCanal !== 'plateforme';
+    // Only "rien" (nobody left to contact at all) closes right away —
+    // plateforme and administrateur both stay open, waiting on a reply.
+    const isClosed = sourceCanal === 'rien';
     const canalEntry: HistoriqueEntry =
       sourceCanal === 'administrateur'
         ? {
-            title: "Courrier envoyé à l'hébergeur du site",
-            description: "Courrier envoyé à l'hébergeur du site afin d'obtenir les informations de l'auteur du commentaire.",
+            title: "Courrier envoyé à l'administrateur de la plateforme",
+            description: "Courrier envoyé à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire.",
             date: dateReception,
             author: 'Joe Bleau',
           }
@@ -446,11 +448,9 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
       ...(isClosed
         ? [
             {
-              title: sourceCanal === 'administrateur' ? 'Réclamation clôturée' : 'Mention clôturée',
+              title: 'Mention clôturée',
               description:
-                sourceCanal === 'administrateur'
-                  ? "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées. Si ces coordonnées sont obtenues par la suite, la réclamation peut être rouverte pour reprendre son traitement."
-                  : "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation. Si ces coordonnées sont obtenues par la suite, la mention peut être rouverte pour reprendre son traitement.",
+                "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
               date: dateReception,
               author: 'Joe Bleau',
             },

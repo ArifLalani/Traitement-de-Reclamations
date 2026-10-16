@@ -106,6 +106,13 @@ function addDaysToFrDate(value: string, days: number): string {
   return date.toLocaleDateString('fr-FR');
 }
 
+function parseFrDate(value: string): Date | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
 type MentionTabKey = 'informations' | 'historique';
 
 const MENTION_TABS: { id: MentionTabKey; label: string }[] = [
@@ -152,20 +159,23 @@ function ChoiceToggle({
 }) {
   return (
     <div className={`dossier-choice-row ${error ? 'dossier-choice-row-error' : ''}`}>
-      <button
-        type="button"
-        className={`dossier-toggle-btn ${value === 'oui' ? 'dossier-toggle-btn-active' : ''}`}
-        onClick={() => onChange('oui')}
-      >
-        Oui
-      </button>
-      <button
-        type="button"
-        className={`dossier-toggle-btn ${value === 'non' ? 'dossier-toggle-btn-active' : ''}`}
-        onClick={() => onChange('non')}
-      >
-        Non
-      </button>
+      <div className="dossier-choice-segmented">
+        <button
+          type="button"
+          className={`dossier-toggle-btn ${value === 'oui' ? 'dossier-toggle-btn-active' : ''}`}
+          onClick={() => onChange('oui')}
+        >
+          Oui
+        </button>
+        <div className="dossier-toggle-divider" />
+        <button
+          type="button"
+          className={`dossier-toggle-btn ${value === 'non' ? 'dossier-toggle-btn-active' : ''}`}
+          onClick={() => onChange('non')}
+        >
+          Non
+        </button>
+      </div>
     </div>
   );
 }
@@ -375,6 +385,8 @@ export type ClotureReason =
   | 'qa-apres-reponse'
   | 'hebergeur-sans-reponse'
   | 'qa-sans-reponse'
+  | 'administrateur-apres-reponse'
+  | 'administrateur-sans-reponse'
   | null;
 type StepPhase =
   | 'question'
@@ -383,6 +395,8 @@ type StepPhase =
   | 'waiting'
   | 'reclamant'
   | 'cloture-offer'
+  | 'administrateur-cloture'
+  | 'administrateur-escalade-envoi'
   | 'pending-definition';
 type Step = { node: ReactNode; phase: StepPhase };
 
@@ -455,7 +469,16 @@ export default function CreateReclamationSlider({
   const [canalAnswer, setCanalAnswer] = useState<CanalAnswer>(
     isEnAttente ? 'plateforme' : isReclamationView ? (savedCanalAnswer ?? 'plateforme') : null,
   );
-  const [demandeDateDraft, setDemandeDateDraft] = useState(reclamation.demandeContactDate ?? '');
+  // reclamation.demandeContactDate only ever reflects mock data seeded ahead
+  // of time — a réclamation actually created live (via handleConfirmDemande)
+  // never gets it persisted back there, so on reopen (isReclamationView) this
+  // would otherwise render blank. The complaint's own historique entry for
+  // that confirmation is the one place the real date survives a reopen.
+  const [demandeDateDraft, setDemandeDateDraft] = useState(
+    linkedComplaintHistorique?.find((entry) => entry.title === "Message envoyé à l'auteur du commentaire")?.date ??
+      reclamation.demandeContactDate ??
+      '',
+  );
   // Once the demande de contact is confirmed, the slider stays open (it's
   // not creating a réclamation yet) and swaps the form for the wait loop
   // instead — no need to wait on the parent re-passing an updated
@@ -491,6 +514,18 @@ export default function CreateReclamationSlider({
   // That checkpoint's own "non" branch — reached once a reply came in
   // without the coordonnées in it.
   const [peutContacterHebergeurAnswer, setPeutContacterHebergeurAnswer] = useState<YesNo>(null);
+  // Canal administrateur's own continuation (isReclamationView) — its wait
+  // loop, simpler than plateforme's: no relance, since there's nobody left
+  // to escalate to beyond the administrateur.
+  const [adminReponseAnswer, setAdminReponseAnswer] = useState<YesNo>(null);
+  const [adminReponseTexte, setAdminReponseTexte] = useState('');
+  const [adminReponseDateDraft, setAdminReponseDateDraft] = useState('');
+  const [adminCoordonneesAnswer, setAdminCoordonneesAnswer] = useState<YesNo>(null);
+  // Reached from the plateforme wait loop's own "Pouvez-vous contacter
+  // l'administrateur ?" — "oui" sends a courrier (this confirm), then joins
+  // the exact same administrateur wait loop as the canal chosen directly
+  // (getAdministrateurWaitStep) instead of closing right away.
+  const [administrateurEscaladeConfirmed, setAdministrateurEscaladeConfirmed] = useState(false);
   // Asked instead of Q1 when reopening a mention that was clôturée while
   // still waiting on the author (clotureReason 'hebergeur-sans-reponse' /
   // 'qa-sans-reponse') — reopening a mention closed any other way skips
@@ -576,6 +611,12 @@ export default function CreateReclamationSlider({
     setReponseApresRelanceAnswer(null);
     setCoordonneesCheckpoint(null);
     setPeutContacterHebergeurAnswer(null);
+    setAdminReponseAnswer(null);
+    setAdminCoordonneesAnswer(null);
+  };
+  const handleAdminReponseChange = (value: 'oui' | 'non') => {
+    setAdminReponseAnswer(value);
+    setAdminCoordonneesAnswer(null);
   };
   const handleEusReponseChange = (value: 'oui' | 'non') => {
     setEusReponseAnswer(value);
@@ -583,15 +624,30 @@ export default function CreateReclamationSlider({
     setReponseApresRelanceAnswer(null);
     setCoordonneesCheckpoint(null);
     setPeutContacterHebergeurAnswer(null);
+    setAdministrateurEscaladeConfirmed(false);
+    setAdminReponseAnswer(null);
+    setAdminCoordonneesAnswer(null);
   };
   const handleReponseApresRelanceChange = (value: 'oui' | 'non') => {
     setReponseApresRelanceAnswer(value);
     setCoordonneesCheckpoint(null);
     setPeutContacterHebergeurAnswer(null);
+    setAdministrateurEscaladeConfirmed(false);
+    setAdminReponseAnswer(null);
+    setAdminCoordonneesAnswer(null);
   };
   const handleCoordonneesCheckpointChange = (value: 'oui' | 'non') => {
     setCoordonneesCheckpoint(value);
     setPeutContacterHebergeurAnswer(null);
+    setAdministrateurEscaladeConfirmed(false);
+    setAdminReponseAnswer(null);
+    setAdminCoordonneesAnswer(null);
+  };
+  const handlePeutContacterHebergeurChange = (value: 'oui' | 'non') => {
+    setPeutContacterHebergeurAnswer(value);
+    setAdministrateurEscaladeConfirmed(false);
+    setAdminReponseAnswer(null);
+    setAdminCoordonneesAnswer(null);
   };
 
   const handleCopyTemplate = () => {
@@ -618,15 +674,18 @@ export default function CreateReclamationSlider({
   // ouverte" — it only cares that one exists. But this *is* the
   // réclamation's own page once isReclamationView: visually it looks like
   // the same slider, but it isn't the same thing, and its badge needs to
-  // show its real état instead — "En attente" for plateforme (still
-  // waiting on a reply), "Clôturée" for administrateur/rien (closed right
-  // away).
+  // show its real état instead — "En attente" for plateforme/administrateur
+  // (both stay open, waiting on a reply), "Clôturée" for "rien" (closed
+  // right away, nobody left to contact).
   const badgeState: ReclamationState =
     isMesReclamations || enAttenteConfirmed
       ? isReclamationView
-        ? canalAnswer === 'plateforme'
-          ? 'en-attente'
-          : 'cloturee'
+        ? canalAnswer === 'rien' ||
+          mentionCloturee ||
+          clotureReason === 'administrateur-apres-reponse' ||
+          clotureReason === 'administrateur-sans-reponse'
+          ? 'cloturee'
+          : 'en-attente'
         : 'mes-reclamations'
       : mentionCloturee
         ? 'cloturee'
@@ -653,7 +712,32 @@ export default function CreateReclamationSlider({
   const hasRetourDetail =
     eusReponseAnswer === 'oui' || reponseApresRelanceAnswer === 'oui' || reouvertureReponseAnswer === 'oui';
   const retourDateMissing = showContactErrors && hasRetourDetail && !retourDateDraft;
+  const adminReponseDateMissing = showContactErrors && adminReponseAnswer === 'oui' && !adminReponseDateDraft;
+  const isAdministrateurAlreadyCloture =
+    clotureReason === 'administrateur-apres-reponse' || clotureReason === 'administrateur-sans-reponse';
   const demandeDateMissing = showContactErrors && needsManualDate && !enAttenteConfirmed && !demandeDateDraft;
+  // Read back from the réclamation's own persisted historique (not local
+  // state, which resets every time this slider reopens) so the "en attente"
+  // banner can show real dates instead of a vague "un mois" — both the
+  // direct "Contacter l'administrateur" canal choice and the plateforme wait
+  // loop's own escalade confirm persist this same entry right away.
+  const administrateurContactDate =
+    linkedComplaintHistorique?.find((entry) => entry.title === "Courrier envoyé à l'administrateur de la plateforme")
+      ?.date ?? todayLabel;
+  const administrateurClotureAvailableDate = addDaysToFrDate(administrateurContactDate, 30);
+  // Only the "pas de réponse du tout" dead end (adminReponseAnswer === 'non')
+  // actually waits out the full month — once a réponse did come in without
+  // coordonnées, there's nothing further to wait on, so that one clôture
+  // right away.
+  const administrateurClotureLocked = (() => {
+    if (adminReponseAnswer !== 'non') return false;
+    const availableDate = parseFrDate(administrateurClotureAvailableDate);
+    if (!availableDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    availableDate.setHours(0, 0, 0, 0);
+    return today < availableDate;
+  })();
 
   const questionRow = (text: string, value: YesNo, onChange: (v: 'oui' | 'non') => void, error?: boolean) => (
     <div className="dossier-question-row">
@@ -773,7 +857,7 @@ export default function CreateReclamationSlider({
   // the hébergeur.
   const renderClotureCertifyCheckbox = () =>
     renderCertifyCheckbox(
-      "Je confirme avoir envoyé le courrier à l'hébergeur du site afin d'obtenir les informations de l'auteur du commentaire.",
+      "Je confirme avoir envoyé le courrier à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire.",
       clotureCertified,
       (checked) => {
         setClotureCertified(checked);
@@ -898,20 +982,51 @@ export default function CreateReclamationSlider({
     </div>
   );
 
-  // The terminal reached whenever a "Non" leaves the mention's author
-  // unreachable — same wording and actions (télécharger le courrier,
-  // clôturer) regardless of which branch of the flow led here.
-  const renderClotureOfferFields = () => (
+  // Reached from the plateforme wait loop's own "Pouvez-vous contacter
+  // l'administrateur ?" — "oui" sends a courrier, same as the initial
+  // "Contacter l'administrateur" canal choice, and joins that exact same
+  // wait loop afterwards (getAdministrateurWaitStep) instead of closing.
+  const renderEscaladeAdministrateurFields = () => (
     <div className="dossier-treatment-fields">
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            Téléchargez le document ci-dessous : il s'agit d'un courrier à envoyer à l'hébergeur du site pour lui
-            demander les informations de la personne à l'origine du commentaire, afin de pouvoir la contacter.
+            Téléchargez le document ci-dessous : il s'agit d'un courrier à envoyer à l'administrateur de la
+            plateforme pour lui demander les informations de la personne à l'origine du commentaire, afin de pouvoir
+            la contacter.
           </p>
           <p>
-            Au moment de la clôture, un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la
-            situation.
+            Une fois envoyé, la réclamation restera en attente d'une réponse de l'administrateur. Un email sera
+            également envoyé automatiquement à Qualité Assurance pour les avertir de la situation.
+          </p>
+        </div>
+        {/* No real document to serve yet — the button is a placeholder
+            pending the client's file. */}
+        <button type="button" className="btn-text dossier-file-upload-btn" onClick={() => {}}>
+          Télécharger le document
+        </button>
+        {renderClotureCertifyCheckbox()}
+      </div>
+    </div>
+  );
+
+  // Shown for the initial "Contacter l'administrateur" canal choice — unlike
+  // renderClotureOfferFields above (reached later, once a relance has
+  // already failed and the hébergeur is the last resort), this is the
+  // first attempt: the réclamation stays open instead of closing right
+  // away, same as plateforme.
+  const renderContacterAdministrateurFields = () => (
+    <div className="dossier-treatment-fields">
+      <div className="dossier-alert-field-group">
+        <div className="dossier-alert-info">
+          <p>
+            Téléchargez le document ci-dessous : il s'agit d'un courrier à envoyer à l'administrateur de la
+            plateforme pour lui demander les informations de la personne à l'origine du commentaire, afin de pouvoir
+            la contacter.
+          </p>
+          <p>
+            Une fois la réclamation créée, elle restera en attente d'une réponse de l'administrateur. Si aucune
+            réponse n'est obtenue sous un mois, la réclamation sera automatiquement clôturée.
           </p>
         </div>
         {/* No real document to serve yet — the button is a placeholder
@@ -933,12 +1048,10 @@ export default function CreateReclamationSlider({
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            Les coordonnées de l'auteur du commentaire ne peuvent être obtenues par aucun autre moyen.
+            Les coordonnées de l'auteur du commentaire ne peuvent être obtenues par aucun autre moyen. La réclamation
+            sera automatiquement clôturée.
           </p>
-          <p>
-            Au moment de la clôture, un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la
-            situation.
-          </p>
+          <p>Un email sera envoyé à Qualité Assurance pour les avertir de la situation.</p>
         </div>
         {renderQaNotifieeCertifyCheckbox()}
       </div>
@@ -1042,15 +1155,21 @@ export default function CreateReclamationSlider({
     };
   };
 
-  // Reached once a reply came in without the coordonnées in it.
+  // Reached once a reply came in without the coordonnées in it. "Oui" sends
+  // a courrier to the administrateur and joins that exact same wait loop
+  // (getAdministrateurWaitStep) — the réclamation stays open, same as
+  // choosing "Contacter l'administrateur" from the very start. "Non" has
+  // nobody left to contact at all, so it closes right away.
   const getCoordonneesHebergeurBranch = (): Step =>
     stepQuestion(
-      "Pouvez-vous contacter l'hébergeur de la plateforme ?",
+      "Pouvez-vous contacter l'administrateur de la plateforme ?",
       peutContacterHebergeurAnswer,
-      setPeutContacterHebergeurAnswer,
+      handlePeutContacterHebergeurChange,
       () =>
         peutContacterHebergeurAnswer === 'oui'
-          ? { phase: 'cloture-offer', node: renderClotureOfferFields() }
+          ? administrateurEscaladeConfirmed
+            ? getAdministrateurWaitStep()
+            : { phase: 'administrateur-escalade-envoi', node: renderEscaladeAdministrateurFields() }
           : { phase: 'cloture-offer', node: renderQaNotifieeFields() },
       { error: peutContacterHebergeurAnswerMissing },
     );
@@ -1130,6 +1249,79 @@ export default function CreateReclamationSlider({
     );
   };
 
+  // Canal administrateur's own continuation (isReclamationView), once a
+  // réponse came in: "avez-vous eu les coordonnées ?" — "oui" carries on into
+  // the same reclamant fields as every other path; "non" has nowhere further
+  // to escalate to (unlike plateforme's hébergeur fallback), so it goes
+  // straight to clôture.
+  const getAdministrateurCoordonneesStep = (): Step => {
+    const reponseDetail =
+      adminReponseAnswer === 'oui' ? (
+        <>
+          <FormTextareaAutoGrow
+            label="Réponse de l'administrateur"
+            placeholder="Collez ici la réponse de l'administrateur de la plateforme"
+            value={adminReponseTexte}
+            onChange={setAdminReponseTexte}
+          />
+          <div className="modal-row">
+            <FormField
+              label="Date de la réponse de l'administrateur"
+              required
+              type="date"
+              placeholder="JJ/MM/AAAA"
+              value={adminReponseDateDraft}
+              error={adminReponseDateMissing}
+              errorText={adminReponseDateMissing ? 'Champ requis' : undefined}
+              onChange={setAdminReponseDateDraft}
+            />
+            <div className="dossier-field-spacer" />
+          </div>
+        </>
+      ) : null;
+    const inner = stepQuestion(
+      "Avez-vous récupéré les coordonnées de l'auteur du commentaire ?",
+      adminCoordonneesAnswer,
+      setAdminCoordonneesAnswer,
+      () =>
+        adminCoordonneesAnswer === 'oui'
+          ? { phase: 'reclamant', node: renderReclamantFields() }
+          : { phase: 'administrateur-cloture', node: renderAdministrateurClotureFields('coordonnees') },
+    );
+    return { phase: inner.phase, node: (<>{reponseDetail}{inner.node}</>) };
+  };
+
+  // Canal administrateur's wait loop (isReclamationView) — simpler than
+  // plateforme's: no relance, since there's nobody further to escalate to
+  // beyond the administrateur already contacted.
+  const getAdministrateurWaitStep = (): Step =>
+    stepQuestion(
+      "Avez-vous eu une réponse de la part de l'administrateur ?",
+      adminReponseAnswer,
+      handleAdminReponseChange,
+      () =>
+        adminReponseAnswer === 'oui'
+          ? getAdministrateurCoordonneesStep()
+          : { phase: 'administrateur-cloture', node: renderAdministrateurClotureFields('reponse') },
+    );
+
+  const renderAdministrateurClotureFields = (reason: 'reponse' | 'coordonnees') => (
+    <div className="dossier-treatment-fields">
+      <div className="dossier-alert-field-group">
+        <div className="dossier-alert-info">
+          <p>
+            {reason === 'reponse'
+              ? administrateurClotureLocked
+                ? `L'administrateur de la plateforme n'a pas répondu à la demande. La réclamation pourra être clôturée à partir du ${administrateurClotureAvailableDate}.`
+                : "L'administrateur de la plateforme n'a pas répondu à la demande. La réclamation va être clôturée."
+              : "L'administrateur de la plateforme n'a pas transmis les coordonnées de l'auteur du commentaire. La réclamation va être clôturée."}
+          </p>
+          <p>Un email sera envoyé à Qualité Assurance pour les avertir de la situation.</p>
+        </div>
+      </div>
+    </div>
+  );
+
   // The wording for why the mention was clôturée differs by clotureReason —
   // in particular, the "-apres-reponse" / "-sans-reponse" variants need to
   // say whether the author actually replied (just without their
@@ -1143,13 +1335,17 @@ export default function CreateReclamationSlider({
       "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées.",
     qa: "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
     'hebergeur-apres-reponse':
-      "L'auteur du commentaire a répondu sans transmettre ses coordonnées, un courrier a donc été envoyé à l'hébergeur du site afin de les obtenir.",
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées, un courrier a donc été envoyé à l'administrateur de la plateforme afin de les obtenir.",
     'qa-apres-reponse':
-      "L'auteur du commentaire a répondu sans transmettre ses coordonnées et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées et l'administrateur de la plateforme ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
     'hebergeur-sans-reponse':
-      "L'auteur du commentaire n'a pas répondu, même après la relance. Un courrier a été envoyé à l'hébergeur du site afin d'obtenir ses coordonnées.",
+      "L'auteur du commentaire n'a pas répondu, même après la relance. Un courrier a été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées.",
     'qa-sans-reponse':
-      "L'auteur du commentaire n'a pas répondu, même après la relance, et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+      "L'auteur du commentaire n'a pas répondu, même après la relance, et l'administrateur de la plateforme ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'administrateur-apres-reponse':
+      "L'administrateur de la plateforme a répondu sans transmettre les coordonnées de l'auteur du commentaire : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'administrateur-sans-reponse':
+      "L'administrateur de la plateforme n'a pas répondu à la demande : Qualité Assurance a été notifiée automatiquement de la situation.",
   };
   const clotureDescription = clotureReason ? CLOTURE_DESCRIPTIONS[clotureReason] : '';
 
@@ -1187,24 +1383,11 @@ export default function CreateReclamationSlider({
     if (canalAnswer === 'plateforme') {
       next = enAttenteConfirmed ? getWaitLoopStep() : { phase: 'envoi', node: renderEnvoiDemandeFields() };
     } else if (canalAnswer === 'administrateur') {
-      // Same "Confirmer et créer la réclamation" as plateforme, but the
-      // réclamation lands clôturée right away instead of waiting on a
-      // reply — courrier à l'hébergeur, same content as before this button
-      // used to close the mention outright (see renderClotureOfferFields).
-      next = enAttenteConfirmed
-        ? {
-            phase: 'waiting',
-            node: (
-              <div className="dossier-alert-neutral">
-                <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
-                <p>
-                  {CLOTURE_DESCRIPTIONS.administrateur} Si ces coordonnées sont obtenues par la suite, la réclamation
-                  peut être rouverte pour reprendre son traitement.
-                </p>
-              </div>
-            ),
-          }
-        : { phase: 'envoi', node: renderClotureOfferFields() };
+      // Same as plateforme — stays open, en attente d'une réponse (here,
+      // from the administrateur rather than the author directly), with its
+      // own wait loop (getAdministrateurWaitStep) — see
+      // renderContacterAdministrateurFields for the initial envoi.
+      next = enAttenteConfirmed ? getAdministrateurWaitStep() : { phase: 'envoi', node: renderContacterAdministrateurFields() };
     } else {
       // "Aucune action possible" — same QA-notified content as before, but
       // now also creates (then immediately clôture) the réclamation.
@@ -1214,10 +1397,7 @@ export default function CreateReclamationSlider({
             node: (
               <div className="dossier-alert-neutral">
                 <span className="dossier-alert-neutral-title">Mention clôturée</span>
-                <p>
-                  {CLOTURE_DESCRIPTIONS.qa} Si ces coordonnées sont obtenues par la suite, la mention peut être
-                  rouverte pour reprendre son traitement.
-                </p>
+                <p>{CLOTURE_DESCRIPTIONS.qa}</p>
               </div>
             ),
           }
@@ -1229,35 +1409,70 @@ export default function CreateReclamationSlider({
   // Shown instead of Q0/Q1/canal (isReclamationView — opening an existing
   // réclamation from "Non identifiés") — those questions are already
   // answered, so this jumps straight to the continuation itself: the wait
-  // loop for plateforme, or the clôturée notice for administrateur/rien.
+  // loop for plateforme or administrateur, or the clôturée notice for
+  // "rien" (and, once answered, for administrateur too).
   const renderReclamationContinuation = (): ReactNode => {
     if (canalAnswer === 'administrateur') {
+      if (isAdministrateurAlreadyCloture) {
+        return (
+          <div className="dossier-alert-neutral">
+            <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
+            <p>{clotureDescription}</p>
+          </div>
+        );
+      }
       return (
-        <div className="dossier-alert-neutral">
-          <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
-          <p>
-            {CLOTURE_DESCRIPTIONS.administrateur} Si ces coordonnées sont obtenues par la suite, la réclamation peut
-            être rouverte pour reprendre son traitement.
-          </p>
-        </div>
+        <>
+          {renderEnAttenteAlert(
+            `Courrier envoyé à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire. En l'absence de réponse, vous pourrez clôturer la réclamation à partir du ${administrateurClotureAvailableDate}.`,
+            "En attente du retour de l'administrateur de la plateforme",
+          )}
+          {getAdministrateurWaitStep().node}
+        </>
       );
     }
     if (canalAnswer === 'rien') {
       return (
         <div className="dossier-alert-neutral">
-          <span className="dossier-alert-neutral-title">Mention clôturée</span>
-          <p>
-            {CLOTURE_DESCRIPTIONS.qa} Si ces coordonnées sont obtenues par la suite, la mention peut être rouverte
-            pour reprendre son traitement.
-          </p>
+          <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
+          <p>{CLOTURE_DESCRIPTIONS.qa}</p>
         </div>
+      );
+    }
+    if (administrateurEscaladeConfirmed) {
+      // Escalated via the plateforme wait loop's own dead end ("pas de
+      // coordonnées, pouvez-vous contacter l'administrateur ?" → oui) — once
+      // that courrier is sent, drop the whole earlier trail that led here
+      // (réponse/coordonnées/contacter-administrateur questions) instead of
+      // stacking the new continuation underneath it, and show the exact
+      // same administrateur continuation as when that canal is chosen
+      // directly from the start.
+      return (
+        <>
+          {renderEnAttenteAlert(
+            `Courrier envoyé à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire. En l'absence de réponse, vous pourrez clôturer la réclamation à partir du ${administrateurClotureAvailableDate}.`,
+            "En attente du retour de l'administrateur de la plateforme",
+          )}
+          {getAdministrateurWaitStep().node}
+        </>
       );
     }
     return (
       <>
-        {renderEnAttenteAlert(
-          `Demande d'information envoyée à l'auteur de la mention le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
-        )}
+        {/* Stays up through either answer's own immediate next step too —
+            picking "Oui"/"Non" is just a selection, not a confirmation of
+            anything yet: "Non" leads to the relance template (nothing sent
+            until relanceConfirmed) and "Oui" leads to the retour detail
+            fields + "avez-vous récupéré les coordonnées ?" (nothing settled
+            until that's answered). Only once one of those is actually
+            confirmed does a more specific notice take over (getRelanceStep's
+            own "en attente", or the reclamant/hébergeur step beyond). */}
+        {(eusReponseAnswer === null ||
+          (eusReponseAnswer === 'non' && !relanceConfirmed) ||
+          (eusReponseAnswer === 'oui' && coordonneesCheckpoint === null)) &&
+          renderEnAttenteAlert(
+            `Demande d'information envoyée à l'auteur de la mention le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
+          )}
         {getWaitLoopStep().node}
       </>
     );
@@ -1355,6 +1570,12 @@ export default function CreateReclamationSlider({
   const showingClotureOffer = !reouvertureActive && step?.phase === 'cloture-offer' && !mentionCloturee;
   const isEnvoiStep = !reouvertureActive && step?.phase === 'envoi';
   const isRelanceEnvoiStep = !reouvertureActive && step?.phase === 'relance-envoi';
+  // Terminal of the administrateur continuation's own wait loop — hidden
+  // again once that clôture is actually confirmed (isAdministrateurAlreadyCloture),
+  // so the button doesn't linger once there's nothing left to confirm.
+  const isAdministrateurClotureStep =
+    !reouvertureActive && step?.phase === 'administrateur-cloture' && !isAdministrateurAlreadyCloture;
+  const isAdministrateurEscaladeEnvoiStep = !reouvertureActive && step?.phase === 'administrateur-escalade-envoi';
 
   // Whether the sticky footer has anything to show — e.g. while waiting on
   // a retour answer, no action applies yet, so the footer itself shouldn't
@@ -1367,7 +1588,9 @@ export default function CreateReclamationSlider({
         showingReclamantFields ||
         isEnvoiStep ||
         isRelanceEnvoiStep ||
-        mentionCloturee ||
+        isAdministrateurClotureStep ||
+        isAdministrateurEscaladeEnvoiStep ||
+        (mentionCloturee && !isReclamationView) ||
         reouvertureActive));
 
   const reclamantFieldsMissing =
@@ -1406,6 +1629,28 @@ export default function CreateReclamationSlider({
           {
             title: 'Relance envoyée',
             description: "Message de relance envoyé à l'auteur du commentaire après l'absence de réponse.",
+            date: todayLabel,
+            author: 'Joe Bleau',
+          },
+        ]
+      : []),
+    ...(adminReponseAnswer === 'oui' && adminReponseTexte.trim() !== ''
+      ? [
+          {
+            title: "Réponse de l'administrateur de la plateforme",
+            description: "L'administrateur de la plateforme a répondu à la demande de coordonnées.",
+            date: adminReponseDateDraft || todayLabel,
+            author: 'Joe Bleau',
+            changes: [{ label: 'Réponse', value: adminReponseTexte }],
+          },
+        ]
+      : []),
+    ...(administrateurEscaladeConfirmed
+      ? [
+          {
+            title: "Courrier envoyé à l'administrateur de la plateforme",
+            description:
+              "Courrier envoyé à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire.",
             date: todayLabel,
             author: 'Joe Bleau',
           },
@@ -1521,23 +1766,54 @@ export default function CreateReclamationSlider({
       scrollToFirstError();
       return;
     }
-    onClotureMention();
-    setMentionCloturee(true);
-    setWasEverCloturee(true);
     // coordonneesCheckpoint stays null when the hébergeur question was
     // reached straight from "pas de réponse même après la relance" —
     // it's only ever set to 'non' when a reply did come in without the
     // coordonnées in it.
     const gotReply = coordonneesCheckpoint === 'non';
-    if (canalAnswer === 'rien') {
-      setClotureReason('qa');
-    } else if (canalAnswer === 'administrateur') {
-      setClotureReason('administrateur');
-    } else if (peutContacterHebergeurAnswer === 'oui') {
-      setClotureReason(gotReply ? 'hebergeur-apres-reponse' : 'hebergeur-sans-reponse');
+    const reason: Exclude<ClotureReason, null> =
+      canalAnswer === 'rien'
+        ? 'qa'
+        : canalAnswer === 'administrateur'
+          ? 'administrateur'
+          : peutContacterHebergeurAnswer === 'oui'
+            ? gotReply
+              ? 'hebergeur-apres-reponse'
+              : 'hebergeur-sans-reponse'
+            : gotReply
+              ? 'qa-apres-reponse'
+              : 'qa-sans-reponse';
+    setClotureReason(reason);
+    if (isReclamationView) {
+      // The réclamation already exists — persist its own clôture onto the
+      // complaint record too (not just this slider's local notice), so the
+      // réclamations list and its own badge still reflect it once the
+      // slider's been fully closed and reopened.
+      onConfirmContactAttempt(
+        {
+          prenom: '',
+          nom: '',
+          canal,
+          dateReception,
+          email: '',
+          telephone: '',
+          denominationSociale: '',
+          porteurDuRisque: '',
+          rattacheContrat: '',
+          statutClient: '',
+          objet,
+          notesInternes: '',
+          description: reclamation.text,
+        },
+        historiqueEntries,
+        'plateforme',
+        { title: 'Réclamation clôturée', description: CLOTURE_DESCRIPTIONS[reason], date: todayLabel },
+      );
     } else {
-      setClotureReason(gotReply ? 'qa-apres-reponse' : 'qa-sans-reponse');
+      onClotureMention();
     }
+    setMentionCloturee(true);
+    setWasEverCloturee(true);
     setClotureToast(true);
     if (clotureToastTimeout.current) clearTimeout(clotureToastTimeout.current);
     clotureToastTimeout.current = setTimeout(() => setClotureToast(false), 3000);
@@ -1685,8 +1961,8 @@ export default function CreateReclamationSlider({
         { title: 'Réception de la mention', description: `Mention reçue via ${canal}.`, date: reclamation.date, author: 'Système' },
         isAdministrateur
           ? {
-              title: "Courrier envoyé à l'hébergeur du site",
-              description: "Courrier envoyé à l'hébergeur du site afin d'obtenir les informations de l'auteur du commentaire.",
+              title: "Courrier envoyé à l'administrateur de la plateforme",
+              description: "Courrier envoyé à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire.",
               date: todayLabel,
               author: 'Joe Bleau',
             }
@@ -1698,11 +1974,17 @@ export default function CreateReclamationSlider({
             },
       ],
       isAdministrateur ? 'administrateur' : 'rien',
-      {
-        title: isAdministrateur ? 'Réclamation clôturée' : 'Mention clôturée',
-        description: `${isAdministrateur ? CLOTURE_DESCRIPTIONS.administrateur : CLOTURE_DESCRIPTIONS.qa} Si ces coordonnées sont obtenues par la suite, ${isAdministrateur ? 'la réclamation' : 'la mention'} peut être rouverte pour reprendre son traitement.`,
-        date: todayLabel,
-      },
+      // administrateur stays open — en attente d'une réponse de
+      // l'administrateur, same as plateforme stays open waiting on the
+      // author — so no closeReason here. Only "rien" (nobody left to
+      // contact at all) closes right away.
+      isAdministrateur
+        ? undefined
+        : {
+            title: 'Mention clôturée',
+            description: CLOTURE_DESCRIPTIONS.qa,
+            date: todayLabel,
+          },
     );
     setTimeout(() => {
       setCanalConfirming(false);
@@ -1723,8 +2005,93 @@ export default function CreateReclamationSlider({
     setRelanceConfirmed(true);
   };
 
+  // Confirms the courrier sent to the administrateur once the plateforme's
+  // own relance led nowhere — same courrier/certify pattern as the initial
+  // "Contacter l'administrateur" canal choice, but reached later: joins the
+  // exact same wait loop afterwards instead of closing or creating a fresh
+  // dossier.
+  const handleConfirmAdministrateurEscalade = () => {
+    if (!clotureCertified) {
+      setClotureCertifyMissing(true);
+      setActiveTab('informations');
+      scrollToFirstError();
+      return;
+    }
+    // Persisted right away (not just locally) so the courrier's real date is
+    // readable back from linkedComplaintHistorique afterwards (see
+    // administrateurContactDate) — same as the direct "Contacter
+    // l'administrateur" canal choice. sourceCanal flips to 'administrateur'
+    // too: once escalated, reopening this réclamation later should resume
+    // straight into that continuation, not replay the whole plateforme trail.
+    onConfirmContactAttempt(
+      {
+        prenom: '',
+        nom: '',
+        canal,
+        dateReception,
+        email: '',
+        telephone: '',
+        denominationSociale: '',
+        porteurDuRisque: '',
+        rattacheContrat: '',
+        statutClient: '',
+        objet,
+        notesInternes: '',
+        description: reclamation.text,
+      },
+      [
+        ...historiqueEntries,
+        {
+          title: "Courrier envoyé à l'administrateur de la plateforme",
+          description:
+            "Courrier envoyé à l'administrateur de la plateforme afin d'obtenir les informations de l'auteur du commentaire.",
+          date: todayLabel,
+          author: 'Joe Bleau',
+        },
+      ],
+      'administrateur',
+    );
+    setAdministrateurEscaladeConfirmed(true);
+  };
+
+  // Terminal of the administrateur continuation's own wait loop, reached
+  // once either "non" is answered — closes the réclamation in place (same
+  // QA-notified pattern as "rien", just reached later through the wait loop
+  // instead of at the very first confirmation) and persists which "non" it
+  // was via clotureReason, so the closed notice still explains itself
+  // correctly after the slider's been fully closed and reopened.
+  const handleClotureAdministrateurContinuation = () => {
+    const reason = adminReponseAnswer === 'non' ? 'administrateur-sans-reponse' : 'administrateur-apres-reponse';
+    setClotureReason(reason);
+    onConfirmContactAttempt(
+      {
+        prenom: '',
+        nom: '',
+        canal,
+        dateReception,
+        email: '',
+        telephone: '',
+        denominationSociale: '',
+        porteurDuRisque: '',
+        rattacheContrat: '',
+        statutClient: '',
+        objet,
+        notesInternes: '',
+        description: reclamation.text,
+      },
+      historiqueEntries,
+      'administrateur',
+      {
+        title: 'Réclamation clôturée',
+        description: CLOTURE_DESCRIPTIONS[reason],
+        date: todayLabel,
+      },
+    );
+  };
+
   const handleSubmit = () => {
-    const missing = reclamantFieldsMissing || (hasRetourDetail && !retourDateDraft);
+    const missing =
+      reclamantFieldsMissing || (hasRetourDetail && !retourDateDraft) || (adminReponseAnswer === 'oui' && !adminReponseDateDraft);
     if (missing) {
       setShowContactErrors(true);
       setActiveTab('informations');
@@ -1885,6 +2252,19 @@ export default function CreateReclamationSlider({
               {isReclamationView && !mentionCloturee && (
                 <div className={treatmentBlockClassName()}>{renderReclamationContinuation()}</div>
               )}
+
+              {/* Reached via the plateforme wait loop's own "pas de
+                  coordonnées obtenables" dead end (handleClotureMention) —
+                  no reopening offered here yet, unlike the mentions-page
+                  equivalent, so this is a plain terminal notice. */}
+              {isReclamationView && mentionCloturee && (
+                <div className={treatmentBlockClassName()}>
+                  <div className="dossier-alert-neutral">
+                    <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
+                    <p>{clotureDescription}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1952,10 +2332,13 @@ export default function CreateReclamationSlider({
               <>
                 {activeTab === 'informations' && showingClotureOffer && (
                   <button type="button" className="btn-filled" onClick={handleClotureMention}>
-                    Clôturer la mention
+                    {isReclamationView ? 'Clôturer la réclamation' : 'Clôturer la mention'}
                   </button>
                 )}
-                {activeTab === 'informations' && mentionCloturee && (
+                {/* Not offered yet from the réclamation's own continuation
+                    (isReclamationView) — see the "Réclamation clôturée"
+                    notice above instead. */}
+                {activeTab === 'informations' && mentionCloturee && !isReclamationView && (
                   <button type="button" className="btn-filled" onClick={handleReouvrirMention}>
                     Rouvrir la mention
                   </button>
@@ -1987,6 +2370,21 @@ export default function CreateReclamationSlider({
                 )}
                 {activeTab === 'informations' && isRelanceEnvoiStep && (
                   <button type="button" className="btn-filled" onClick={handleConfirmRelance}>
+                    Confirmer
+                  </button>
+                )}
+                {activeTab === 'informations' && isAdministrateurClotureStep && (
+                  <button
+                    type="button"
+                    className="btn-filled"
+                    disabled={administrateurClotureLocked}
+                    onClick={handleClotureAdministrateurContinuation}
+                  >
+                    Clôturer la réclamation
+                  </button>
+                )}
+                {activeTab === 'informations' && isAdministrateurEscaladeEnvoiStep && (
+                  <button type="button" className="btn-filled" onClick={handleConfirmAdministrateurEscalade}>
                     Confirmer
                   </button>
                 )}

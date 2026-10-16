@@ -221,6 +221,14 @@ const texts = [
 
 const ratings: (number | null)[] = [1, 2, 3, 4, 5, null, 2, null, 3, 1, null, 4];
 
+// A plausible past date for demandeContactDate, formatted the same way the
+// create-réclamation slider's own "today" label is (toLocaleDateString('fr-FR')).
+function pastFrDate(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toLocaleDateString('fr-FR');
+}
+
 function generate(state: ReclamationState, count: number, startId: number): Reclamation[] {
   return Array.from({ length: count }, (_, i) => {
     const n = startId + i;
@@ -236,6 +244,10 @@ function generate(state: ReclamationState, count: number, startId: number): Recl
       author: authors[n % authors.length],
       rating: ratings[n % ratings.length],
       text: texts[n % texts.length],
+      // Only "mes-reclamations" mentions can ever reach the create-réclamation
+      // slider's "en attente" continuation (see CreateReclamationSlider's
+      // demandeDateDraft) — every other state leaves this blank/unused.
+      ...(state === 'mes-reclamations' ? { demandeContactDate: pastFrDate(5 + (i % 10)) } : {}),
     };
   });
 }
