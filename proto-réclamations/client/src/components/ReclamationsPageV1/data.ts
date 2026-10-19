@@ -1,9 +1,10 @@
 import type { Source } from './SourceIcon';
 
-export type ReclamationState = 'possible' | 'a-traiter' | 'declinee' | 'mes-reclamations';
+export type ReclamationState = 'a-traiter' | 'mes-reclamations' | 'en-attente' | 'cloturee';
 
 export type Reclamation = {
   id: string;
+  ticket: string;
   state: ReclamationState;
   isNew: boolean;
   source: Source;
@@ -12,6 +13,10 @@ export type Reclamation = {
   author: string;
   rating: number | null;
   text: string;
+  // Set once a demande de contact has been sent to the mention's author
+  // (state 'en-attente') — lets the create-réclamation slider pre-fill the
+  // guiding question and its date when reopened.
+  demandeContactDate?: string;
 };
 
 export type Sentiment = 'negative' | 'neutral' | 'positive';
@@ -81,7 +86,8 @@ export function getSentiment(text: string): Sentiment {
 const curated: Reclamation[] = [
   {
     id: '1',
-    state: 'possible',
+    ticket: '',
+    state: 'a-traiter',
     isNew: true,
     source: 'Facebook',
     date: 'Hier à 14:32',
@@ -92,6 +98,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '2',
+    ticket: '',
     state: 'a-traiter',
     isNew: true,
     source: 'Google',
@@ -103,7 +110,8 @@ const curated: Reclamation[] = [
   },
   {
     id: '3',
-    state: 'declinee',
+    ticket: '',
+    state: 'cloturee',
     isNew: false,
     source: 'Trustpilot',
     date: '12/06/2026 à 18:05',
@@ -114,7 +122,8 @@ const curated: Reclamation[] = [
   },
   {
     id: '4',
-    state: 'possible',
+    ticket: '',
+    state: 'a-traiter',
     isNew: true,
     source: 'X',
     date: 'Il y a 3h',
@@ -125,6 +134,7 @@ const curated: Reclamation[] = [
   },
   {
     id: '5',
+    ticket: '',
     state: 'a-traiter',
     isNew: false,
     source: 'Instagram',
@@ -136,7 +146,8 @@ const curated: Reclamation[] = [
   },
   {
     id: '6',
-    state: 'declinee',
+    ticket: '',
+    state: 'cloturee',
     isNew: false,
     source: 'LinkedIn',
     date: '08/06/2026 à 11:40',
@@ -147,7 +158,8 @@ const curated: Reclamation[] = [
   },
   {
     id: '7',
-    state: 'possible',
+    ticket: '',
+    state: 'a-traiter',
     isNew: false,
     source: 'Web',
     date: '05/06/2026 à 16:22',
@@ -215,6 +227,7 @@ function generate(state: ReclamationState, count: number, startId: number): Recl
     const source = sources[n % sources.length];
     return {
       id: `${state}-${n}`,
+      ticket: '',
       state,
       isNew: i < 2,
       source,
@@ -265,10 +278,11 @@ export function parseDateValue(date: string): number {
 
 const sorted: Reclamation[] = [
   ...curated,
-  ...generate('possible', 4, 100),
+  ...generate('a-traiter', 4, 100),
   ...generate('a-traiter', 33, 200),
-  ...generate('declinee', 5, 300),
+  ...generate('a-traiter', 5, 300),
   ...generate('mes-reclamations', 14, 400),
+  ...generate('cloturee', 4, 500),
 ].sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date));
 
 // A mention only just posted hasn't been seen by anyone yet, so it defaults
@@ -277,10 +291,13 @@ const sorted: Reclamation[] = [
 // arbitrary top-N cut and show up already "read".
 const UNREAD_WINDOW_MS = 3 * 60 * 60 * 1000;
 
-export const reclamations: Reclamation[] = sorted.map((r) => {
+export const reclamations: Reclamation[] = sorted.map((r, index) => {
+  // Oldest mention gets #0001, same idea as réclamation tickets — sorted is
+  // newest-first, so the ticket number counts down from the total.
+  const ticket = `#${String(sorted.length - index).padStart(4, '0')}`;
   // "mes-reclamations" mentions were already converted into a complaint and
   // never show the unread indicator.
-  if (r.state === 'mes-reclamations') return { ...r, isNew: false };
+  if (r.state === 'mes-reclamations') return { ...r, ticket, isNew: false };
   const isRecent = Date.now() - parseDateValue(r.date) <= UNREAD_WINDOW_MS;
-  return { ...r, isNew: isRecent };
+  return { ...r, ticket, isNew: isRecent };
 });

@@ -4,6 +4,9 @@ type AlertSnackbarProps = {
   variant?: 'info' | 'success';
   actionLabel?: string;
   onAction?: () => void;
+  // Lets a caller reposition the snackbar (e.g. relative to a drawer panel
+  // instead of the viewport) without duplicating its styles.
+  className?: string;
 };
 
 export default function AlertSnackbar({
@@ -12,10 +15,11 @@ export default function AlertSnackbar({
   variant = 'info',
   actionLabel,
   onAction,
+  className = '',
 }: AlertSnackbarProps) {
   return (
     <div
-      className={`alert-snackbar alert-snackbar-${variant} ${visible ? 'alert-snackbar-visible' : ''}`}
+      className={`alert-snackbar alert-snackbar-${variant} ${visible ? 'alert-snackbar-visible' : ''} ${className}`}
       role="status"
     >
       <p className="alert-snackbar-text">{message}</p>

@@ -1,31 +1,25 @@
 import { useState, type MouseEvent } from 'react';
 import ArrowUpRight from './ArrowUpRight';
+import HoverTooltip from './HoverTooltip';
 import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
 import type { Reclamation } from './data';
 
 const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; className: string }>> = {
-  possible: { label: 'Réclamation potentielle', className: 'chip-possible' },
-  declinee: { label: 'Écartée', className: 'chip-declinee' },
   'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
+  'en-attente': { label: 'En attente', className: 'chip-en-attente' },
+  cloturee: { label: 'Clôturée', className: 'chip-cloturee' },
 };
 
 const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
-  possible: 'Détectée automatiquement par notre IA comme une réclamation potentielle, à confirmer avant traitement.',
   'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
+  'en-attente': "Une demande de coordonnées a été envoyée à l'auteur du commentaire, en attente de sa réponse.",
+  cloturee: "La demande n'a pas pu être traitée directement ; une demande a été transmise à l'hébergeur du site.",
 };
 
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
   return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
-}
-
-function FlagIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width={14} height={14} fill="none" stroke="currentColor" strokeWidth="1.4">
-      <path d="M4 17V3.5c0-.3.2-.5.5-.5H15l-2.5 4L15 11H4.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 type ReclamationCardProps = {
@@ -35,6 +29,10 @@ type ReclamationCardProps = {
   selected?: boolean;
   onToggleSelect?: () => void;
   onCreate: () => void;
+  // Whether the author turned out to be a prospect ("non" to "rattaché à un
+  // contrat") or a client (rattaché + statut précisé) — unknown until that
+  // question's been answered, hence optional.
+  contactTag?: 'Prospect' | 'Client' | null;
 };
 
 export default function ReclamationCard({
@@ -44,21 +42,14 @@ export default function ReclamationCard({
   selected = false,
   onToggleSelect,
   onCreate,
+  contactTag,
 }: ReclamationCardProps) {
-  const { state, source, date, url, author, text } = reclamation;
-  const isDeclinee = state === 'declinee';
-  const isMesReclamations = state === 'mes-reclamations';
-  const isFlagged = state === 'possible';
-  // Read/unread only affects the unread indicator (card-wrapper-unread) — it
-  // never hides the create-complaint action, only an already-open or
-  // already-declined mention has no "Créer une réclamation" action left.
-  const canCreate = !isMesReclamations && !isDeclinee;
+  const { ticket, state, source, date, url, author, text } = reclamation;
 
   const [badgeTooltipOpen, setBadgeTooltipOpen] = useState(false);
 
   const badge = STATE_BADGE[state];
   const badgeTooltipText = BADGE_TOOLTIP[state];
-  const hasActions = isMesReclamations || isDeclinee || isFlagged || canCreate;
 
   const handleLinkClick = (e: MouseEvent) => {
     if (!selectionMode) return;
@@ -75,6 +66,9 @@ export default function ReclamationCard({
       >
         <div className="card-top">
           <div className="card-source-row">
+            <HoverTooltip text="Numéro de référence de la mention" align="left">
+              <span className="chip complaint-ticket-chip">{ticket}</span>
+            </HoverTooltip>
             <SourceIcon source={source} />
             <span className="card-source-name">{source}</span>
             <span className="card-dot">·</span>
@@ -85,10 +79,7 @@ export default function ReclamationCard({
                 onMouseEnter={() => badgeTooltipText && setBadgeTooltipOpen(true)}
                 onMouseLeave={() => setBadgeTooltipOpen(false)}
               >
-                <span className={`chip cta-badge ${badge.className}`}>
-                  {isFlagged && <FlagIcon />}
-                  {badge.label}
-                </span>
+                <span className={`chip cta-badge ${badge.className}`}>{badge.label}</span>
                 {badgeTooltipText && badgeTooltipOpen && (
                   <span className="cta-badge-tooltip">{badgeTooltipText}</span>
                 )}
@@ -105,6 +96,7 @@ export default function ReclamationCard({
           <div className="card-author-row">
             <SentimentIcon text={text} />
             <span className="card-author">{author}</span>
+            {contactTag && <span className="chip chip-neutral">{contactTag}</span>}
           </div>
           <div className="card-text-wrapper">
             <p className="card-text card-text-clamped">{text}</p>
@@ -112,20 +104,18 @@ export default function ReclamationCard({
         </div>
 
         <div className="card-footer">
-          {hasActions && (
-            <div className="card-actions">
-              <button
-                type="button"
-                className="btn-text"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreate();
-                }}
-              >
-                Voir les détails
-              </button>
-            </div>
-          )}
+          <div className="card-actions">
+            <button
+              type="button"
+              className="btn-text"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreate();
+              }}
+            >
+              Voir les détails
+            </button>
+          </div>
         </div>
       </div>
     </div>

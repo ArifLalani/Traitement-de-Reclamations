@@ -50,7 +50,6 @@ function ResetIcon() {
 const PROGRESSION_OPTIONS: { id: ProgressionFilter; label: string }[] = [
   { id: 'tous', label: 'Tous' },
   { id: 'a-traiter', label: AVANCEMENT_LABEL['a-traiter'] },
-  { id: 'sans-suite', label: AVANCEMENT_LABEL['sans-suite'] },
   { id: 'cloture', label: AVANCEMENT_LABEL.cloture },
 ];
 

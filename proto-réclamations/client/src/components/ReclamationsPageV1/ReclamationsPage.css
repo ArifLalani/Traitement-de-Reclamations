@@ -860,12 +860,22 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--color-chip-selected-bg);
+  background: var(--color-grey-100);
   border-radius: 100px;
   padding: 8px 12px;
   font: var(--font-chip-label);
   letter-spacing: 0.16px;
   color: var(--color-text-primary);
+}
+
+/* Groups the count chip with the client/prospect segmented control as one
+   flex item, so .mentions-toolbar's space-between still reads as exactly
+   two sides (this group vs. the export button) instead of spreading three
+   items evenly across the bar. */
+.scope-v1 .mentions-toolbar-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .scope-v1 .mark-all-read-btn {
@@ -1197,6 +1207,26 @@
   gap: 8px;
 }
 
+/* Source/reference row on the left, status chips (échéance, conformité,
+   avancement) on the right — same line, pushed to the card's own edges. */
+.scope-v1 .card-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.scope-v1 .card-top-chips {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.scope-v1 .card-source-row-spacer {
+  flex: 1;
+}
+
 .scope-v1 .card-source-name {
   font: var(--font-subtitle1);
   letter-spacing: 0.15px;
@@ -1220,19 +1250,28 @@
   white-space: nowrap;
 }
 
-.scope-v1 .chip-possible {
-  background: var(--color-orange-50);
-  color: var(--color-warning-dark);
-}
-
-.scope-v1 .chip-declinee {
-  background: var(--color-chip-selected-bg);
-  color: var(--color-text-primary);
-}
-
 .scope-v1 .chip-mes-reclamations {
   background: var(--color-success-50);
   color: var(--color-success-dark);
+}
+
+.scope-v1 .chip-en-attente {
+  background: var(--color-grey-100);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .chip-cloturee {
+  background: var(--color-grey-100);
+  color: var(--color-text-primary);
+}
+
+/* Neutral "Prospect"/"Client" tag next to an author's name — grey
+   background, black text, unlike the state chips above which carry meaning
+   through color. Same grey as .complaint-ticket-chip, so every "flat grey"
+   tag in a card reads as the same shade. */
+.scope-v1 .chip-neutral {
+  background: var(--color-grey-100);
+  color: var(--color-text-primary);
 }
 
 .scope-v1 .card-url-row {
@@ -1340,13 +1379,6 @@
 
 .scope-v1 .btn-link-icon-flipped {
   transform: rotate(180deg);
-}
-
-.scope-v1 .card-divider {
-  align-self: stretch;
-  width: 1px;
-  background: var(--color-grey-200);
-  flex-shrink: 0;
 }
 
 .scope-v1 .card-footer {
@@ -1841,7 +1873,7 @@
   border: none;
   outline: none;
   background: transparent;
-  resize: none;
+  resize: vertical;
   font: var(--font-input-text);
   letter-spacing: 0.15px;
   color: var(--color-text-primary);
@@ -1968,51 +2000,22 @@
   color: var(--color-text-primary);
 }
 
-.scope-v1 .complaint-cta {
-  flex-shrink: 0;
-  width: 237px;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.scope-v1 .complaint-cta-status {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.scope-v1 .complaint-cta-row {
-  width: 100%;
-  display: flex;
+/* Échéance chip — same pill padding/shape as the other status chips, but no
+   fill: it only carries meaning through its (secondary, or red once urgent)
+   text color. */
+.scope-v1 .complaint-echeance-chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.scope-v1 .complaint-cta-label {
-  font: var(--font-subtitle2);
-  font-weight: 400;
-  letter-spacing: 0.1px;
-  color: var(--color-text-secondary);
-}
-
-.scope-v1 .complaint-echeance {
-  font: var(--font-body2);
-  letter-spacing: 0.17px;
-  color: var(--color-text-secondary);
+  border-radius: 100px;
+  padding: 3px 10px;
+  font: var(--font-chip-label);
+  letter-spacing: 0.16px;
   white-space: nowrap;
-}
-
-.scope-v1 .complaint-echeance-warning {
-  color: var(--color-error-main);
-}
-
-.scope-v1 .complaint-echeance-closed {
   color: var(--color-text-secondary);
+}
+
+.scope-v1 .complaint-echeance-chip-warning {
+  color: var(--color-error-main);
 }
 
 .scope-v1 .complaints-chip-conformite-conforme {
@@ -2026,7 +2029,7 @@
 }
 
 .scope-v1 .complaints-chip-avancement-sans-suite, .scope-v1 .complaints-chip-avancement-cloture {
-  background: var(--color-chip-selected-bg);
+  background: var(--color-grey-100);
   color: var(--color-text-primary);
 }
 
@@ -2147,9 +2150,23 @@
 
 /* Create-claim slider */
 .scope-v1 .create-claim-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.scope-v1 .create-claim-footer-wrap {
+  position: relative;
+}
+
+/* Overrides .alert-snackbar's viewport-centered position: fixed so it
+   centers on the slider panel instead of the whole screen, docked just
+   above the footer's action row rather than the viewport's bottom edge. */
+.scope-v1 .alert-snackbar-local {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
 }
 
 .scope-v1 .create-claim-body {
@@ -2170,8 +2187,73 @@
 .scope-v1 .create-claim-section {
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: 16px;
   width: 100%;
+}
+
+/* Pins the classée sans suite explanation + "Rouvrir le dossier" box to the
+   bottom of the tab's content instead of sitting right below the mention's
+   own details, since .create-claim-section now stretches to fill the
+   available height. */
+.scope-v1 .create-claim-section > .dossier-treatment-block-bottom {
+  margin-top: auto;
+}
+
+/* Same staggered entrance as the Traitement tab's own revealed content
+   (.dossier-treatment-fields), so switching to the Informations tab doesn't
+   just snap its content into place. Covers however many direct children the
+   section ends up with (card-top, the email/téléphone row, card-body, and
+   any dossier-treatment-block content appended below it) rather than only
+   the first couple. */
+.scope-v1 .create-claim-section > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.scope-v1 .create-claim-section > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .create-claim-section > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .create-claim-section > *:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.scope-v1 .create-claim-section > *:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.scope-v1 .create-claim-section > *:nth-child(5) {
+  animation-delay: 0.4s;
+}
+.scope-v1 .create-claim-section > *:nth-child(6) {
+  animation-delay: 0.5s;
+}
+
+/* The step block remounts wholesale (via its React `key`) whenever Q1
+   itself changes — inheriting the positional delay above (up to 0.5s, meant
+   for the slider's initial open) would make that replay wait before even
+   starting, reading as a stuck/laggy click. Its own children still cascade
+   normally among themselves (see .dossier-treatment-block > * below), so a
+   tab switch still looks like a proper reveal — it just all starts at once
+   instead of waiting on card-top/card-body first. */
+.scope-v1 .create-claim-section > .dossier-treatment-block {
+  animation-delay: 0s;
+}
+
+/* ...except on the slider's very first open (see initialCascadeDone in
+   CreateReclamationSlider), where the treatment block should join the
+   cascade above instead of popping in immediately — same position/delay a
+   plain nth-child(4) would get if the override above didn't exist. */
+.scope-v1 .create-claim-section > .dossier-treatment-block.dossier-treatment-block-first-reveal {
+  animation-delay: 0.3s;
+}
+
+/* "Une réclamation a déjà été ouverte..." / "Mention clôturée" — these two
+   terminal notices read better with more air above them than the section's
+   own 16px rhythm gives every block, since they're closing out the mention
+   rather than just being the next step in it. Adds 16px on top of that
+   existing gap, for 32px total. */
+.scope-v1 .dossier-treatment-block-spaced {
+  margin-top: 16px;
 }
 
 .scope-v1 .create-claim-actions {
@@ -2299,21 +2381,6 @@
   color: var(--color-primary-blue);
 }
 
-.scope-v1 .dossier-status-chip {
-  background: #e5f6fd;
-  color: var(--color-primary-blue);
-}
-
-.scope-v1 .dossier-status-chip-closed {
-  background: var(--color-chip-selected-bg);
-  color: var(--color-text-primary);
-}
-
-.scope-v1 .dossier-status-chip-attente {
-  background: rgba(0, 0, 0, 0.08);
-  color: rgba(0, 0, 0, 0.87);
-}
-
 .scope-v1 .dossier-header-spacer {
   flex: 1;
 }
@@ -2410,6 +2477,52 @@
   color: var(--color-text-primary);
 }
 
+/* Smaller variant of the segmented control — fits its content instead of
+   stretching full-width, for use inline rather than as a page's main tabs. */
+.scope-v1 .dossier-tabs-segmented-small {
+  display: inline-flex;
+  width: fit-content;
+}
+
+.scope-v1 .dossier-tabs-segmented-small .dossier-tabs-segment {
+  flex: none;
+  padding: 4px 14px;
+  font: var(--font-button-medium);
+}
+
+/* "Réclamations clients  22" — the count sits in its own light pill next to
+   the label instead of being folded into the text, 8px apart and both
+   centered as a group within the segment. */
+.scope-v1 .dossier-tabs-segment-with-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.scope-v1 .dossier-tabs-segment-count {
+  background: transparent;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font: var(--font-button-medium);
+  color: inherit;
+}
+
+.scope-v1 .dossier-tabs-segment-active .dossier-tabs-segment-count {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* .dossier-template-block shares the same grey-100 background as the
+   control's own track — give it a white track there so it still reads as
+   a distinct control instead of blending into the box. */
+.scope-v1 .dossier-template-block .dossier-tabs-segmented-small {
+  background: var(--color-white);
+}
+
+.scope-v1 .dossier-template-block .dossier-tabs-segmented-small .dossier-tabs-segment-indicator {
+  background: var(--color-grey-100);
+}
+
 /* Traitement tab: guiding question flow */
 .scope-v1 .dossier-treatment-block {
   display: flex;
@@ -2425,16 +2538,16 @@
   animation-delay: 0s;
 }
 .scope-v1 .dossier-treatment-block > *:nth-child(2) {
-  animation-delay: 0.05s;
+  animation-delay: 0.03s;
 }
 .scope-v1 .dossier-treatment-block > *:nth-child(3) {
-  animation-delay: 0.1s;
+  animation-delay: 0.06s;
 }
 .scope-v1 .dossier-treatment-block > *:nth-child(4) {
-  animation-delay: 0.15s;
+  animation-delay: 0.09s;
 }
 .scope-v1 .dossier-treatment-block > *:nth-child(n + 5) {
-  animation-delay: 0.2s;
+  animation-delay: 0.12s;
 }
 
 .scope-v1 .dossier-treatment-block > .dossier-contract-row {
@@ -2562,6 +2675,73 @@
   background: var(--color-primary-blue);
 }
 
+/* "Quelle option correspond à votre situation ?" — the question's own
+   sentence-length options need their own row below the label instead of
+   sharing dossier-question-row's side-by-side layout. */
+.scope-v1 .dossier-question-row-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* The three options sit side by side, each taking an equal share of the
+   row's width instead of sizing to their own text. */
+.scope-v1 .dossier-choice-column {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-choice-column .dossier-toggle-btn {
+  flex: 1;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  text-align: left;
+  white-space: normal;
+}
+
+.scope-v1 .dossier-choice-column.dossier-choice-row-error .dossier-toggle-btn {
+  border-color: #e4032e;
+}
+
+/* Same selected look as a réclamation/mention card in the list (light blue
+   tint + blue border) instead of the plain toggle's solid blue fill, which
+   read as too heavy for a sentence-length option. */
+.scope-v1 .dossier-choice-column .dossier-toggle-btn-active {
+  background: var(--color-info-selected-bg);
+  border-color: var(--color-primary-blue);
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-choice-column .dossier-toggle-btn-active:hover {
+  background: var(--color-info-selected-bg);
+}
+
+.scope-v1 .dossier-choice-column .dossier-toggle-btn-active .dossier-choice-card-description {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.scope-v1 .dossier-choice-card-title {
+  font: var(--font-button-medium);
+  color: inherit;
+}
+
+.scope-v1 .dossier-choice-card-description {
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-toggle-btn-active .dossier-choice-card-description {
+  color: var(--color-white);
+  opacity: 0.85;
+}
+
 .scope-v1 .dossier-section-meta {
   flex-shrink: 0;
   font: var(--font-body2);
@@ -2681,6 +2861,14 @@
   color: var(--color-text-primary);
 }
 
+/* Plain label-above/value-below readout — same look as SectionTextField's
+   readOnly style, for a quick glance value with no input chrome. */
+.scope-v1 .dossier-field-readonly-value {
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
 .scope-v1 .dossier-field-chip-wrap {
   display: inline-flex;
   align-self: flex-start;
@@ -2738,7 +2926,7 @@
   background: transparent;
   font: var(--font-input-text);
   letter-spacing: 0.15px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   padding: 16px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2750,18 +2938,35 @@
   min-width: 0;
   border: none;
   outline: none;
-  resize: none;
+  resize: vertical;
   background: transparent;
   font: var(--font-input-text);
   letter-spacing: 0.15px;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   padding: 16px 0;
   min-height: 96px;
   field-sizing: content;
 }
 
+/* The browser draws the drag-to-resize grip flush with the textarea's own
+   border-box corner, not the bordered field box's — with the field's usual
+   12px side padding, that left the grip sitting oddly inset from the
+   visible corner instead of in it. Move that padding onto the textarea
+   itself (so the text keeps the same inset) and let the field box give the
+   textarea only a 2px margin, putting the grip exactly 2px from each edge
+   of the visible box, where it reads as belonging to it. */
+.scope-v1 .dossier-field-input-multiline {
+  padding: 0 0 0 12px;
+  align-items: stretch;
+}
+
+.scope-v1 .dossier-field-input-multiline textarea {
+  margin: 0 2px 2px 0;
+  padding: 16px 10px 2px 4px;
+}
+
 .scope-v1 .dossier-field-input input[readonly], .scope-v1 .dossier-field-input textarea[readonly] {
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   cursor: default;
 }
 
@@ -2788,6 +2993,29 @@
 .scope-v1 .dossier-field-input-readonly textarea {
   min-height: 0;
   field-sizing: content;
+}
+
+/* A "plain" multiline field's display-only text (see ExpandableFieldText) —
+   same look as the textarea it replaces, minus the resize handle that made
+   no sense on text nobody can drag to grow. */
+.scope-v1 .dossier-field-readonly-text-wrap {
+  width: 100%;
+}
+
+.scope-v1 .dossier-field-readonly-text {
+  width: 100%;
+  margin: 0;
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-field-readonly-text-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .scope-v1 .dossier-field-input-error {
@@ -2947,7 +3175,7 @@
 .scope-v1 .dossier-history {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32px;
 }
 
 .scope-v1 .dossier-history-item {
@@ -3043,16 +3271,21 @@
   margin-top: 4px;
 }
 
+/* Label and value flow as one piece of text — the value starts right after
+   the label on the same line, and only wraps onto its own line (using the
+   block's full width) once it's too long to fit, instead of either being
+   squeezed into a fixed-width column or always forced below the label.
+   Short values stay plain inline text (see ExpandableHistoryValue), so
+   they align on the label's own baseline; only a genuinely overflowing
+   value switches to the -webkit-box needed for the line-clamp. */
 .scope-v1 .dossier-history-change-row {
-  display: flex;
-  gap: 8px;
   font: var(--font-body2);
   letter-spacing: 0.17px;
 }
 
 .scope-v1 .dossier-history-change-label {
-  flex-shrink: 0;
   color: var(--color-text-secondary);
+  margin-right: 4px;
 }
 
 .scope-v1 .dossier-history-change-label::after {
@@ -3063,6 +3296,30 @@
   color: var(--color-text-primary);
   font-weight: 500;
   word-break: break-word;
+}
+
+.scope-v1 .dossier-history-change-value-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.scope-v1 .dossier-history-change-toggle {
+  display: block;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 0 0;
+  font: var(--font-body2);
+  font-weight: 500;
+  letter-spacing: 0.17px;
+  color: var(--color-primary-blue);
+}
+
+.scope-v1 .dossier-history-change-toggle:hover {
+  text-decoration: underline;
 }
 
 .scope-v1 .dossier-history-meta {
@@ -3125,6 +3382,36 @@
   margin: 0;
 }
 
+/* Same alert-box shape as .dossier-alert-info, in a neutral grey — for
+   informational states that aren't tied to an action needed right now (e.g.
+   a mention classée sans suite). */
+.scope-v1 .dossier-alert-neutral {
+  background: var(--color-grey-100);
+  border-radius: 8px;
+  padding: 16px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font: 400 14px/1.43 var(--font-family);
+  letter-spacing: 0.17px;
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-alert-neutral p {
+  margin: 0;
+}
+
+.scope-v1 .dossier-alert-neutral-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-alert-neutral .btn-text {
+  align-self: flex-end;
+}
+
 /* Groups an alert with the field it directly instructs (e.g. the AR/contact
    date), so the gap between them is a deliberate, explicit value instead of
    inheriting the same -8px-off-16px hack used for a lone alert sitting
@@ -3137,6 +3424,169 @@
 
 .scope-v1 .dossier-alert-field-group .dossier-alert-info {
   margin: 0;
+}
+
+.scope-v1 .dossier-file-upload-btn {
+  width: fit-content;
+}
+
+.scope-v1 .dossier-template-toggle-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-template-toggle-btn {
+  width: fit-content;
+}
+
+/* Same staggered entrance as .dossier-treatment-fields' direct children —
+   the alert, its field and (where present) the message template reveal one
+   after another instead of all popping in at once. */
+.scope-v1 .dossier-alert-field-group > * {
+  animation: panel-fade-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.scope-v1 .dossier-alert-field-group > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.scope-v1 .dossier-alert-field-group > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.scope-v1 .dossier-alert-field-group > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.scope-v1 .dossier-alert-field-group > *:nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+.scope-v1 .dossier-template-block {
+  background: var(--color-grey-100);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-template-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scope-v1 .dossier-template-title {
+  font: var(--font-subtitle1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+}
+
+.scope-v1 .dossier-template-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font: var(--font-button-medium);
+  color: var(--color-text-secondary);
+}
+
+.scope-v1 .dossier-template-copy-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.scope-v1 .dossier-certify-checkbox-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.scope-v1 .dossier-certify-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font: 400 14px/1.43 var(--font-family);
+  letter-spacing: 0.17px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.scope-v1 .dossier-certify-checkbox input[type='checkbox'] {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary-blue);
+}
+
+/* The label's text and its trailing "*" live in one flex item so the text
+   wraps as a single block, keeping the "*" glued to its last word instead
+   of floating off as its own flex item next to the wrapped text. */
+.scope-v1 .dossier-certify-checkbox-text {
+  flex: 1;
+}
+
+.scope-v1 .dossier-certify-checkbox-wrap-error .dossier-certify-checkbox input[type='checkbox'] {
+  outline: 2px solid #e4032e;
+  outline-offset: 1px;
+}
+
+/* The "Copié !" feedback used to sit inline next to the icon, so the button
+   (and the header row's height, and everything below it) resized the
+   instant it appeared. Floating it over the button instead means the
+   layout never has to react to it at all. */
+.scope-v1 .dossier-template-copy-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.scope-v1 .dossier-template-copy-feedback {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font: var(--font-button-medium);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.scope-v1 .dossier-template-text {
+  margin: 0;
+  white-space: pre-line;
+  font: var(--font-body1);
+  letter-spacing: 0.15px;
+  color: var(--color-text-secondary);
+}
+
+/* The mention's link, shown right below the title — smaller and muted
+   since it's there for convenience (so whoever's sending this can jump
+   back to the mention), not part of the message itself. Pulled 4px closer
+   to the header than the block's regular 8px gap. */
+.scope-v1 .dossier-template-link {
+  margin-top: -4px;
+  font: var(--font-caption);
+  letter-spacing: 0.4px;
+  color: var(--color-text-disabled);
+}
+
+.scope-v1 .dossier-template-link-anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary-blue);
+  text-decoration: underline;
+}
+
+.scope-v1 .dossier-template-link-anchor .arrow-up-right {
+  flex-shrink: 0;
 }
 
 .scope-v1 .dossier-alert-warning-title-row {
@@ -3163,6 +3613,15 @@
   align-items: center;
   text-align: center;
   padding: 40px 0;
+}
+
+.scope-v1 .dossier-inline-loader {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-chip-border);
+  border-top-color: var(--color-primary-blue);
+  border-radius: 50%;
+  animation: scroll-sentinel-spin 0.7s linear infinite;
 }
 
 /* Sticky footer for the Traitement tab's primary action(s) — sits outside

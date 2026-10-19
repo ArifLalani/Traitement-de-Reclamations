@@ -5,6 +5,25 @@ import HoverTooltip from './HoverTooltip';
 const TEXTAREA_MIN_HEIGHT = 120;
 const TEXTAREA_MAX_HEIGHT = 152;
 
+const DROPDOWN_GAP = 4;
+const DROPDOWN_MAX_HEIGHT = 300; // Keep in sync with .field-dropdown-menu's max-height.
+
+// Opens downward by default — unless there isn't enough room below for the
+// full list AND there's more room above, in which case it flips upward
+// instead of being squashed into a barely-scrollable sliver. Either way,
+// whatever space is actually available caps the height and the list scrolls
+// internally (.field-dropdown-menu already has overflow-y: auto).
+function computeDropdownPlacement(
+  rect: DOMRect,
+): { top: number; bottom?: undefined; maxHeight: number } | { top?: undefined; bottom: number; maxHeight: number } {
+  const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_GAP;
+  const spaceAbove = rect.top - DROPDOWN_GAP;
+  if (spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow) {
+    return { bottom: window.innerHeight - rect.top + DROPDOWN_GAP, maxHeight: Math.max(0, Math.min(DROPDOWN_MAX_HEIGHT, spaceAbove)) };
+  }
+  return { top: rect.bottom + DROPDOWN_GAP, maxHeight: Math.max(0, Math.min(DROPDOWN_MAX_HEIGHT, spaceBelow)) };
+}
+
 export function ReadOnlyField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="field-readonly">
@@ -22,17 +41,61 @@ export type FormFieldProps = {
   placeholder?: string;
   error?: boolean;
   errorText?: string;
+  // "date" restricts input to digits and auto-inserts the "/" separators as
+  // the user types (14092026 → 14/09/2026), instead of taking free text.
+  type?: 'text' | 'date';
 };
 
-export function FormField({ label, required, value, onChange, placeholder, error, errorText }: FormFieldProps) {
+// Strips everything but digits, caps at 8 (JJMMAAAA), and inserts the "/"
+// separators as soon as the day/month group reaches 2 digits — not just once
+// a digit of the next group has been typed. `previous` is the field's value
+// before this change: when the raw input is shorter but has the exact same
+// digits, the user backspaced over an auto-inserted "/" rather than an
+// actual digit — that "/" isn't really there to delete, so the last digit
+// is dropped too, otherwise backspace right after a separator would do
+// nothing and the user would appear stuck.
+function maskFrDateInput(raw: string, previous: string): string {
+  let digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (raw.length < previous.length && digits.length === previous.replace(/\D/g, '').length) {
+    digits = digits.slice(0, -1);
+  }
+  let day = digits.slice(0, 2);
+  let month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+
+  // Clamps each complete group to a real calendar value as soon as it's
+  // typed, rather than letting something like "35/13/2026" or "31/04/2026"
+  // (April has 30 days) sit there — month first, since the day clamp needs
+  // to know it to find that month's last day. A month/year not typed yet
+  // falls back to 12 and a leap year, so the day isn't clamped too early.
+  if (month.length === 2) {
+    month = String(Math.min(Math.max(parseInt(month, 10) || 1, 1), 12)).padStart(2, '0');
+  }
+  if (day.length === 2) {
+    const monthNum = month.length === 2 ? parseInt(month, 10) : 12;
+    const yearNum = year.length === 4 ? parseInt(year, 10) : 2000;
+    const maxDay = new Date(yearNum, monthNum, 0).getDate();
+    day = String(Math.min(Math.max(parseInt(day, 10) || 1, 1), maxDay)).padStart(2, '0');
+  }
+
+  let out = day;
+  if (day.length === 2) out += '/';
+  out += month;
+  if (month.length === 2) out += '/';
+  out += year;
+  return out;
+}
+
+export function FormField({ label, required, value, onChange, placeholder, error, errorText, type = 'text' }: FormFieldProps) {
   return (
     <div className="field-outlined">
       <div className={`field-border ${error ? 'field-border-error' : ''}`}>
         <input
           type="text"
+          inputMode={type === 'date' ? 'numeric' : undefined}
           value={value}
           placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(type === 'date' ? maskFrDateInput(e.target.value, value) : e.target.value)}
         />
       </div>
       <span className={`field-label field-label-floating ${error ? 'field-label-error' : ''}`}>
@@ -68,7 +131,18 @@ export function FormSelect<T extends string>({
   errorText,
 }: FormSelectProps<T>) {
   const [open, setOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState({ top: 0, left: 0, width: 0 });
+  const [menuStyle, setMenuStyle] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  }>({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: DROPDOWN_MAX_HEIGHT,
+  });
   // Anchored to the bordered field itself (not the inner button), so the
   // menu's width/left match the field's visible outer edge instead of its
   // padded-in content box.
@@ -83,7 +157,7 @@ export function FormSelect<T extends string>({
   useLayoutEffect(() => {
     if (!open || !fieldRef.current) return;
     const rect = fieldRef.current.getBoundingClientRect();
-    setMenuStyle({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    setMenuStyle({ ...computeDropdownPlacement(rect), left: rect.left, width: rect.width });
   }, [open]);
 
   useEffect(() => {
@@ -94,15 +168,36 @@ export function FormSelect<T extends string>({
       if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) return;
       close();
     };
+    // Scrolling the menu's own option list (it can exceed its max-height)
+    // fires a scroll event too — only a scroll elsewhere (e.g. the drawer
+    // behind it moving the trigger) should close the menu.
+    const handleScroll = (e: Event) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      close();
+    };
     document.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', close);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', close);
     };
   }, [open]);
+
+  // The menu is portaled to <body>, so it isn't a DOM descendant of the
+  // drawer's own scrollable body — scrolling over it would otherwise just
+  // scroll the (short, capped) menu itself instead of that underlying
+  // panel. Forward the wheel delta to the trigger's nearest scrollable
+  // ancestor instead, so the panel moves like the menu wasn't even there.
+  const handleMenuWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    let scrollParent = fieldRef.current?.parentElement ?? null;
+    while (scrollParent && scrollParent.scrollHeight <= scrollParent.clientHeight) {
+      scrollParent = scrollParent.parentElement;
+    }
+    scrollParent?.scrollBy({ top: e.deltaY });
+  };
 
   return (
     <div className="field-outlined">
@@ -137,7 +232,14 @@ export function FormSelect<T extends string>({
             <div
               ref={menuRef}
               className="field-dropdown-menu"
-              style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+              style={{
+                top: menuStyle.top,
+                bottom: menuStyle.bottom,
+                left: menuStyle.left,
+                width: menuStyle.width,
+                maxHeight: menuStyle.maxHeight,
+              }}
+              onWheel={handleMenuWheel}
             >
               {options.map((option) => (
                 <button
@@ -218,7 +320,15 @@ export function FormTextarea({ label, required, value, onChange, placeholder }: 
 // min/max height with an internal scroll + fade — it just grows to fit
 // everything, no matter how long. Kept as a separate component (rather
 // than a prop toggle) so both height behaviors stay independently usable.
-export function FormTextareaAutoGrow({ label, required, value, onChange, placeholder }: FormFieldProps) {
+export function FormTextareaAutoGrow({
+  label,
+  required,
+  value,
+  onChange,
+  placeholder,
+  error,
+  errorText,
+}: FormFieldProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -230,7 +340,9 @@ export function FormTextareaAutoGrow({ label, required, value, onChange, placeho
 
   return (
     <div className="field-outlined field-outlined-textarea">
-      <div className="field-border field-border-textarea field-border-textarea-autogrow">
+      <div
+        className={`field-border field-border-textarea field-border-textarea-autogrow ${error ? 'field-border-error' : ''}`}
+      >
         <textarea
           ref={textareaRef}
           value={value}
@@ -238,10 +350,11 @@ export function FormTextareaAutoGrow({ label, required, value, onChange, placeho
           onChange={(e) => onChange(e.target.value)}
         />
       </div>
-      <span className="field-label field-label-floating">
+      <span className={`field-label field-label-floating ${error ? 'field-label-error' : ''}`}>
         {label}
         {required && <span className="field-required">*</span>}
       </span>
+      {error && errorText && <span className="field-error-text">{errorText}</span>}
     </div>
   );
 }

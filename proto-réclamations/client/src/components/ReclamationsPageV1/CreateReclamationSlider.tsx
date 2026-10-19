@@ -1,7 +1,235 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import drawerClose from '../../assets/figma/drawer-close.svg';
-import { ReadOnlyField } from './FormFields';
-import type { Reclamation } from './data';
+import AlertSnackbar from './AlertSnackbar';
+import ArrowUpRight from './ArrowUpRight';
+import {
+  getContactTag,
+  STATUT_CLIENT_DESCRIPTION,
+  STATUT_CLIENT_LABEL,
+  type HistoriqueEntry,
+  type StatutClient,
+} from './complaintsData';
+import type { Reclamation, ReclamationState } from './data';
+import { FormField, FormSelect, FormTextareaAutoGrow } from './FormFields';
+import HoverTooltip from './HoverTooltip';
+import SentimentIcon from './SentimentIcon';
+import SourceIcon from './SourceIcon';
+
+// Same key-step flag as ComplaintDetailDrawer's FlagIcon, reused here for
+// the mention slider's own Historique tab.
+function FlagIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width={14} height={14} fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 17V3.5c0-.3.2-.5.5-.5H15l-2.5 4L15 11H4.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.3">
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
+      <path d="M3 10.5V3.7A1.2 1.2 0 0 1 4.2 2.5h6.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Same warning glyph as ComplaintDetailDrawer's AlertTriangleIcon, reused
+// here for the mention slider's own "en attente" alert.
+function AlertTriangleIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width={20} height={20} fill="currentColor">
+      <path d="M8.0002 1.49937C8.26329 1.4994 8.52162 1.56954 8.74922 1.70151C8.9765 1.83331 9.1654 2.02244 9.29609 2.25034V2.25132L14.7951 11.7503C14.9265 11.9779 14.996 12.2357 14.9963 12.4984C14.9965 12.7611 14.928 13.0196 14.7971 13.2474C14.6661 13.4752 14.4774 13.6652 14.2502 13.7972C14.023 13.9292 13.7649 13.9994 13.5021 14.0003H2.49824C2.23544 13.9994 1.97745 13.9292 1.7502 13.7972C1.5229 13.6652 1.33435 13.4753 1.20332 13.2474C1.07236 13.0196 1.00289 12.7612 1.00313 12.4984C1.00341 12.2358 1.07304 11.9778 1.2043 11.7503L6.70332 2.25132L6.7043 2.25034C6.83491 2.02265 7.02315 1.83327 7.2502 1.70151C7.47786 1.56949 7.73702 1.49937 8.0002 1.49937ZM8.0002 2.49937C7.91321 2.49937 7.8274 2.52311 7.75215 2.56675C7.67701 2.61038 7.61464 2.67297 7.57148 2.74839L7.13789 2.50034L7.57051 2.75034L2.07051 12.2503C2.0269 12.3261 2.00324 12.412 2.00313 12.4994C2.00305 12.587 2.02683 12.6734 2.07051 12.7494C2.11411 12.8251 2.17663 12.888 2.25215 12.932C2.32772 12.9759 2.41379 12.9999 2.50117 13.0003H13.4992C13.5865 12.9999 13.6718 12.9758 13.7473 12.932C13.823 12.888 13.8862 12.8253 13.9299 12.7494C13.9736 12.6734 13.9964 12.587 13.9963 12.4994C13.9962 12.412 13.9735 12.3261 13.9299 12.2503L8.42891 2.74839C8.3857 2.67289 8.32252 2.61039 8.24727 2.56675C8.17211 2.52322 8.08704 2.4994 8.0002 2.49937ZM8.0002 10.5003C8.41432 10.5004 8.7502 10.8362 8.7502 11.2503C8.75001 11.6643 8.41421 12.0002 8.0002 12.0003C7.5861 12.0003 7.25038 11.6644 7.2502 11.2503C7.2502 10.8361 7.58598 10.5003 8.0002 10.5003ZM8.0002 6.00034C8.27625 6.00045 8.5002 6.22426 8.5002 6.50034V9.00034C8.50001 9.27626 8.27613 9.50024 8.0002 9.50034C7.72417 9.50034 7.50038 9.27633 7.5002 9.00034V6.50034C7.5002 6.2242 7.72405 6.00034 8.0002 6.00034Z" />
+    </svg>
+  );
+}
+
+function addDaysToFrDate(value: string, days: number): string {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return '';
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  date.setDate(date.getDate() + days);
+  return date.toLocaleDateString('fr-FR');
+}
+
+// Placeholder wording pending the real template the client will provide —
+// covers the essentials (why we're writing, what we need, how to reply).
+// Points to an email rather than a reply on the platform itself, since the
+// mention (and any reply to it) can be publicly visible — personal contact
+// details shouldn't be exchanged there.
+const DEMANDE_CONTACT_TEMPLATE_BODY = `Bonjour,
+
+Nous avons bien pris en compte votre message concernant votre dossier. Afin de pouvoir l'examiner et vous répondre, nous avons besoin de vos coordonnées complètes (nom, prénom, email et/ou numéro de téléphone).
+
+Pour des raisons de confidentialité, merci de ne pas les transmettre en réponse à ce message public, mais de nous les envoyer directement à l'adresse suivante : contact@votre-entreprise.fr
+
+Nous restons à votre disposition pour tout complément d'information.
+
+Cordialement,
+Le service client`;
+
+// The mention's own link is appended at the bottom (shown smaller, kept
+// separate from the main body) so whoever sends this can jump straight back
+// to it instead of having to search for it again.
+function buildDemandeContactTemplate(mentionUrl: string): string {
+  return `${DEMANDE_CONTACT_TEMPLATE_BODY}\n\nLien de la mention : ${toHref(mentionUrl)}`;
+}
+
+// Sent when the first demande went unanswered — same ask, framed as a
+// follow-up rather than a first contact.
+const RELANCE_TEMPLATE_BODY = `Bonjour,
+
+Nous n'avons pas encore reçu de réponse à notre précédent message concernant votre dossier. Afin de pouvoir l'examiner et vous répondre, nous avons besoin de vos coordonnées complètes (nom, prénom, email et/ou numéro de téléphone).
+
+Pour des raisons de confidentialité, merci de ne pas les transmettre en réponse à ce message public, mais de nous les envoyer directement à l'adresse suivante : contact@votre-entreprise.fr
+
+Nous restons à votre disposition pour tout complément d'information.
+
+Cordialement,
+Le service client`;
+
+function buildRelanceTemplate(mentionUrl: string): string {
+  return `${RELANCE_TEMPLATE_BODY}\n\nLien de la mention : ${toHref(mentionUrl)}`;
+}
+
+const STATE_BADGE: Partial<Record<ReclamationState, { label: string; className: string }>> = {
+  'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
+  'en-attente': { label: 'En attente', className: 'chip-en-attente' },
+  cloturee: { label: 'Clôturée', className: 'chip-cloturee' },
+};
+
+function toHref(url: string) {
+  const cleaned = url.replace(/\.{3}$/, '');
+  return cleaned.startsWith('http') ? cleaned : `https://${cleaned}`;
+}
+
+type MentionTabKey = 'informations' | 'historique';
+
+const MENTION_TABS: { id: MentionTabKey; label: string }[] = [
+  { id: 'informations', label: 'Informations' },
+  { id: 'historique', label: 'Historique' },
+];
+
+// Same sliding-pill segmented control pattern as ComplaintDetailDrawer's
+// DossierTabsControl, reused here for the mention slider's tab navigation.
+function MentionTabsControl({ value, onChange }: { value: MentionTabKey; onChange: (tab: MentionTabKey) => void }) {
+  const index = Math.max(0, MENTION_TABS.findIndex((tab) => tab.id === value));
+  const style = { '--segment-count': MENTION_TABS.length } as CSSProperties;
+
+  return (
+    <div className="dossier-tabs-segmented" style={style}>
+      <div
+        className="dossier-tabs-segment-indicator"
+        style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
+      />
+      {MENTION_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          className={`dossier-tabs-segment ${value === tab.id ? 'dossier-tabs-segment-active' : ''}`}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Same Oui/Non toggle as ComplaintDetailDrawer's ChoiceToggle, reused here
+// for the mention slider's own guiding questions.
+function ChoiceToggle({
+  value,
+  onChange,
+  error,
+}: {
+  value: 'oui' | 'non' | null;
+  onChange: (value: 'oui' | 'non') => void;
+  error?: boolean;
+}) {
+  return (
+    <div className={`dossier-choice-row ${error ? 'dossier-choice-row-error' : ''}`}>
+      <button
+        type="button"
+        className={`dossier-toggle-btn ${value === 'oui' ? 'dossier-toggle-btn-active' : ''}`}
+        onClick={() => onChange('oui')}
+      >
+        Oui
+      </button>
+      <button
+        type="button"
+        className={`dossier-toggle-btn ${value === 'non' ? 'dossier-toggle-btn-active' : ''}`}
+        onClick={() => onChange('non')}
+      >
+        Non
+      </button>
+    </div>
+  );
+}
+
+// A row of option cards (unlike ChoiceToggle's Oui/Non pair) — used for
+// "Quelle option correspond à votre situation ?", whose three options each
+// need a short title plus a bit more detail than a single word can carry.
+function ChoiceColumn<T extends string>({
+  value,
+  onChange,
+  options,
+  error,
+}: {
+  value: T | null;
+  onChange: (value: T) => void;
+  options: { value: T; title: string; description: string }[];
+  error?: boolean;
+}) {
+  return (
+    <div className={`dossier-choice-column ${error ? 'dossier-choice-row-error' : ''}`}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`dossier-toggle-btn dossier-choice-card ${value === option.value ? 'dossier-toggle-btn-active' : ''}`}
+          onClick={() => onChange(option.value)}
+        >
+          <span className="dossier-choice-card-title">{option.title}</span>
+          <span className="dossier-choice-card-description">{option.description}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// A history entry's "changes" value, clamped to 4 lines with a "Voir plus" /
+// "Voir moins" toggle once it actually overflows — e.g. the mention author's
+// full retranscribed response, which can run much longer than the other
+// change rows (contact fields, statut du client...) ever do.
+function ExpandableHistoryValue({ value }: { value: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const valueRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const el = valueRef.current;
+    if (!el) return;
+    setOverflowing(el.scrollHeight > el.clientHeight + 1);
+  }, [value, expanded]);
+
+  return (
+    <span className="dossier-history-change-value-wrap">
+      <span
+        ref={valueRef}
+        className={`dossier-history-change-value ${!expanded ? 'dossier-history-change-value-clamped' : ''}`}
+      >
+        {value}
+      </span>
+      {(overflowing || expanded) && (
+        <button type="button" className="dossier-history-change-toggle" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'Voir moins' : 'Voir plus'}
+        </button>
+      )}
+    </span>
+  );
+}
 
 function formatDateFR(dateLabel: string) {
   const match = dateLabel.match(/(\d{2}\/\d{2}\/\d{4})/);
@@ -26,6 +254,20 @@ function suggestObjet(text: string): string {
   return firstSentence.length > 60 ? `${firstSentence.slice(0, 60)}…` : firstSentence;
 }
 
+// Shape of the reclamant fields, saveable on their own via the "Enregistrer"
+// action — without going through onSubmit, which also creates the
+// réclamation itself.
+export type ReclamantDraftData = {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  denominationSociale: string;
+  porteurDuRisque: string;
+  rattacheContrat: 'oui' | 'non' | null;
+  statutClient: StatutClient | '';
+};
+
 export type ReclamationFormData = {
   prenom: string;
   nom: string;
@@ -35,6 +277,8 @@ export type ReclamationFormData = {
   telephone: string;
   denominationSociale: string;
   porteurDuRisque: string;
+  rattacheContrat: 'oui' | 'non' | '';
+  statutClient: StatutClient | '';
   objet: string;
   notesInternes: string;
   description: string;
@@ -43,30 +287,985 @@ export type ReclamationFormData = {
 type CreateReclamationSliderProps = {
   reclamation: Reclamation;
   onClose: () => void;
-  onSubmit: (data: ReclamationFormData) => void;
-  onDismiss: () => void;
+  // Carries along everything that happened to the mention so far (réception,
+  // demande de contact, clôture...) so the new réclamation's own historique
+  // continues the same trail instead of starting blank.
+  onSubmit: (data: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => void;
   onViewComplaint: () => void;
+  // Called instead of onSubmit when the answer is "Non" — the mention isn't
+  // turned into a réclamation yet, it's just flagged "en attente" until its
+  // author replies with their contact details.
+  onConfirmEnAttente: (demandeContactDate: string) => void;
+  onClotureMention: () => void;
+  // Once a réclamation exists for this mention, its Historique tab shows
+  // that dossier's actual historique instead of reconstructing its own —
+  // one shared trail, whichever slider it's viewed from.
+  linkedComplaintHistorique?: HistoriqueEntry[];
+  // Lets the reclamant fields be saved on their own (e.g. partially filled
+  // in, to finish later) without creating a réclamation — persisted by the
+  // parent and restored here when the slider reopens.
+  savedReclamantDraft?: ReclamantDraftData;
+  onSaveReclamantDraft: (draft: ReclamantDraftData) => void;
+  // Each "Enregistrer" on the reclamant draft appends one of these — kept by
+  // the parent (alongside the draft itself) so the modification still shows
+  // in the Historique tab the next time the slider reopens, not just within
+  // the session that made it.
+  savedDraftHistorique?: HistoriqueEntry[];
+  onAppendDraftHistorique: (entry: HistoriqueEntry) => void;
+  // Which of the six clôture paths actually closed this mention — persisted
+  // by the parent so "Mention clôturée" still explains itself correctly
+  // after the slider's been fully closed and reopened (not just within the
+  // same session), same reasoning as savedDraftHistorique above.
+  savedClotureReason?: ClotureReason;
+  onSetClotureReason: (reason: ClotureReason) => void;
 };
 
 const CLOSE_ANIMATION_DURATION = 200;
+
+type YesNo = 'oui' | 'non' | null;
+// Q1=Non branch — which of the three options the user picked when the
+// comment's author hasn't been identified.
+type CanalAnswer = 'plateforme' | 'administrateur' | 'rien' | null;
+// Which of the six "cloture-offer" paths actually closed a mention —
+// 'administrateur' / 'qa': Q1's own two dead ends, the author was never
+// reached at all. 'hebergeur-apres-reponse' / 'qa-apres-reponse': the author
+// did reply (via la plateforme) but without their coordonnées.
+// 'hebergeur-sans-reponse' / 'qa-sans-reponse': no reply at all, even after
+// the relance. Within each "apres-reponse"/"sans-reponse" pair, the
+// hebergeur-* variant means the hébergeur could be contacted; the qa-*
+// variant means it couldn't. Persisted by the parent (unlike the rest of
+// this component's flow state) so the "Mention clôturée" summary still
+// explains itself correctly after the slider's been fully closed and
+// reopened, not just across an in-session réouverture.
+export type ClotureReason =
+  | 'administrateur'
+  | 'qa'
+  | 'hebergeur-apres-reponse'
+  | 'qa-apres-reponse'
+  | 'hebergeur-sans-reponse'
+  | 'qa-sans-reponse'
+  | null;
+type StepPhase =
+  | 'question'
+  | 'envoi'
+  | 'relance-envoi'
+  | 'waiting'
+  | 'reclamant'
+  | 'cloture-offer'
+  | 'pending-definition';
+type Step = { node: ReactNode; phase: StepPhase };
 
 export default function CreateReclamationSlider({
   reclamation,
   onClose,
   onSubmit,
-  onDismiss,
   onViewComplaint,
+  onConfirmEnAttente,
+  onClotureMention,
+  linkedComplaintHistorique,
+  savedReclamantDraft,
+  onSaveReclamantDraft,
+  savedDraftHistorique,
+  onAppendDraftHistorique,
+  savedClotureReason,
+  onSetClotureReason,
 }: CreateReclamationSliderProps) {
-  const isFlagged = reclamation.state === 'possible';
   const isMesReclamations = reclamation.state === 'mes-reclamations';
+  const isEnAttente = reclamation.state === 'en-attente';
+  const isCloturee = reclamation.state === 'cloturee';
   const [prenom] = useState(() => (reclamation.author || '').split(' ')[0] ?? '');
   const [nom] = useState(() => (reclamation.author || '').split(' ').slice(1).join(' '));
   const canal = reclamation.source;
   const dateReception = formatDateFR(reclamation.date);
   const [objet] = useState(() => suggestObjet(reclamation.text));
   const [closing, setClosing] = useState(false);
+  const [activeTab, setActiveTab] = useState<MentionTabKey>('informations');
+  // The treatment block's own cascade delay (below) is forced to 0s so a
+  // mid-session remount — switching Q1's answer, say — doesn't lag behind
+  // card-top/card-body's own entrance. But the slider's very first open is
+  // exactly when it should join that cascade, hence this one-shot flag:
+  // true only for the brief window the initial reveal is still playing.
+  const [initialCascadeDone, setInitialCascadeDone] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialCascadeDone(true), 700);
+    return () => clearTimeout(timer);
+  }, []);
+  const treatmentBlockClassName = (extra?: string) =>
+    ['dossier-treatment-block', !initialCascadeDone && 'dossier-treatment-block-first-reveal', extra]
+      .filter(Boolean)
+      .join(' ');
 
-  const canSubmit = canal.trim().length > 0 && dateReception.trim().length > 0 && objet.trim().length > 0;
+  // The whole treatment flow below mirrors the team's Figma flowchart node
+  // by node — getTreatmentStep() walks it top to bottom and returns exactly
+  // the one next thing to show, instead of stacking JSX conditions. Every
+  // "Avez-vous les coordonnées...?" checkpoint reached once waiting on a
+  // reply is the same question in the diagram, so they all share
+  // coordonneesCheckpoint below rather than being separate fields.
+  // Q1 — reopening an "en attente" mention pre-fills this with "Non" (the
+  // author wasn't identified directly, hence going through the "plateforme"
+  // canal to request their coordonnées), since the wait loop is reached the
+  // same way regardless of which sub-path led there.
+  const [identifiedAnswer, setIdentifiedAnswer] = useState<YesNo>(isEnAttente ? 'non' : null);
+  // Q1=Non branch — reopening an "en attente" mention pre-fills this with
+  // "plateforme" (the demande was sent via the platform, hence the wait).
+  const [canalAnswer, setCanalAnswer] = useState<CanalAnswer>(isEnAttente ? 'plateforme' : null);
+  const [demandeDateDraft, setDemandeDateDraft] = useState(reclamation.demandeContactDate ?? '');
+  // Once the demande de contact is confirmed, the slider stays open (it's
+  // not creating a réclamation yet) and swaps the form for the wait loop
+  // instead — no need to wait on the parent re-passing an updated
+  // reclamation prop.
+  const [enAttenteConfirmed, setEnAttenteConfirmed] = useState(isEnAttente);
+  const [eusReponseAnswer, setEusReponseAnswer] = useState<YesNo>(null);
+  const [retourTexte, setRetourTexte] = useState('');
+  const [retourDateDraft, setRetourDateDraft] = useState('');
+  // The relance message needs its own "Confirmer" (like the initial
+  // demande) before the dossier is considered back en attente — until then
+  // only the template shows, no question below it yet.
+  const [relanceConfirmed, setRelanceConfirmed] = useState(false);
+  const [relanceCertified, setRelanceCertified] = useState(false);
+  const [relanceCertifyMissing, setRelanceCertifyMissing] = useState(false);
+  const [relanceDateDraft, setRelanceDateDraft] = useState('');
+  const [reponseApresRelanceAnswer, setReponseApresRelanceAnswer] = useState<YesNo>(null);
+  // Required before "Clôturer la mention" accepts the courrier as sent —
+  // proof of that step may be requested in an audit.
+  const [clotureCertified, setClotureCertified] = useState(false);
+  const [clotureCertifyMissing, setClotureCertifyMissing] = useState(false);
+  // Required before "Confirmer" accepts the initial demande de coordonnées
+  // as sent (same certification pattern as the relance and the courrier).
+  const [demandeCertified, setDemandeCertified] = useState(false);
+  const [demandeCertifyMissing, setDemandeCertifyMissing] = useState(false);
+  // Shared by every "Avez-vous les coordonnées...?" checkpoint reached once
+  // waiting on a reply (right after the reply, or after the relance).
+  const [coordonneesCheckpoint, setCoordonneesCheckpoint] = useState<YesNo>(null);
+  // That checkpoint's own "non" branch — reached once a reply came in
+  // without the coordonnées in it.
+  const [peutContacterHebergeurAnswer, setPeutContacterHebergeurAnswer] = useState<YesNo>(null);
+  // Asked instead of Q1 when reopening a mention that was clôturée while
+  // still waiting on the author (clotureReason 'hebergeur-sans-reponse' /
+  // 'qa-sans-reponse') — reopening a mention closed any other way skips
+  // straight to "Ajouter les informations" (see reouvertureNeedsResponseQuestion).
+  const [reouvertureReponseAnswer, setReouvertureReponseAnswer] = useState<YesNo>(null);
+  const [showContactErrors, setShowContactErrors] = useState(false);
+  const [templateCopied, setTemplateCopied] = useState(false);
+  const [relanceTemplateCopied, setRelanceTemplateCopied] = useState(false);
+
+  const initialReclamantDraft: ReclamantDraftData = savedReclamantDraft ?? {
+    nom,
+    prenom,
+    email: '',
+    telephone: '',
+    denominationSociale: '',
+    porteurDuRisque: '',
+    rattacheContrat: null,
+    statutClient: '',
+  };
+  const [reclamantDraft, setReclamantDraft] = useState<ReclamantDraftData>(initialReclamantDraft);
+  // Tracks the last saved snapshot so "Enregistrer" stays disabled until
+  // something actually changes since that save (or since opening, if
+  // nothing was ever saved).
+  const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<ReclamantDraftData>(initialReclamantDraft);
+  const [draftSavedToast, setDraftSavedToast] = useState(false);
+  const draftSavedToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reclamantDraftDirty = JSON.stringify(reclamantDraft) !== JSON.stringify(savedDraftSnapshot);
+  // Derived from the last *saved* snapshot, not the live draft — ticking
+  // Oui/Non here doesn't tag the mention until that answer is actually
+  // confirmed (Enregistrer / Créer une réclamation), so going back to
+  // change an earlier question first doesn't leave a stale tag behind.
+  const contactTag = getContactTag(savedDraftSnapshot.rattacheContrat);
+  // Unlike contactTag above, this one tracks the live draft — it only
+  // drives the "Créer une réclamation" button's own label, which should
+  // reflect the answer as soon as it's picked instead of waiting on a save.
+  const liveContactTag = getContactTag(reclamantDraft.rattacheContrat);
+  const createSubmitLabel =
+    liveContactTag === 'Client'
+      ? 'Créer une réclamation client'
+      : liveContactTag === 'Prospect'
+        ? 'Créer une réclamation prospect'
+        : 'Créer une réclamation';
+
+  // The mention can't be answered directly, so it's closed out in place
+  // instead: the slider stays open, its info stays visible, and a toast +
+  // persistent grey notice confirm the new status.
+  const [mentionCloturee, setMentionCloturee] = useState(isCloturee);
+  // Clôture isn't final — kept true even after a réouverture so the
+  // historique still shows that step happened, instead of erasing it the
+  // moment mentionCloturee flips back to false.
+  const [wasEverCloturee, setWasEverCloturee] = useState(isCloturee);
+  // Mirrors savedClotureReason until handleClotureMention sets a new one —
+  // not derived live from canalAnswer/coordonneesCheckpoint/
+  // peutContacterHebergeurAnswer, since those get reset to null the moment
+  // "Rouvrir la mention" is clicked and would otherwise forget which one it
+  // was.
+  const [clotureReason, setClotureReasonState] = useState<ClotureReason>(savedClotureReason ?? null);
+  const setClotureReason = (reason: ClotureReason) => {
+    setClotureReasonState(reason);
+    onSetClotureReason(reason);
+  };
+  const [clotureToast, setClotureToast] = useState(false);
+  const clotureToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [todayLabel] = useState(() => new Date().toLocaleDateString('fr-FR'));
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Each handler below only resets the *next* answer down the tree — deeper
+  // answers are left untouched, so flipping back to a combination already
+  // answered before re-reveals it pre-filled instead of blank.
+  const handleIdentifiedAnswerChange = (value: 'oui' | 'non') => {
+    setIdentifiedAnswer(value);
+    setCanalAnswer(null);
+  };
+  const handleCanalAnswerChange = (value: Exclude<CanalAnswer, null>) => {
+    setCanalAnswer(value);
+    setEusReponseAnswer(null);
+    setRelanceConfirmed(false);
+    setReponseApresRelanceAnswer(null);
+    setCoordonneesCheckpoint(null);
+    setPeutContacterHebergeurAnswer(null);
+  };
+  const handleEusReponseChange = (value: 'oui' | 'non') => {
+    setEusReponseAnswer(value);
+    setRelanceConfirmed(false);
+    setReponseApresRelanceAnswer(null);
+    setCoordonneesCheckpoint(null);
+    setPeutContacterHebergeurAnswer(null);
+  };
+  const handleReponseApresRelanceChange = (value: 'oui' | 'non') => {
+    setReponseApresRelanceAnswer(value);
+    setCoordonneesCheckpoint(null);
+    setPeutContacterHebergeurAnswer(null);
+  };
+  const handleCoordonneesCheckpointChange = (value: 'oui' | 'non') => {
+    setCoordonneesCheckpoint(value);
+    setPeutContacterHebergeurAnswer(null);
+  };
+
+  const handleCopyTemplate = () => {
+    navigator.clipboard.writeText(buildDemandeContactTemplate(reclamation.url)).then(() => {
+      setTemplateCopied(true);
+      setTimeout(() => setTemplateCopied(false), 2000);
+    });
+  };
+
+  const handleCopyRelanceTemplate = () => {
+    navigator.clipboard.writeText(buildRelanceTemplate(reclamation.url)).then(() => {
+      setRelanceTemplateCopied(true);
+      setTimeout(() => setRelanceTemplateCopied(false), 2000);
+    });
+  };
+
+  // `reclamation` is the prop captured when the slider opened — it doesn't
+  // get refreshed as the parent's state updates while it stays open, so the
+  // badge is derived from the same local flags the rest of the flow already
+  // reacts to instead of the (potentially stale) reclamation.state.
+  const badgeState: ReclamationState = isMesReclamations
+    ? 'mes-reclamations'
+    : mentionCloturee
+      ? 'cloturee'
+      : enAttenteConfirmed
+        ? 'en-attente'
+        // Once réouverte (even before that's saved), the mention isn't
+        // "cloturée" any more either — falling through to reclamation.state
+        // here would show its stale clôturée badge again, since that prop
+        // doesn't update while the slider stays open.
+        : wasEverCloturee
+          ? 'a-traiter'
+          : reclamation.state;
+  const badge = STATE_BADGE[badgeState];
+
+  // The "identité selon ce formulaire" question (which used to decide this)
+  // belonged to the old Q1 — pending the next round of changes to the
+  // "plateforme" canal's own steps, the send date is always added
+  // automatically for now.
+  const needsManualDate = false;
+
+  const identifiedAnswerMissing = showContactErrors && !identifiedAnswer;
+  const canalAnswerMissing = showContactErrors && identifiedAnswer === 'non' && !canalAnswer;
+  const peutContacterHebergeurAnswerMissing =
+    showContactErrors && coordonneesCheckpoint === 'non' && !peutContacterHebergeurAnswer;
+  const hasRetourDetail =
+    eusReponseAnswer === 'oui' || reponseApresRelanceAnswer === 'oui' || reouvertureReponseAnswer === 'oui';
+  const retourDateMissing = showContactErrors && hasRetourDetail && !retourDateDraft;
+  const demandeDateMissing = showContactErrors && needsManualDate && !enAttenteConfirmed && !demandeDateDraft;
+
+  const questionRow = (text: string, value: YesNo, onChange: (v: 'oui' | 'non') => void, error?: boolean) => (
+    <div className="dossier-question-row">
+      <span className="dossier-question-text">
+        {text}
+        <span className="field-required">*</span>
+      </span>
+      <ChoiceToggle value={value} onChange={onChange} error={error} />
+    </div>
+  );
+
+  // The title distinguishes the initial demande from a relance — both land
+  // on the same warning shape, but at a glance they otherwise read as the
+  // same wait, even though a relance means the first message went
+  // unanswered.
+  const renderEnAttenteAlert = (text: string, title = 'En attente du retour du client suite à la demande initiale') => (
+    <div className="dossier-alert-warning">
+      <div className="dossier-alert-warning-title-row">
+        <AlertTriangleIcon />
+        <span className="dossier-alert-warning-title">{title}</span>
+      </div>
+      <p className="dossier-alert-warning-text">{text}</p>
+    </div>
+  );
+
+  const renderMessageTemplate = (title: string, body: string, copied: boolean, onCopy: () => void) => (
+    <div className="dossier-template-block">
+      <div className="dossier-template-header">
+        <span className="dossier-template-title">{title}</span>
+        <span className="dossier-template-copy-wrap">
+          <button
+            type="button"
+            className="dossier-template-copy-btn"
+            aria-label="Copier le modèle de message"
+            onClick={onCopy}
+          >
+            <CopyIcon />
+          </button>
+          {copied && <span className="dossier-template-copy-feedback">Copié !</span>}
+        </span>
+      </div>
+      <p className="dossier-template-text dossier-template-link">
+        Lien de la mention :{' '}
+        <a
+          className="dossier-template-link-anchor"
+          href={toHref(reclamation.url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {toHref(reclamation.url)}
+          <ArrowUpRight />
+        </a>
+      </p>
+      <p className="dossier-template-text">{body}</p>
+    </div>
+  );
+
+  const renderDemandeContactTemplate = () =>
+    renderMessageTemplate(
+      "Message de demande de coordonnées à envoyer",
+      DEMANDE_CONTACT_TEMPLATE_BODY,
+      templateCopied,
+      handleCopyTemplate,
+    );
+
+  const renderRelanceTemplate = () =>
+    renderMessageTemplate('Message de relance à envoyer', RELANCE_TEMPLATE_BODY, relanceTemplateCopied, handleCopyRelanceTemplate);
+
+  // Reusable required "je certifie" checkbox — used for every step where a
+  // manual action (sending a message, posting a courrier) has to be
+  // confirmed on the honor system before moving on, since proof of that
+  // action may be requested in an audit.
+  const renderCertifyCheckbox = (label: string, checked: boolean, onToggle: (checked: boolean) => void, missing: boolean) => (
+    <div className={`dossier-certify-checkbox-wrap ${missing ? 'dossier-certify-checkbox-wrap-error' : ''}`}>
+      <label className="dossier-certify-checkbox">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.target.checked)}
+        />
+        <span className="dossier-certify-checkbox-text">
+          {label}
+          <span className="field-required">*</span>
+        </span>
+      </label>
+      {missing && <span className="field-error-text">Champ requis</span>}
+    </div>
+  );
+
+  // Required before "Confirmer" accepts the initial demande de coordonnées
+  // as sent.
+  const renderDemandeCertifyCheckbox = () =>
+    renderCertifyCheckbox(
+      "Je confirme avoir envoyé le message de demande de coordonnées à l'auteur du commentaire.",
+      demandeCertified,
+      (checked) => {
+        setDemandeCertified(checked);
+        if (checked) setDemandeCertifyMissing(false);
+      },
+      demandeCertifyMissing,
+    );
+
+  // Required before "Confirmer" accepts the relance as sent.
+  const renderRelanceCertifyCheckbox = () =>
+    renderCertifyCheckbox(
+      "Je confirme avoir envoyé le message de relance à l'auteur du commentaire.",
+      relanceCertified,
+      (checked) => {
+        setRelanceCertified(checked);
+        if (checked) setRelanceCertifyMissing(false);
+      },
+      relanceCertifyMissing,
+    );
+
+  // Required before "Clôturer la mention" accepts the courrier as sent to
+  // the hébergeur.
+  const renderClotureCertifyCheckbox = () =>
+    renderCertifyCheckbox(
+      "Je confirme avoir envoyé le courrier à l'hébergeur du site afin d'obtenir les informations de l'auteur du commentaire.",
+      clotureCertified,
+      (checked) => {
+        setClotureCertified(checked);
+        if (checked) setClotureCertifyMissing(false);
+      },
+      clotureCertifyMissing,
+    );
+
+  // Required before "Clôturer la mention" accepts that there's really
+  // nothing left to try — the "Aucune action possible" / "Je ne peux rien
+  // faire" terminal, which shares clotureCertified/clotureCertifyMissing
+  // with the courrier path above since only one of the two ever applies at
+  // once.
+  const renderQaNotifieeCertifyCheckbox = () =>
+    renderCertifyCheckbox(
+      "Je confirme qu'aucune action supplémentaire n'est possible pour obtenir les coordonnées de l'auteur du commentaire.",
+      clotureCertified,
+      (checked) => {
+        setClotureCertified(checked);
+        if (checked) setClotureCertifyMissing(false);
+      },
+      clotureCertifyMissing,
+    );
+
+  // Same fields whether they show up right away or later once the
+  // coordonnées were retrieved from the author's reply.
+  const renderReclamantFields = () => (
+    <div className="dossier-treatment-fields">
+      <div className="modal-row">
+        <FormField
+          label="Nom de l'auteur du commentaire"
+          required
+          placeholder="Entrez le nom de l'auteur du commentaire"
+          value={reclamantDraft.nom}
+          error={showContactErrors && !reclamantDraft.nom}
+          errorText={showContactErrors && !reclamantDraft.nom ? 'Champ requis' : undefined}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
+        />
+        <FormField
+          label="Prénom de l'auteur du commentaire"
+          required
+          placeholder="Entrez le prénom de l'auteur du commentaire"
+          value={reclamantDraft.prenom}
+          error={showContactErrors && !reclamantDraft.prenom}
+          errorText={showContactErrors && !reclamantDraft.prenom ? 'Champ requis' : undefined}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, prenom: v }))}
+        />
+      </div>
+      <div className="modal-row">
+        <FormField
+          label="Email"
+          placeholder="Entrez une adresse email"
+          value={reclamantDraft.email}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, email: v }))}
+        />
+        <FormField
+          label="Numéro de téléphone"
+          placeholder="Entrez le numéro de téléphone"
+          value={reclamantDraft.telephone}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, telephone: v }))}
+        />
+      </div>
+      <div className="modal-row">
+        <FormField
+          label="Dénomination sociale"
+          placeholder="Entrez la dénomination sociale"
+          value={reclamantDraft.denominationSociale}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, denominationSociale: v }))}
+        />
+        <FormField
+          label="Assureur / Porteur du risque"
+          placeholder="Entrez le porteur du risque"
+          value={reclamantDraft.porteurDuRisque}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, porteurDuRisque: v }))}
+        />
+      </div>
+      <div className="dossier-question-row">
+        <span className="dossier-question-text">
+          L'auteur du commentaire est-il rattaché à un contrat ?<span className="field-required">*</span>
+        </span>
+        <ChoiceToggle
+          value={reclamantDraft.rattacheContrat}
+          onChange={(v) => setReclamantDraft((d) => ({ ...d, rattacheContrat: v }))}
+          error={showContactErrors && !reclamantDraft.rattacheContrat}
+        />
+      </div>
+      {reclamantDraft.rattacheContrat === 'oui' && (
+        <div className="modal-row dossier-contract-row">
+          <FormSelect<StatutClient>
+            label="Statut du client"
+            required
+            value={reclamantDraft.statutClient}
+            options={(Object.keys(STATUT_CLIENT_LABEL) as StatutClient[]).map((id) => ({
+              id,
+              label: STATUT_CLIENT_LABEL[id],
+              description: STATUT_CLIENT_DESCRIPTION[id],
+            }))}
+            placeholder="Sélectionnez le statut du client"
+            error={showContactErrors && !reclamantDraft.statutClient}
+            errorText={showContactErrors && !reclamantDraft.statutClient ? 'Champ requis' : undefined}
+            onChange={(v) => setReclamantDraft((d) => ({ ...d, statutClient: v }))}
+          />
+          <div className="dossier-field-spacer" />
+        </div>
+      )}
+      {reclamantDraft.rattacheContrat === 'oui' && (
+        <div className="dossier-alert-info">
+          <p>
+            L'auteur étant rattaché à un contrat, cette réclamation sera traitée selon les règles ACPR : elle sera
+            soumise aux délais réglementaires et au suivi de conformité associés.
+          </p>
+        </div>
+      )}
+      {reclamantDraft.rattacheContrat === 'non' && (
+        <div className="dossier-alert-info">
+          <p>
+            L'auteur n'étant pas rattaché à un contrat, cette réclamation concerne un prospect : elle doit tout de
+            même être traitée, mais sans les délais réglementaires ni le suivi de conformité imposés par l'ACPR.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  // The terminal reached whenever a "Non" leaves the mention's author
+  // unreachable — same wording and actions (télécharger le courrier,
+  // clôturer) regardless of which branch of the flow led here.
+  const renderClotureOfferFields = () => (
+    <div className="dossier-treatment-fields">
+      <div className="dossier-alert-field-group">
+        <div className="dossier-alert-info">
+          <p>
+            Téléchargez le document ci-dessous : il s'agit d'un courrier à envoyer à l'hébergeur du site pour lui
+            demander les informations de la personne à l'origine du commentaire, afin de pouvoir la contacter.
+          </p>
+          <p>
+            Au moment de la clôture, un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la
+            situation.
+          </p>
+        </div>
+        {/* No real document to serve yet — the button is a placeholder
+            pending the client's file. */}
+        <button type="button" className="btn-text dossier-file-upload-btn" onClick={() => {}}>
+          Télécharger le document
+        </button>
+        {renderClotureCertifyCheckbox()}
+      </div>
+    </div>
+  );
+
+  // The terminal reached from "Aucune action possible" / "Je ne peux rien
+  // faire" — same shape as renderClotureOfferFields (confirm, then
+  // clôturer), but there's nobody left to send a courrier to, so QA gets
+  // notified automatically instead.
+  const renderQaNotifieeFields = () => (
+    <div className="dossier-treatment-fields">
+      <div className="dossier-alert-field-group">
+        <div className="dossier-alert-info">
+          <p>
+            Les coordonnées de l'auteur du commentaire ne peuvent être obtenues par aucun autre moyen.
+          </p>
+          <p>
+            Au moment de la clôture, un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la
+            situation.
+          </p>
+        </div>
+        {renderQaNotifieeCertifyCheckbox()}
+      </div>
+    </div>
+  );
+
+  // Shown once the demande de contact is ready to send — the date field
+  // only appears when it has to be entered by hand (needsManualDate);
+  // otherwise it's added automatically once confirmed. The template itself
+  // is skipped when it's already been previewed above the question that led
+  // here (showTemplate=false), to avoid showing it twice.
+  const renderEnvoiDemandeFields = (showTemplate = true) => (
+    <div className="dossier-treatment-fields">
+      <div className="dossier-alert-field-group">
+        <div className="dossier-alert-info">
+          {needsManualDate
+            ? "Afin d'avoir une meilleure traçabilité des étapes, indiquez à quelle date vous avez envoyé votre demande de coordonnées à l'auteur du commentaire."
+            : "Pour respecter le processus de conformité, vous devez envoyer ce message à l'auteur du commentaire. Une fois confirmée, le dossier passera en attente jusqu'à ce que vous confirmiez la réponse de l'auteur, la date étant ajoutée automatiquement."}
+        </div>
+        {needsManualDate && (
+          <div className="modal-row">
+            <FormField
+              label="Date d'envoi de la demande de coordonnées"
+              required
+              type="date"
+              placeholder="JJ/MM/AAAA"
+              value={demandeDateDraft}
+              error={demandeDateMissing}
+              errorText={demandeDateMissing ? 'Champ requis' : undefined}
+              onChange={setDemandeDateDraft}
+            />
+            <div className="dossier-field-spacer" />
+          </div>
+        )}
+        {showTemplate && renderDemandeContactTemplate()}
+        {/* Skipped when needsManualDate — entering the send date already
+            attests to having sent it, so the certification would be
+            redundant. */}
+        {!needsManualDate && renderDemandeCertifyCheckbox()}
+      </div>
+    </div>
+  );
+
+  // The retour's own detail fields (texte + date), shown right above the
+  // "avez-vous les coordonnées" checkpoint once a reply came in.
+  const renderRetourDetailFields = () => (
+    <>
+      <FormTextareaAutoGrow
+        label="Réponse de l'auteur du commentaire"
+        placeholder="Collez ici la réponse de l'auteur du commentaire"
+        value={retourTexte}
+        onChange={setRetourTexte}
+      />
+      <div className="modal-row">
+        <FormField
+          label="Date de la réponse de l'auteur du commentaire"
+          required
+          type="date"
+          placeholder="JJ/MM/AAAA"
+          value={retourDateDraft}
+          error={retourDateMissing}
+          errorText={retourDateMissing ? 'Champ requis' : undefined}
+          onChange={setRetourDateDraft}
+        />
+        <div className="dossier-field-spacer" />
+      </div>
+    </>
+  );
+
+  // Renders a question and, once it's answered, appends whatever comes
+  // next right below it — the question itself always stays visible (with
+  // its given answer still selected) instead of being replaced by the
+  // result, so changing the answer just swaps the content underneath. The
+  // downstream content is wrapped in a Fragment keyed on this question's own
+  // answer (not a bigger, shared key) so re-answering it replays just that
+  // content's entrance animation, without remounting — and flickering — the
+  // question row itself or anything answered above it.
+  const stepQuestion = (
+    text: string,
+    value: YesNo,
+    onChange: (v: 'oui' | 'non') => void,
+    next: () => Step,
+    options?: { error?: boolean; preview?: ReactNode },
+  ): Step => {
+    const row = questionRow(text, value, onChange, options?.error);
+    // The preview (e.g. the message template) shows right under the
+    // question regardless of the answer — it's reference material for
+    // deciding, not downstream content gated by it.
+    const preview = options?.preview ?? null;
+    if (value === null) return { phase: 'question', node: (<>{row}{preview}</>) };
+    const nextStep = next();
+    return {
+      phase: nextStep.phase,
+      node: (
+        <>
+          {row}
+          {preview}
+          <Fragment key={value}>{nextStep.node}</Fragment>
+        </>
+      ),
+    };
+  };
+
+  // Reached once a reply came in without the coordonnées in it.
+  const getCoordonneesHebergeurBranch = (): Step =>
+    stepQuestion(
+      "Pouvez-vous contacter l'hébergeur de la plateforme ?",
+      peutContacterHebergeurAnswer,
+      setPeutContacterHebergeurAnswer,
+      () =>
+        peutContacterHebergeurAnswer === 'oui'
+          ? { phase: 'cloture-offer', node: renderClotureOfferFields() }
+          : { phase: 'cloture-offer', node: renderQaNotifieeFields() },
+      { error: peutContacterHebergeurAnswerMissing },
+    );
+
+  // The "Avez-vous les coordonnées...?" checkpoint reached from several
+  // points in the wait loop (right after the reply, at J+3, after the
+  // relance) — always the same question, same two outcomes.
+  const getCoordonneesCheckpointStep = (): Step => {
+    const retourDetail = hasRetourDetail ? renderRetourDetailFields() : null;
+    const inner = stepQuestion(
+      "Avez-vous récupéré les coordonnées de l'auteur du commentaire ?",
+      coordonneesCheckpoint,
+      handleCoordonneesCheckpointChange,
+      () =>
+        coordonneesCheckpoint === 'oui'
+          ? { phase: 'reclamant', node: renderReclamantFields() }
+          : getCoordonneesHebergeurBranch(),
+    );
+    return { phase: inner.phase, node: (<>{retourDetail}{inner.node}</>) };
+  };
+
+  // No response yet — shows the relance template right away (the "en
+  // attente" bulle above already explains when a relance becomes
+  // available). Sending it needs its own "Confirmer" before the dossier is
+  // back en attente — once confirmed, the template makes way for that
+  // notice and the next question, same pattern as the initial demande.
+  const getRelanceStep = (): Step => {
+    if (!relanceConfirmed) {
+      return {
+        phase: 'relance-envoi',
+        node: (
+          <>
+            {renderRelanceTemplate()}
+            {renderRelanceCertifyCheckbox()}
+          </>
+        ),
+      };
+    }
+    const inner = stepQuestion(
+      'Avez-vous reçu une réponse de la part de l\'auteur du commentaire ?',
+      reponseApresRelanceAnswer,
+      handleReponseApresRelanceChange,
+      // "Oui" still asks "avez-vous récupéré les coordonnées ?" (the retour's
+      // own detail fields show above it) — but "non" skips that question
+      // entirely and goes straight to the hébergeur question, since no reply
+      // at all after a relance already means no coordonnées were obtained.
+      () =>
+        reponseApresRelanceAnswer === 'oui' ? getCoordonneesCheckpointStep() : getCoordonneesHebergeurBranch(),
+    );
+    return {
+      phase: inner.phase,
+      node: (
+        <>
+          {renderEnAttenteAlert(
+            `Message de relance envoyé le ${relanceDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu (délai maximum de 30 jours).`,
+            'En attente du retour du client suite à la relance',
+          )}
+          {inner.node}
+        </>
+      ),
+    };
+  };
+
+  // The wait loop once a demande de contact is confirmed: "a-t-on eu une
+  // réponse ?", then the relance template if not, before giving up and
+  // offering to clôturer. Once the relance itself has been confirmed, this
+  // first question is superseded by the identical one inside
+  // getRelanceStep (with its own "message de relance envoyé" alert), so it
+  // steps aside instead of showing twice.
+  const getWaitLoopStep = (): Step => {
+    if (eusReponseAnswer === 'non' && relanceConfirmed) return getRelanceStep();
+    return stepQuestion(
+      'Avez-vous reçu une réponse de la part de l\'auteur du commentaire ?',
+      eusReponseAnswer,
+      handleEusReponseChange,
+      () => (eusReponseAnswer === 'oui' ? getCoordonneesCheckpointStep() : getRelanceStep()),
+    );
+  };
+
+  const CANAL_OPTIONS: { value: Exclude<CanalAnswer, null>; title: string; description: string }[] = [
+    {
+      value: 'plateforme',
+      title: 'Répondre sur la plateforme',
+      description: "Vous pouvez envoyer un message à l'auteur directement en réponse à son commentaire.",
+    },
+    {
+      value: 'administrateur',
+      title: "Contacter l'administrateur",
+      description: "Vous pouvez joindre l'administrateur de la plateforme pour obtenir les coordonnées de l'auteur.",
+    },
+    {
+      value: 'rien',
+      title: 'Aucune action possible',
+      description: "Vous ne pouvez ni répondre sur la plateforme, ni contacter l'administrateur.",
+    },
+  ];
+
+  // Q1 = "non" branch: the author isn't identified — which of the three ways
+  // of handling that applies here decides what shows below.
+  const getCanalBranch = (): Step => {
+    const row = (
+      <div className="dossier-question-row dossier-question-row-stacked">
+        <span className="dossier-question-text">
+          Quelle option correspond à votre situation ?<span className="field-required">*</span>
+        </span>
+        <ChoiceColumn value={canalAnswer} onChange={handleCanalAnswerChange} options={CANAL_OPTIONS} error={canalAnswerMissing} />
+      </div>
+    );
+    if (!canalAnswer) return { phase: 'question', node: row };
+    let next: Step;
+    if (canalAnswer === 'plateforme') {
+      next = enAttenteConfirmed ? getWaitLoopStep() : { phase: 'envoi', node: renderEnvoiDemandeFields() };
+    } else if (canalAnswer === 'administrateur') {
+      next = { phase: 'cloture-offer', node: renderClotureOfferFields() };
+    } else {
+      next = { phase: 'cloture-offer', node: renderQaNotifieeFields() };
+    }
+    return { phase: next.phase, node: (<>{row}<Fragment key={canalAnswer}>{next.node}</Fragment></>) };
+  };
+
+  // Walks the flowchart node by node from Q1 — each question stays visible
+  // once reached, with whatever comes next appended right below it.
+  const getTreatmentStep = (): Step =>
+    stepQuestion(
+      'Avez-vous identifié l\'auteur du commentaire ?',
+      identifiedAnswer,
+      handleIdentifiedAnswerChange,
+      () => (identifiedAnswer === 'oui' ? { phase: 'reclamant', node: renderReclamantFields() } : getCanalBranch()),
+      { error: identifiedAnswerMissing },
+    );
+
+  // True as soon as "Rouvrir la mention" is clicked — drives what's shown
+  // locally (skipping Q1, the historique preview) even though nothing about
+  // the mention's actual status changes until a réclamation gets created;
+  // saving a draft here flips mentionCloturee back to true, so this goes
+  // back to false too.
+  const reouvertureActive = wasEverCloturee && !mentionCloturee;
+
+  // Reopening skips Q1 entirely, but what it lands on next depends on how
+  // the mention got clôturée: if it was still waiting on the author
+  // (clôturée straight from "pas de réponse même après la relance"), that
+  // question is asked again first, since a réponse may have come in since;
+  // any other clôture already means the author was never going to reply on
+  // the platform, so there's nothing left to ask before "Ajouter les
+  // informations".
+  const reouvertureNeedsResponseQuestion =
+    clotureReason === 'hebergeur-sans-reponse' || clotureReason === 'qa-sans-reponse';
+  const getReouvertureStep = (): Step => {
+    if (!reouvertureNeedsResponseQuestion) {
+      return { phase: 'reclamant', node: renderReclamantFields() };
+    }
+    return stepQuestion(
+      'Avez-vous reçu une réponse de la part de l\'auteur du commentaire ?',
+      reouvertureReponseAnswer,
+      setReouvertureReponseAnswer,
+      () => ({
+        phase: 'reclamant',
+        node: (
+          <>
+            {reouvertureReponseAnswer === 'oui' && renderRetourDetailFields()}
+            {renderReclamantFields()}
+          </>
+        ),
+      }),
+    );
+  };
+
+  const step = reouvertureActive ? null : getTreatmentStep();
+  const reouvertureStep = reouvertureActive ? getReouvertureStep() : null;
+  // Once the demande de contact is confirmed, the guiding questions that led
+  // here (Q1, Q2, Q3...) are no longer relevant to show — only the wait
+  // loop itself, under a single persistent "en attente" notice.
+  const waitStep = enAttenteConfirmed ? getWaitLoopStep() : null;
+  const showingReclamantFields = reouvertureActive
+    ? reouvertureStep?.phase === 'reclamant'
+    : step?.phase === 'reclamant' && !mentionCloturee;
+  const showingClotureOffer = !reouvertureActive && step?.phase === 'cloture-offer' && !mentionCloturee;
+  const isEnvoiStep = !reouvertureActive && step?.phase === 'envoi';
+  const isRelanceEnvoiStep = !reouvertureActive && step?.phase === 'relance-envoi';
+
+  // Whether the sticky footer has anything to show — e.g. while waiting on
+  // a retour answer, no action applies yet, so the footer itself shouldn't
+  // render (an empty bar would just clip the content above it).
+  const hasFooterActions =
+    isMesReclamations ||
+    (activeTab === 'informations' &&
+      (showingClotureOffer ||
+        showingReclamantFields ||
+        isEnvoiStep ||
+        isRelanceEnvoiStep ||
+        mentionCloturee ||
+        reouvertureActive));
+
+  const reclamantFieldsMissing =
+    !reclamantDraft.nom ||
+    !reclamantDraft.prenom ||
+    !reclamantDraft.rattacheContrat ||
+    (reclamantDraft.rattacheContrat === 'oui' && !reclamantDraft.statutClient);
+
+  // The wording for why the mention was clôturée differs by clotureReason —
+  // in particular, the "-apres-reponse" / "-sans-reponse" variants need to
+  // say whether the author actually replied (just without their
+  // coordonnées) or never replied at all, even after the relance. Shared by
+  // the historique entry and the "Mention clôturée" summary so the two
+  // don't drift apart.
+  const CLOTURE_DESCRIPTIONS: Record<Exclude<typeof clotureReason, null>, string> = {
+    administrateur:
+      "L'auteur du commentaire n'a pas pu être contacté directement, un courrier a donc été envoyé à l'administrateur de la plateforme afin d'obtenir ses coordonnées.",
+    qa: "Les coordonnées de l'auteur du commentaire n'ont pas pu être obtenues : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'hebergeur-apres-reponse':
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées, un courrier a donc été envoyé à l'hébergeur du site afin de les obtenir.",
+    'qa-apres-reponse':
+      "L'auteur du commentaire a répondu sans transmettre ses coordonnées et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+    'hebergeur-sans-reponse':
+      "L'auteur du commentaire n'a pas répondu, même après la relance. Un courrier a été envoyé à l'hébergeur du site afin d'obtenir ses coordonnées.",
+    'qa-sans-reponse':
+      "L'auteur du commentaire n'a pas répondu, même après la relance, et l'hébergeur du site ne peut pas être contacté : Qualité Assurance a été notifiée automatiquement de la situation.",
+  };
+  const clotureDescription = clotureReason ? CLOTURE_DESCRIPTIONS[clotureReason] : '';
+
+  // The mention's own trail so far — carried over into the new réclamation's
+  // historique on submit, and shown as-is here until a réclamation exists.
+  const historiqueEntries: HistoriqueEntry[] = [
+    { title: 'Réception de la mention', description: `Mention reçue via ${canal}.`, date: reclamation.date, author: 'Système' },
+    ...(enAttenteConfirmed
+      ? [
+          {
+            title: 'Confirmation de la demande de contact',
+            description: `Demande de coordonnées envoyée à l'auteur du commentaire.`,
+            date: demandeDateDraft,
+            author: 'Joe Bleau',
+          },
+        ]
+      : []),
+    ...(hasRetourDetail && retourTexte.trim() !== ''
+      ? [
+          {
+            title: "Retour de l'auteur du commentaire",
+            description: "L'auteur du commentaire a répondu à la demande de coordonnées.",
+            date: retourDateDraft || todayLabel,
+            author: 'Joe Bleau',
+            changes: [{ label: 'Réponse', value: retourTexte }],
+          },
+        ]
+      : []),
+    ...(eusReponseAnswer === 'non'
+      ? [
+          {
+            title: 'Relance envoyée',
+            description: "Message de relance envoyé à l'auteur du commentaire après l'absence de réponse.",
+            date: todayLabel,
+            author: 'Joe Bleau',
+          },
+        ]
+      : []),
+    // Every "Enregistrer" on the reclamant draft adds one of these (see
+    // handleSaveDraft) — persisted by the parent so they survive the slider
+    // closing and reopening.
+    ...(savedDraftHistorique ?? []),
+    ...(wasEverCloturee
+      ? [
+          {
+            title: 'Clôture de la mention',
+            description: clotureDescription,
+            date: todayLabel,
+            author: 'Joe Bleau',
+          },
+        ]
+      : []),
+    // Shown while the réouverture is active and also carried over into the
+    // new réclamation's historique on submit (handleSubmit calls onSubmit
+    // with this very array) — but not after a plain save, which reverts
+    // reouvertureActive to false since nothing was actually reopened yet.
+    ...(reouvertureActive
+      ? [
+          {
+            title: 'Réouverture de la mention',
+            description: "Les coordonnées de l'auteur du commentaire ont été obtenues : la mention est à nouveau à traiter.",
+            date: todayLabel,
+            author: 'Joe Bleau',
+          },
+        ]
+      : []),
+  ];
 
   const requestClose = (action: () => void) => {
     if (closing) return;
@@ -74,67 +1273,415 @@ export default function CreateReclamationSlider({
     setTimeout(action, CLOSE_ANIMATION_DURATION);
   };
 
+  // Réouvrir la mention only ever creates a réclamation or goes back to
+  // "Mention clôturée" (via "Annuler") — there's no save-for-later step in
+  // between any more, so closing mid-réouverture (whatever was typed)
+  // discards it the same way, no confirmation needed: the mention just ends
+  // up clôturée, as if réouvrir had never been clicked.
   const handleClose = () => requestClose(onClose);
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-    onSubmit({
-      prenom,
-      nom,
-      canal,
-      dateReception,
-      email: '',
-      telephone: '',
-      denominationSociale: '',
-      porteurDuRisque: '',
-      objet,
-      notesInternes: '',
-      description: reclamation.text,
+
+  // Rather than disabling the button, a click with required fields still
+  // empty opens the Traitement tab and flags exactly which ones are missing
+  // — same pattern as ComplaintDetailDrawer's handleConfirmAR.
+  const scrollToFirstError = () => {
+    requestAnimationFrame(() => {
+      const firstError = bodyRef.current?.querySelector(
+        '.field-border-error, .dossier-choice-row-error, .dossier-certify-checkbox-wrap-error',
+      );
+      firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
+  };
+
+  // Saves whatever's currently filled in without creating the réclamation —
+  // no validation, unlike handleSubmit, since it's meant to let the user
+  // pick up a partially filled dossier later. Only reachable from Q1's
+  // "oui" branch — a réouverture skips straight to "Annuler" ou "Créer la
+  // réclamation" instead, with no save-for-later step of its own.
+  const handleSaveDraft = () => {
+    const changed: { label: string; value: string }[] = [];
+    if (reclamantDraft.nom !== savedDraftSnapshot.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
+    if (reclamantDraft.prenom !== savedDraftSnapshot.prenom)
+      changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
+    if (reclamantDraft.email !== savedDraftSnapshot.email)
+      changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
+    if (reclamantDraft.telephone !== savedDraftSnapshot.telephone)
+      changed.push({ label: 'Téléphone', value: reclamantDraft.telephone || '-' });
+    if (reclamantDraft.denominationSociale !== savedDraftSnapshot.denominationSociale)
+      changed.push({ label: 'Dénomination sociale', value: reclamantDraft.denominationSociale || '-' });
+    if (reclamantDraft.porteurDuRisque !== savedDraftSnapshot.porteurDuRisque)
+      changed.push({ label: 'Assureur / Porteur du risque', value: reclamantDraft.porteurDuRisque || '-' });
+    if (reclamantDraft.rattacheContrat !== savedDraftSnapshot.rattacheContrat)
+      changed.push({
+        label: 'Rattaché à un contrat',
+        value: reclamantDraft.rattacheContrat === 'oui' ? 'Oui' : reclamantDraft.rattacheContrat === 'non' ? 'Non' : '-',
+      });
+    if (reclamantDraft.statutClient !== savedDraftSnapshot.statutClient)
+      changed.push({
+        label: 'Statut du client',
+        value: reclamantDraft.statutClient ? STATUT_CLIENT_LABEL[reclamantDraft.statutClient] : '-',
+      });
+
+    onSaveReclamantDraft(reclamantDraft);
+    setSavedDraftSnapshot(reclamantDraft);
+    if (changed.length > 0) {
+      onAppendDraftHistorique({
+        title: "Modification des informations de l'auteur du commentaire",
+        description: `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
+        date: todayLabel,
+        author: 'Joe Bleau',
+        changes: changed,
+      });
+    }
+    setDraftSavedToast(true);
+    if (draftSavedToastTimeout.current) clearTimeout(draftSavedToastTimeout.current);
+    draftSavedToastTimeout.current = setTimeout(() => setDraftSavedToast(false), 3000);
+  };
+
+  // The mention stays open on clôture (unlike "Écarter") — a toast confirms
+  // the action, then a persistent grey notice takes over from the guiding
+  // question.
+  const handleClotureMention = () => {
+    if (!clotureCertified) {
+      setClotureCertifyMissing(true);
+      setActiveTab('informations');
+      scrollToFirstError();
+      return;
+    }
+    onClotureMention();
+    setMentionCloturee(true);
+    setWasEverCloturee(true);
+    // coordonneesCheckpoint stays null when the hébergeur question was
+    // reached straight from "pas de réponse même après la relance" —
+    // it's only ever set to 'non' when a reply did come in without the
+    // coordonnées in it.
+    const gotReply = coordonneesCheckpoint === 'non';
+    if (canalAnswer === 'rien') {
+      setClotureReason('qa');
+    } else if (canalAnswer === 'administrateur') {
+      setClotureReason('administrateur');
+    } else if (peutContacterHebergeurAnswer === 'oui') {
+      setClotureReason(gotReply ? 'hebergeur-apres-reponse' : 'hebergeur-sans-reponse');
+    } else {
+      setClotureReason(gotReply ? 'qa-apres-reponse' : 'qa-sans-reponse');
+    }
+    setClotureToast(true);
+    if (clotureToastTimeout.current) clearTimeout(clotureToastTimeout.current);
+    clotureToastTimeout.current = setTimeout(() => setClotureToast(false), 3000);
+  };
+
+  // Clôture isn't final — this takes local effect only (showing
+  // getReouvertureStep below instead of "Mention clôturée"); the mention
+  // only actually leaves clôturée once a réclamation gets created from it.
+  // "Annuler" or closing the slider both go straight back to clôturée —
+  // there's no save-for-later step in between any more.
+  const handleReouvrirMention = () => {
+    setMentionCloturee(false);
+    setClotureCertified(false);
+    setClotureCertifyMissing(false);
+    setIdentifiedAnswer(null);
+    setCanalAnswer(null);
+    setReouvertureReponseAnswer(null);
+    setRetourTexte('');
+    setRetourDateDraft('');
+    // The réouverture flow is a fresh start, independent of however the
+    // mention got to clôturée in the first place — without resetting these,
+    // their stale values (e.g. enAttenteConfirmed still true) would make the
+    // old wait-loop render instead of getReouvertureStep.
+    setEnAttenteConfirmed(false);
+    setEusReponseAnswer(null);
+    setReponseApresRelanceAnswer(null);
+    setPeutContacterHebergeurAnswer(null);
+    setCoordonneesCheckpoint(null);
+    setRelanceConfirmed(false);
+    setRelanceCertified(false);
+    setRelanceCertifyMissing(false);
+    setDemandeCertified(false);
+    setDemandeCertifyMissing(false);
+  };
+
+  // "Annuler" on the réouverture — discards whatever was typed (the
+  // reclamant draft reverts to its last saved snapshot) and goes back to
+  // showing "Mention clôturée", same end state as closing the slider without
+  // saving.
+  const handleCancelReouverture = () => {
+    setReclamantDraft(savedDraftSnapshot);
+    setReouvertureReponseAnswer(null);
+    setRetourTexte('');
+    setRetourDateDraft('');
+    setMentionCloturee(true);
+  };
+
+  // Confirms the demande de contact — the date is entered by hand only when
+  // needsManualDate; otherwise it's today's date, added automatically.
+  const handleConfirmDemande = () => {
+    const dateMissing = needsManualDate && !demandeDateDraft;
+    const certifyMissing = !needsManualDate && !demandeCertified;
+    if (dateMissing || certifyMissing) {
+      if (dateMissing) setShowContactErrors(true);
+      if (certifyMissing) setDemandeCertifyMissing(true);
+      setActiveTab('informations');
+      scrollToFirstError();
+      return;
+    }
+    const date = needsManualDate ? demandeDateDraft : todayLabel;
+    if (!needsManualDate) setDemandeDateDraft(date);
+    onConfirmEnAttente(date);
+    setEnAttenteConfirmed(true);
+  };
+
+  // Confirms the relance was sent — the date is always today's, added
+  // automatically, same as the auto-date branch of the initial demande.
+  const handleConfirmRelance = () => {
+    if (!relanceCertified) {
+      setRelanceCertifyMissing(true);
+      setActiveTab('informations');
+      scrollToFirstError();
+      return;
+    }
+    setRelanceDateDraft(todayLabel);
+    setRelanceConfirmed(true);
+  };
+
+  const handleSubmit = () => {
+    const missing = reclamantFieldsMissing || (hasRetourDetail && !retourDateDraft);
+    if (missing) {
+      setShowContactErrors(true);
+      setActiveTab('informations');
+      scrollToFirstError();
+      return;
+    }
+    setSavedDraftSnapshot(reclamantDraft);
+    onSubmit(
+      {
+        prenom: reclamantDraft.prenom,
+        nom: reclamantDraft.nom,
+        canal,
+        dateReception,
+        email: reclamantDraft.email,
+        telephone: reclamantDraft.telephone,
+        denominationSociale: reclamantDraft.denominationSociale,
+        porteurDuRisque: reclamantDraft.porteurDuRisque,
+        rattacheContrat: reclamantDraft.rattacheContrat ?? '',
+        statutClient: reclamantDraft.statutClient,
+        objet,
+        notesInternes: '',
+        description: reclamation.text,
+      },
+      historiqueEntries,
+    );
   };
 
   return (
     <div className={`drawer-backdrop ${closing ? 'drawer-closing' : ''}`} onClick={handleClose}>
       <div className="drawer-panel create-claim-panel" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-appbar">
-          <span className="drawer-title">Créer une réclamation</span>
+          <span className="drawer-title">Détail de la mention</span>
           <button type="button" className="drawer-close-button" aria-label="Fermer" onClick={handleClose}>
             <img src={drawerClose} alt="" width={14} height={14} />
           </button>
         </div>
 
-        <div className="create-claim-body">
-          <span className="create-claim-heading">Informations de la réclamation</span>
-          <div className="create-claim-section">
-            <div className="modal-row">
-              <ReadOnlyField label="Date de réception (mention)">
-                <span className="drawer-text">{dateReception}</span>
-              </ReadOnlyField>
-              <ReadOnlyField label="Canal de réception">
-                <span className="drawer-text">{canal}</span>
-              </ReadOnlyField>
+        <div className="create-claim-body" ref={bodyRef}>
+          <MentionTabsControl value={activeTab} onChange={setActiveTab} />
+
+          {activeTab === 'informations' && (
+            <div className="create-claim-section">
+              <div className="card-top">
+                <div className="card-source-row">
+                  <HoverTooltip text="Numéro de référence de la mention" align="left">
+                    <span className="chip complaint-ticket-chip">{reclamation.ticket}</span>
+                  </HoverTooltip>
+                  <SourceIcon source={reclamation.source} />
+                  <span className="card-source-name">{reclamation.source}</span>
+                  <span className="card-dot">·</span>
+                  <span className="card-date">{reclamation.date}</span>
+                  <div className="card-source-row-spacer" />
+                  {badge && <span className={`chip cta-badge ${badge.className}`}>{badge.label}</span>}
+                </div>
+                <a
+                  className="card-url-row"
+                  href={toHref(reclamation.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="card-url">{reclamation.url}</span>
+                  <ArrowUpRight />
+                </a>
+              </div>
+
+              <div className="dossier-field-row">
+                <div className="dossier-field">
+                  <span className="dossier-field-label">Email</span>
+                  <span className="dossier-field-readonly-value">{reclamantDraft.email || 'Non renseigné'}</span>
+                </div>
+                <div className="dossier-field">
+                  <span className="dossier-field-label">Téléphone</span>
+                  <span className="dossier-field-readonly-value">{reclamantDraft.telephone || 'Non renseigné'}</span>
+                </div>
+              </div>
+
+              <div className="card-body">
+                <div className="card-author-row">
+                  <SentimentIcon text={reclamation.text} />
+                  <span className="card-author">{reclamation.author}</span>
+                  {contactTag && <span className="chip chip-neutral">{contactTag}</span>}
+                </div>
+                <div className="card-text-wrapper">
+                  <p className="card-text">{reclamation.text}</p>
+                </div>
+              </div>
+
+              {isMesReclamations && (
+                <div className={treatmentBlockClassName('dossier-treatment-block-spaced')}>
+                  <div className="dossier-alert-info">
+                    <p>
+                      Une réclamation a déjà été ouverte pour cette mention. Son traitement se poursuit dans la page
+                      des réclamations.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!isMesReclamations && mentionCloturee && (
+                <div className={treatmentBlockClassName('dossier-treatment-block-spaced')}>
+                  <div className="dossier-alert-neutral">
+                    <span className="dossier-alert-neutral-title">Mention clôturée</span>
+                    <p>{clotureDescription}</p>
+                    <p>
+                      Si ces coordonnées sont obtenues par la suite, la mention peut être rouverte pour reprendre son
+                      traitement.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!isMesReclamations && !mentionCloturee && enAttenteConfirmed && waitStep && (
+                <div className={treatmentBlockClassName()}>
+                  {!relanceConfirmed &&
+                    renderEnAttenteAlert(
+                      `Demande d'information envoyée à l'auteur du commentaire le ${demandeDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu. Si aucune action n'est faite, une relance sera disponible à partir du ${addDaysToFrDate(demandeDateDraft, 3)}.`,
+                    )}
+                  {waitStep.node}
+                </div>
+              )}
+
+              {!isMesReclamations && !mentionCloturee && !enAttenteConfirmed && (
+                <div key={identifiedAnswer} className={treatmentBlockClassName()}>
+                  {/* A réouverture skips Q1 — the "avez-vous identifié l'auteur ?"
+                      question doesn't apply any more, since reopening the mention
+                      already answers it (see getReouvertureStep). */}
+                  {reouvertureActive ? reouvertureStep?.node : step?.node}
+                </div>
+              )}
             </div>
-            <ReadOnlyField label="Contenu original de la mention">
-              <span className="drawer-text">{reclamation.text}</span>
-            </ReadOnlyField>
-          </div>
+          )}
+
+          {activeTab === 'historique' && (
+            <div className="dossier-history">
+              {[...(isMesReclamations && linkedComplaintHistorique ? linkedComplaintHistorique : historiqueEntries)]
+                .reverse()
+                .map((entry, index, arr) => (
+                <div key={index} className="dossier-history-item">
+                  <div className="dossier-history-marker">
+                    {index !== arr.length - 1 && (
+                      <div className="dossier-history-line">
+                        <svg width="100%" height="100%" preserveAspectRatio="none">
+                          <line x1="1" y1="0" x2="1" y2="2000" strokeWidth="2" strokeDasharray="4 9" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    )}
+                    <HoverTooltip text="Étape clé du dossier" align="left" className="dossier-history-dot">
+                      <FlagIcon />
+                    </HoverTooltip>
+                  </div>
+                  <div className="dossier-history-content">
+                    <span className="dossier-history-title">{entry.title}</span>
+                    <span className="dossier-history-description">{entry.description}</span>
+                    {entry.changes && entry.changes.length > 0 && (
+                      <div className="dossier-history-changes">
+                        {entry.changes.map((change, changeIndex) => (
+                          <div key={changeIndex} className="dossier-history-change-row">
+                            <span className="dossier-history-change-label">{change.label}</span>
+                            <ExpandableHistoryValue value={change.value} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <span className="dossier-history-meta">
+                      {entry.date} · par {entry.author}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="modal-actions create-claim-actions">
-          {isMesReclamations ? (
-            <button type="button" className="btn-filled" onClick={onViewComplaint}>
-              Voir la réclamation
-            </button>
-          ) : (
-            <>
-              {isFlagged && (
-                <button type="button" className="btn-text" onClick={onDismiss}>
-                  Écarter
-                </button>
-              )}
-              <button type="button" className="btn-filled" disabled={!canSubmit} onClick={handleSubmit}>
-                Traiter cette réclamation
+        <div className="create-claim-footer-wrap">
+          <AlertSnackbar
+            visible={draftSavedToast}
+            message="Informations enregistrées."
+            variant="success"
+            className="alert-snackbar-local"
+          />
+          <AlertSnackbar
+            visible={clotureToast}
+            message="Mention clôturée."
+            variant="success"
+            className="alert-snackbar-local"
+          />
+          {hasFooterActions && (
+          <div className="modal-actions create-claim-actions">
+            {isMesReclamations ? (
+              <button type="button" className="btn-filled" onClick={onViewComplaint}>
+                Voir la réclamation
               </button>
-            </>
+            ) : (
+              <>
+                {activeTab === 'informations' && showingClotureOffer && (
+                  <button type="button" className="btn-filled" onClick={handleClotureMention}>
+                    Clôturer la mention
+                  </button>
+                )}
+                {activeTab === 'informations' && mentionCloturee && (
+                  <button type="button" className="btn-filled" onClick={handleReouvrirMention}>
+                    Rouvrir la mention
+                  </button>
+                )}
+                {activeTab === 'informations' && reouvertureActive && (
+                  <button type="button" className="btn-text" onClick={handleCancelReouverture}>
+                    Annuler
+                  </button>
+                )}
+                {activeTab === 'informations' && showingReclamantFields && !reouvertureActive && (
+                  <button
+                    type="button"
+                    className="btn-text"
+                    disabled={!reclamantDraftDirty}
+                    onClick={handleSaveDraft}
+                  >
+                    Enregistrer
+                  </button>
+                )}
+                {activeTab === 'informations' && showingReclamantFields && (
+                  <button type="button" className="btn-filled" onClick={handleSubmit}>
+                    {createSubmitLabel}
+                  </button>
+                )}
+                {activeTab === 'informations' && isEnvoiStep && (
+                  <button type="button" className="btn-filled" onClick={handleConfirmDemande}>
+                    Confirmer
+                  </button>
+                )}
+                {activeTab === 'informations' && isRelanceEnvoiStep && (
+                  <button type="button" className="btn-filled" onClick={handleConfirmRelance}>
+                    Confirmer
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           )}
         </div>
       </div>

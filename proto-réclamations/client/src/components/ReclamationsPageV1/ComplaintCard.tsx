@@ -4,9 +4,9 @@ import ArrowUpRight from './ArrowUpRight';
 import HoverTooltip from './HoverTooltip';
 import {
   AVANCEMENT_LABEL,
-  AVANCEMENT_TOOLTIP,
   CONFORMITE_LABEL,
-  getConformiteTooltip,
+  getContactTag,
+  getEcheanceInfo,
   type Complaint,
 } from './complaintsData';
 
@@ -38,10 +38,14 @@ export default function ComplaintCard({
     requerant,
     description,
     avancement,
-    conformite,
-    echeanceLabel,
-    echeanceWarning,
+    reclamant,
   } = complaint;
+  const contactTag = getContactTag(reclamant.rattacheContrat);
+  const { conformite, echeanceLabel, echeanceWarning } = getEcheanceInfo(complaint);
+  // The réclamant's real identity (set on the dossier's own Informations tab)
+  // is what the card should show — not the mention's author handle, which
+  // can be a pseudo rather than a name.
+  const reclamantName = `${reclamant.prenom} ${reclamant.nom}`.trim() || requerant;
 
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -99,8 +103,6 @@ export default function ComplaintCard({
     setExpanded((value) => !value);
   };
 
-  const isClosed = echeanceLabel === '';
-
   return (
     <div className="card-wrapper">
       <div
@@ -109,11 +111,36 @@ export default function ComplaintCard({
       >
         <div className="card-info">
           <div className="card-top">
-            <div className="card-source-row">
-              <span className="chip complaint-ticket-chip">{ticket}</span>
-              <span className="card-source-name">{objet}</span>
-              <span className="card-dot">·</span>
-              <span className="card-date">{dateReception}</span>
+            <div className="card-top-header">
+              <div className="card-source-row">
+                <HoverTooltip text="Numéro de référence de la réclamation" align="left">
+                  <span className="chip complaint-ticket-chip">{ticket}</span>
+                </HoverTooltip>
+                <span className="card-source-name">{objet}</span>
+                <span className="card-dot">·</span>
+                <span className="card-date">{dateReception}</span>
+              </div>
+              <div className="card-top-chips">
+                {echeanceLabel && (
+                  <span
+                    className={`complaint-echeance-chip ${echeanceWarning ? 'complaint-echeance-chip-warning' : ''}`}
+                  >
+                    {echeanceLabel}
+                  </span>
+                )}
+                {contactTag !== 'Prospect' && (
+                  <HoverTooltip text="Statut de conformité" align="right">
+                    <span className={`chip complaints-chip-conformite-${conformite}`}>
+                      {CONFORMITE_LABEL[conformite]}
+                    </span>
+                  </HoverTooltip>
+                )}
+                <HoverTooltip text="Statut de progression" align="right">
+                  <span className={`chip complaints-chip-avancement-${avancement}`}>
+                    {AVANCEMENT_LABEL[avancement]}
+                  </span>
+                </HoverTooltip>
+              </div>
             </div>
             {sourceUrl && (
               <a
@@ -136,7 +163,7 @@ export default function ComplaintCard({
 
           <div className="card-body">
             <div className="card-author-row">
-              <span className="card-author">{requerant}</span>
+              <span className="card-author">{reclamantName}</span>
             </div>
             <div className="card-text-wrapper" ref={wrapperRef}>
               <p ref={textRef} className={`card-text ${expanded ? '' : 'card-text-clamped'}`}>
@@ -163,43 +190,19 @@ export default function ComplaintCard({
               </button>
             )}
           </div>
-        </div>
 
-        <div className="card-divider" />
-
-        <div className="complaint-cta">
-          <div className="complaint-cta-status">
-            <div className="complaint-cta-row">
-              <span className="complaint-cta-label">Statut de progression</span>
-              <HoverTooltip text={AVANCEMENT_TOOLTIP[avancement]} align="right">
-                <span className={`chip complaints-chip-avancement-${avancement}`}>{AVANCEMENT_LABEL[avancement]}</span>
-              </HoverTooltip>
-            </div>
-            <div className="complaint-cta-row">
-              <span className="complaint-cta-label">Statut de conformité</span>
-              <HoverTooltip text={getConformiteTooltip(complaint)} align="right">
-                <span className={`chip complaints-chip-conformite-${conformite}`}>{CONFORMITE_LABEL[conformite]}</span>
-              </HoverTooltip>
-            </div>
-            <div className="complaint-cta-row">
-              <span className="complaint-cta-label">Échéance</span>
-              <span
-                className={`complaint-echeance ${isClosed ? 'complaint-echeance-closed' : ''} ${echeanceWarning ? 'complaint-echeance-warning' : ''}`}
-              >
-                {echeanceLabel}
-              </span>
-            </div>
+          <div className="card-footer">
+            <button
+              type="button"
+              className="btn-text"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen();
+              }}
+            >
+              Voir le dossier
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn-text complaint-cta-cta"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen();
-            }}
-          >
-            Voir le dossier
-          </button>
         </div>
       </div>
     </div>
