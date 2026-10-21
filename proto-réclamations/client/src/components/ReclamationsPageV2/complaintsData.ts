@@ -529,12 +529,12 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
   // it too, otherwise their historique reads as incomplete next to one
   // created through the real flow.
   const creationChanges = [
-    { label: 'Prénom', value: prenom },
-    { label: 'Nom', value: nom },
+    { label: "Nom de l'auteur du commentaire", value: nom },
+    { label: "Prénom de l'auteur du commentaire", value: prenom },
     { label: 'Email', value: email },
     { label: 'Dénomination sociale', value: c.denominateurSocial },
     { label: 'Assureur / Porteur du risque', value: porteurDuRisque },
-    { label: 'Rattaché à un contrat', value: rattacheContrat === 'oui' ? 'Oui' : 'Non' },
+    { label: 'Rattachement à un contrat', value: rattacheContrat === 'oui' ? 'Oui' : 'Non' },
     { label: 'Statut du client', value: statutClient ? STATUT_CLIENT_LABEL[statutClient] : '' },
   ].filter((change) => change.value.trim() !== '');
 

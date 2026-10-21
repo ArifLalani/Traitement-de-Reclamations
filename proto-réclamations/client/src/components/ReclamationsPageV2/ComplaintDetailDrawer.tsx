@@ -101,9 +101,9 @@ Cordialement,
 Le service client`,
   niveau2: `Bonjour,
 
-Nous accusons réception de votre réclamation et vous en remercions.
+Nous accusons réception de votre réclamation et vous en remercions. Votre dossier a été transmis à notre service compétent pour un examen approfondi.
 
-Votre dossier a été transmis à notre service compétent pour un examen approfondi. Compte tenu de sa nature, un délai supplémentaire pourra être nécessaire pour vous apporter une réponse complète et précise.
+Compte tenu de sa nature, un délai supplémentaire pourra être nécessaire pour vous apporter une réponse complète et précise.
 
 Nous reviendrons vers vous dans les meilleurs délais et restons à votre disposition pour tout complément d'information.
 
@@ -923,9 +923,10 @@ export default function ComplaintDetailDrawer({
     }
     setShowContactErrors(false);
     const changed: ChangedField[] = [];
+    if (reclamantDraft.nom !== complaint.reclamant.nom)
+      changed.push({ label: "Nom de l'auteur de la réclamation", value: reclamantDraft.nom || '-' });
     if (reclamantDraft.prenom !== complaint.reclamant.prenom)
-      changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
-    if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
+      changed.push({ label: "Prénom de l'auteur de la réclamation", value: reclamantDraft.prenom || '-' });
     if (reclamantDraft.email !== complaint.reclamant.email)
       changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
     if (reclamantDraft.telephone !== complaint.reclamant.telephone)
@@ -1079,9 +1080,10 @@ export default function ComplaintDetailDrawer({
 
     if (reclamantDirty) {
       const changed: ChangedField[] = [];
+      if (reclamantDraft.nom !== complaint.reclamant.nom)
+        changed.push({ label: "Nom de l'auteur de la réclamation", value: reclamantDraft.nom || '-' });
       if (reclamantDraft.prenom !== complaint.reclamant.prenom)
-        changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
-      if (reclamantDraft.nom !== complaint.reclamant.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
+        changed.push({ label: "Prénom de l'auteur de la réclamation", value: reclamantDraft.prenom || '-' });
       if (reclamantDraft.email !== complaint.reclamant.email)
         changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
       if (reclamantDraft.telephone !== complaint.reclamant.telephone)
@@ -1397,9 +1399,10 @@ export default function ComplaintDetailDrawer({
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
           <p>
-            L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...). Une fois l'envoi
-            effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
+            L'accusé de réception doit être envoyé au réclamant de votre côté (email, courrier...), dans un délai
+            maximum de 10 jours. Une fois l'envoi effectué, renseignez ci-dessous la date à laquelle il a été envoyé.
           </p>
+          <p>En cas de contrôle, un justificatif pourra être demandé.</p>
         </div>
         {renderArDateField()}
         {renderArTemplateBlock()}
@@ -1427,10 +1430,21 @@ export default function ComplaintDetailDrawer({
       <p className="dossier-block-title">Informations concernant le traitement de la réclamation</p>
       <div className="dossier-alert-field-group">
         <div className="dossier-alert-info">
-          <p>
-            La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Une fois l'envoi
-            effectué, renseignez ci-dessous la date à laquelle elle a été envoyée.
-          </p>
+          {contactTag === 'Prospect' ? (
+            <p>
+              La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...). Une fois
+              l'envoi effectué, renseignez ci-dessous la date à laquelle elle a été envoyée.
+            </p>
+          ) : (
+            <>
+              <p>
+                La réponse définitive doit être envoyée au réclamant de votre côté (email, courrier...), dans un
+                délai maximum de 60 jours afin de respecter les délais fixés par la réglementation ACPR. Une fois
+                l'envoi effectué, renseignez ci-dessous la date à laquelle elle a été envoyée.
+              </p>
+              <p>En cas de contrôle, un justificatif pourra être demandé.</p>
+            </>
+          )}
         </div>
         {renderReponseDateField()}
         <FormTextareaAutoGrow
@@ -1518,13 +1532,13 @@ export default function ComplaintDetailDrawer({
       />
       <FormTextareaAutoGrow
         label="Défaillance"
-        placeholder="On constate que..."
+        placeholder="Décrivez la défaillance constatée"
         value={suiviDraft.defaillance}
         onChange={(v) => setSuiviDraft((d) => ({ ...d, defaillance: v }))}
       />
       <FormTextareaAutoGrow
         label="Preuve"
-        placeholder="Décrivez la preuve"
+        placeholder="Décrivez la/les preuve(s)"
         value={suiviDraft.preuve}
         onChange={(v) => setSuiviDraft((d) => ({ ...d, preuve: v }))}
       />
@@ -1673,13 +1687,10 @@ export default function ComplaintDetailDrawer({
               <SectionTextField
                 label="Date de réception (mention)"
                 value={infoDraft.dateReception}
+                required
                 readOnly
               />
-              {complaint.avancement === 'cloture' ? (
-                <SectionTextField label="Date de clôture" value={complaint.dateCloture ?? ''} readOnly />
-              ) : (
-                <div className="dossier-field-spacer" />
-              )}
+              <SectionTextField label="Date de clôture" value={complaint.dateCloture ?? '-'} readOnly />
             </div>
             <SectionTextField
               label="Objet de la réclamation"
@@ -1741,9 +1752,9 @@ export default function ComplaintDetailDrawer({
           >
             <div className="dossier-field-row">
               <SectionTextField
-                label="Nom du réclamant"
+                label="Nom de l'auteur de la réclamation"
                 required
-                placeholder="Entrez le nom du réclamant"
+                placeholder="Entrez le nom de l'auteur de la réclamation"
                 value={reclamantDraft.nom}
                 error={nomMissing}
                 errorText={nomMissing ? 'Champ requis' : undefined}
@@ -1751,9 +1762,9 @@ export default function ComplaintDetailDrawer({
                 onChange={(v) => setReclamantDraft((d) => ({ ...d, nom: v }))}
               />
               <SectionTextField
-                label="Prénom du réclamant"
+                label="Prénom de l'auteur de la réclamation"
                 required
-                placeholder="Entrez le prénom du réclamant"
+                placeholder="Entrez le prénom de l'auteur de la réclamation"
                 value={reclamantDraft.prenom}
                 error={prenomMissing}
                 errorText={prenomMissing ? 'Champ requis' : undefined}

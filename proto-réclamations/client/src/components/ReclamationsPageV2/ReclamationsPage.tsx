@@ -145,7 +145,7 @@ function ComplaintsContactSegmentedControl({
   const segments: { id: ComplaintsContactSegment; text: string; count: number }[] = [
     { id: 'auteur-a-determiner', text: 'Auteurs à identifier', count: auteurADeterminerCount },
     { id: 'client', text: 'Réclamations clients', count: clientCount },
-    { id: 'prospect', text: 'Réclamations prospect', count: prospectCount },
+    { id: 'prospect', text: 'Réclamations prospects', count: prospectCount },
   ];
   const containerRef = useRef<HTMLDivElement>(null);
   const segmentRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -280,7 +280,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   // there's something to see beyond the empty-by-default case. Rattaché à
   // un contrat isn't something the system could ever know on its own — it
   // stays unanswered (null) rather than being guessed at.
-  const [reclamantDrafts, setReclamantDrafts] = useState<Record<string, ReclamantDraftData>>({
+  const [reclamantDrafts] = useState<Record<string, ReclamantDraftData>>({
     '2': {
       nom: 'D.',
       prenom: 'Marc',
@@ -312,11 +312,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       statutClient: '',
     },
   });
-  // Historique entries added by the mention slider's "Enregistrer" action —
-  // kept alongside reclamantDrafts so the modification still shows in the
-  // Historique tab the next time the slider reopens, not just within the
-  // session that made it.
-  const [mentionDraftHistorique, setMentionDraftHistorique] = useState<Record<string, HistoriqueEntry[]>>({});
+  const [mentionDraftHistorique] = useState<Record<string, HistoriqueEntry[]>>({});
   // Which clôture path closed a mention — kept so "Mention clôturée" still
   // explains itself correctly after the slider's been fully closed and
   // reopened, not just within the session that closed it.
@@ -341,7 +337,8 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   // Not a filter — a primary view switch between the two réclamations
   // segments, always one or the other (no "tous"), shown as a segmented
   // control next to the count chip rather than in the filters panel.
-  const [complaintsContactSegment, setComplaintsContactSegment] = useState<ComplaintsContactSegment>('client');
+  const [complaintsContactSegment, setComplaintsContactSegment] =
+    useState<ComplaintsContactSegment>('auteur-a-determiner');
   const [complaintsFiltersOpen, setComplaintsFiltersOpen] = useState(false);
   const [complaintsSortPanelOpen, setComplaintsSortPanelOpen] = useState(false);
   const [complaintsSortOrder, setComplaintsSortOrder] = useState<ComplaintSortOrder>('urgence');
@@ -856,13 +853,13 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     // instead of starting blank — same trail, whichever slider it's viewed
     // from.
     const contactChanges = [
-      { label: 'Prénom', value: formData.prenom },
-      { label: 'Nom', value: formData.nom },
+      { label: "Nom de l'auteur du commentaire", value: formData.nom },
+      { label: "Prénom de l'auteur du commentaire", value: formData.prenom },
       { label: 'Email', value: formData.email },
       { label: 'Téléphone', value: formData.telephone },
       { label: 'Dénomination sociale', value: formData.denominationSociale },
       { label: 'Assureur / Porteur du risque', value: formData.porteurDuRisque },
-      { label: 'Rattaché à un contrat', value: formData.rattacheContrat === 'oui' ? 'Oui' : formData.rattacheContrat === 'non' ? 'Non' : '' },
+      { label: 'Rattachement à un contrat', value: formData.rattacheContrat === 'oui' ? 'Oui' : formData.rattacheContrat === 'non' ? 'Non' : '' },
       { label: 'Statut du client', value: formData.statutClient ? STATUT_CLIENT_LABEL[formData.statutClient] : '' },
     ].filter((change) => change.value.trim() !== '');
     const baseCreationEntry =
@@ -999,14 +996,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   const handleClotureMention = (id: string) => {
     prevTops.current = measureTops();
     setStateOverrides((prev) => ({ ...prev, [id]: 'cloturee' }));
-  };
-
-  const handleSaveReclamantDraft = (id: string, draft: ReclamantDraftData) => {
-    setReclamantDrafts((prev) => ({ ...prev, [id]: draft }));
-  };
-
-  const handleAppendDraftHistorique = (id: string, entry: HistoriqueEntry) => {
-    setMentionDraftHistorique((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), entry] }));
   };
 
   const handleSetClotureReason = (id: string, reason: ClotureReason) => {
@@ -1267,7 +1256,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                 <img src={searchIcon} alt="" width={24} height={24} />
                 <input
                   type="text"
-                  placeholder="Recherches"
+                  placeholder={activeTab === 'mentions' ? 'Rechercher une mention' : 'Rechercher une réclamation'}
                   value={activeTab === 'mentions' ? search : complaintsSearch}
                   onChange={(e) =>
                     activeTab === 'mentions'
@@ -1685,9 +1674,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           }
           linkedComplaintTicket={complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.ticket}
           savedReclamantDraft={reclamantDrafts[createTarget.id]}
-          onSaveReclamantDraft={(draft) => handleSaveReclamantDraft(createTarget.id, draft)}
           savedDraftHistorique={mentionDraftHistorique[createTarget.id]}
-          onAppendDraftHistorique={(entry) => handleAppendDraftHistorique(createTarget.id, entry)}
           savedClotureReason={mentionClotureReasons[createTarget.id]}
           onSetClotureReason={(reason) => handleSetClotureReason(createTarget.id, reason)}
         />

@@ -115,16 +115,30 @@ function parseFrDate(value: string): Date | null {
 
 type MentionTabKey = 'informations' | 'historique';
 
-const MENTION_TABS: { id: MentionTabKey; label: string }[] = [
-  { id: 'informations', label: 'Informations' },
-  { id: 'historique', label: 'Historique' },
-];
+// Same "Traitement"/"Historique" naming as ComplaintDetailDrawer's own tabs
+// once this *is* the réclamation's own page (isReclamationView) — the first
+// tab only reads "Informations" for the mention's own drawer.
+function getMentionTabs(firstTabLabel: string): { id: MentionTabKey; label: string }[] {
+  return [
+    { id: 'informations', label: firstTabLabel },
+    { id: 'historique', label: 'Historique' },
+  ];
+}
 
 // Same sliding-pill segmented control pattern as ComplaintDetailDrawer's
 // DossierTabsControl, reused here for the mention slider's tab navigation.
-function MentionTabsControl({ value, onChange }: { value: MentionTabKey; onChange: (tab: MentionTabKey) => void }) {
-  const index = Math.max(0, MENTION_TABS.findIndex((tab) => tab.id === value));
-  const style = { '--segment-count': MENTION_TABS.length } as CSSProperties;
+function MentionTabsControl({
+  value,
+  onChange,
+  firstTabLabel = 'Informations',
+}: {
+  value: MentionTabKey;
+  onChange: (tab: MentionTabKey) => void;
+  firstTabLabel?: string;
+}) {
+  const tabs = getMentionTabs(firstTabLabel);
+  const index = Math.max(0, tabs.findIndex((tab) => tab.id === value));
+  const style = { '--segment-count': tabs.length } as CSSProperties;
 
   return (
     <div className="dossier-tabs-segmented" style={style}>
@@ -132,7 +146,7 @@ function MentionTabsControl({ value, onChange }: { value: MentionTabKey; onChang
         className="dossier-tabs-segment-indicator"
         style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
       />
-      {MENTION_TABS.map((tab) => (
+      {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
@@ -249,26 +263,9 @@ function formatDateFR(dateLabel: string) {
   return new Date().toLocaleDateString('fr-FR');
 }
 
-const OBJET_KEYWORDS: [RegExp, string][] = [
-  [/remboursement/i, 'Retard de remboursement'],
-  [/résiliat/i, 'Demande de résiliation de contrat'],
-  [/sinistre/i, 'Suivi de dossier sinistre'],
-  [/facturation|facture/i, 'Erreur de facturation'],
-  [/délai/i, 'Délai de traitement excessif'],
-  [/devis/i, 'Litige sur un devis'],
-  [/réponse|répond|contact|appel/i, 'Absence de réponse du service client'],
-];
-
-function suggestObjet(text: string): string {
-  const match = OBJET_KEYWORDS.find(([regex]) => regex.test(text));
-  if (match) return match[1];
-  const firstSentence = text.split(/[.!?]/)[0].trim();
-  return firstSentence.length > 60 ? `${firstSentence.slice(0, 60)}…` : firstSentence;
-}
-
-// Shape of the reclamant fields, saveable on their own via the "Enregistrer"
-// action — without going through onSubmit, which also creates the
-// réclamation itself.
+// Shape of the reclamant fields, restored from the parent's saved draft if
+// the slider is closed and reopened on the same mention — without going
+// through onSubmit, which also creates the réclamation itself.
 export type ReclamantDraftData = {
   nom: string;
   prenom: string;
@@ -339,17 +336,12 @@ type CreateReclamationSliderProps = {
   // "Détail de la mention" when isReclamationView, since at that point this
   // is really that réclamation's own continuation, not the mention's.
   linkedComplaintTicket?: string;
-  // Lets the reclamant fields be saved on their own (e.g. partially filled
-  // in, to finish later) without creating a réclamation — persisted by the
-  // parent and restored here when the slider reopens.
+  // Restores the reclamant fields when the slider reopens on the same
+  // mention, so progress isn't lost across an in-session close/reopen.
   savedReclamantDraft?: ReclamantDraftData;
-  onSaveReclamantDraft: (draft: ReclamantDraftData) => void;
-  // Each "Enregistrer" on the reclamant draft appends one of these — kept by
-  // the parent (alongside the draft itself) so the modification still shows
-  // in the Historique tab the next time the slider reopens, not just within
-  // the session that made it.
+  // Shown in the Historique tab alongside savedReclamantDraft — kept by the
+  // parent so it survives the slider being closed and reopened.
   savedDraftHistorique?: HistoriqueEntry[];
-  onAppendDraftHistorique: (entry: HistoriqueEntry) => void;
   // Which of the six clôture paths actually closed this mention — persisted
   // by the parent so "Mention clôturée" still explains itself correctly
   // after the slider's been fully closed and reopened (not just within the
@@ -412,9 +404,7 @@ export default function CreateReclamationSlider({
   linkedComplaintHistorique,
   linkedComplaintTicket,
   savedReclamantDraft,
-  onSaveReclamantDraft,
   savedDraftHistorique,
-  onAppendDraftHistorique,
   savedClotureReason,
   onSetClotureReason,
 }: CreateReclamationSliderProps) {
@@ -425,7 +415,7 @@ export default function CreateReclamationSlider({
   const [nom] = useState(() => (reclamation.author || '').split(' ').slice(1).join(' '));
   const canal = reclamation.source;
   const dateReception = formatDateFR(reclamation.date);
-  const [objet] = useState(() => suggestObjet(reclamation.text));
+  const [objet, setObjet] = useState('');
   const [closing, setClosing] = useState(false);
   const [activeTab, setActiveTab] = useState<MentionTabKey>('informations');
   // The treatment block's own cascade delay (below) is forced to 0s so a
@@ -546,17 +536,13 @@ export default function CreateReclamationSlider({
     statutClient: '',
   };
   const [reclamantDraft, setReclamantDraft] = useState<ReclamantDraftData>(initialReclamantDraft);
-  // Tracks the last saved snapshot so "Enregistrer" stays disabled until
-  // something actually changes since that save (or since opening, if
-  // nothing was ever saved).
+  // Tracks the last saved snapshot, restored on "Annuler" (réouverture) and
+  // updated on submit.
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<ReclamantDraftData>(initialReclamantDraft);
-  const [draftSavedToast, setDraftSavedToast] = useState(false);
-  const draftSavedToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reclamantDraftDirty = JSON.stringify(reclamantDraft) !== JSON.stringify(savedDraftSnapshot);
   // Derived from the last *saved* snapshot, not the live draft — ticking
   // Oui/Non here doesn't tag the mention until that answer is actually
-  // confirmed (Enregistrer / Créer une réclamation), so going back to
-  // change an earlier question first doesn't leave a stale tag behind.
+  // confirmed (Créer une réclamation), so going back to change an earlier
+  // question first doesn't leave a stale tag behind.
   const contactTag = getContactTag(savedDraftSnapshot.rattacheContrat);
   // Unlike contactTag above, this one tracks the live draft — it only
   // drives the "Créer une réclamation" button's own label, which should
@@ -753,7 +739,7 @@ export default function CreateReclamationSlider({
   // on the same warning shape, but at a glance they otherwise read as the
   // same wait, even though a relance means the first message went
   // unanswered.
-  const renderEnAttenteAlert = (text: string, title = 'En attente du retour du client suite à la demande initiale') => (
+  const renderEnAttenteAlert = (text: string, title = "En attente du retour de l'auteur suite à la demande initiale") => (
     <div className="dossier-alert-warning">
       <div className="dossier-alert-warning-title-row">
         <AlertTriangleIcon />
@@ -936,7 +922,7 @@ export default function CreateReclamationSlider({
       </div>
       <div className="dossier-question-row">
         <span className="dossier-question-text">
-          L'auteur du commentaire est-il rattaché à un contrat ?<span className="field-required">*</span>
+          L'auteur de la mention est-il rattaché à un contrat ?<span className="field-required">*</span>
         </span>
         <ChoiceToggle
           value={reclamantDraft.rattacheContrat}
@@ -1026,7 +1012,7 @@ export default function CreateReclamationSlider({
           </p>
           <p>
             Une fois la réclamation créée, elle restera en attente d'une réponse de l'administrateur. Si aucune
-            réponse n'est obtenue sous un mois, la réclamation sera automatiquement clôturée.
+            réponse n'est obtenue au bout d'un mois, vous pourrez clôturer la réclamation.
           </p>
         </div>
         {/* No real document to serve yet — the button is a placeholder
@@ -1049,9 +1035,9 @@ export default function CreateReclamationSlider({
         <div className="dossier-alert-info">
           <p>
             Les coordonnées de l'auteur du commentaire ne peuvent être obtenues par aucun autre moyen. La réclamation
-            sera automatiquement clôturée.
+            sera clôturée dès sa création.
           </p>
-          <p>Un email sera envoyé à Qualité Assurance pour les avertir de la situation.</p>
+          <p>Un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la situation.</p>
         </div>
         {renderQaNotifieeCertifyCheckbox()}
       </div>
@@ -1069,7 +1055,7 @@ export default function CreateReclamationSlider({
         <div className="dossier-alert-info">
           {needsManualDate
             ? "Afin d'avoir une meilleure traçabilité des étapes, indiquez à quelle date vous avez envoyé votre demande de coordonnées à l'auteur du commentaire."
-            : "Pour respecter le processus de conformité, vous devez envoyer ce message à l'auteur du commentaire. Une fois confirmée, le dossier passera en attente jusqu'à ce que vous confirmiez la réponse de l'auteur, la date étant ajoutée automatiquement."}
+            : "Pour respecter le processus de conformité, vous devez envoyer ce message à l'auteur du commentaire. Une fois l'envoi confirmé, le dossier passera en attente jusqu'à ce que vous confirmiez la réponse de l'auteur, la date étant ajoutée automatiquement."}
         </div>
         {needsManualDate && (
           <div className="modal-row">
@@ -1099,12 +1085,6 @@ export default function CreateReclamationSlider({
   // "avez-vous les coordonnées" checkpoint once a reply came in.
   const renderRetourDetailFields = () => (
     <>
-      <FormTextareaAutoGrow
-        label="Réponse de l'auteur du commentaire"
-        placeholder="Collez ici la réponse de l'auteur du commentaire"
-        value={retourTexte}
-        onChange={setRetourTexte}
-      />
       <div className="modal-row">
         <FormField
           label="Date de la réponse de l'auteur du commentaire"
@@ -1118,6 +1098,12 @@ export default function CreateReclamationSlider({
         />
         <div className="dossier-field-spacer" />
       </div>
+      <FormTextareaAutoGrow
+        label="Réponse de l'auteur du commentaire"
+        placeholder="Collez ici la réponse de l'auteur du commentaire"
+        value={retourTexte}
+        onChange={setRetourTexte}
+      />
     </>
   );
 
@@ -1225,7 +1211,7 @@ export default function CreateReclamationSlider({
         <>
           {renderEnAttenteAlert(
             `Message de relance envoyé le ${relanceDateDraft}. Le dossier reste en attente jusqu'à ce que vous indiquiez si l'auteur a répondu (délai maximum de 30 jours).`,
-            'En attente du retour du client suite à la relance',
+            "En attente du retour de l'auteur suite à la relance",
           )}
           {inner.node}
         </>
@@ -1258,12 +1244,6 @@ export default function CreateReclamationSlider({
     const reponseDetail =
       adminReponseAnswer === 'oui' ? (
         <>
-          <FormTextareaAutoGrow
-            label="Réponse de l'administrateur"
-            placeholder="Collez ici la réponse de l'administrateur de la plateforme"
-            value={adminReponseTexte}
-            onChange={setAdminReponseTexte}
-          />
           <div className="modal-row">
             <FormField
               label="Date de la réponse de l'administrateur"
@@ -1277,6 +1257,12 @@ export default function CreateReclamationSlider({
             />
             <div className="dossier-field-spacer" />
           </div>
+          <FormTextareaAutoGrow
+            label="Réponse de l'administrateur"
+            placeholder="Collez ici la réponse de l'administrateur de la plateforme"
+            value={adminReponseTexte}
+            onChange={setAdminReponseTexte}
+          />
         </>
       ) : null;
     const inner = stepQuestion(
@@ -1316,7 +1302,7 @@ export default function CreateReclamationSlider({
                 : "L'administrateur de la plateforme n'a pas répondu à la demande. La réclamation va être clôturée."
               : "L'administrateur de la plateforme n'a pas transmis les coordonnées de l'auteur du commentaire. La réclamation va être clôturée."}
           </p>
-          <p>Un email sera envoyé à Qualité Assurance pour les avertir de la situation.</p>
+          <p>Un email sera automatiquement envoyé à Qualité Assurance pour les avertir de la situation.</p>
         </div>
       </div>
     </div>
@@ -1511,7 +1497,7 @@ export default function CreateReclamationSlider({
     const row = (
       <div className="dossier-question-row dossier-question-row-stacked">
         <span className="dossier-question-text">
-          Considérez-vous cette mention comme étant une réclamation ?<span className="field-required">*</span>
+          Considérez-vous cette mention comme une réclamation ?<span className="field-required">*</span>
         </span>
         <ChoiceColumn
           value={reclamationTypeAnswer}
@@ -1522,8 +1508,30 @@ export default function CreateReclamationSlider({
       </div>
     );
     if (!reclamationTypeAnswer || reclamationTypeAnswer === 'non') return { phase: 'question', node: row };
+    const objetField = (
+      <FormField
+        label="Objet de la réclamation"
+        required
+        placeholder="Ajoutez l'objet de la réclamation"
+        value={objet}
+        error={showContactErrors && !objet}
+        errorText={showContactErrors && !objet ? 'Champ requis' : undefined}
+        onChange={setObjet}
+      />
+    );
     const next = getTreatmentStep();
-    return { phase: next.phase, node: (<>{row}<Fragment key="oui">{next.node}</Fragment></>) };
+    return {
+      phase: next.phase,
+      node: (
+        <>
+          {row}
+          <Fragment key="oui">
+            {objetField}
+            {next.node}
+          </Fragment>
+        </>
+      ),
+    };
   };
 
   // True as soon as "Rouvrir la mention" is clicked — drives what's shown
@@ -1594,6 +1602,7 @@ export default function CreateReclamationSlider({
         reouvertureActive));
 
   const reclamantFieldsMissing =
+    !objet ||
     !reclamantDraft.nom ||
     !reclamantDraft.prenom ||
     !reclamantDraft.rattacheContrat ||
@@ -1656,9 +1665,6 @@ export default function CreateReclamationSlider({
           },
         ]
       : []),
-    // Every "Enregistrer" on the reclamant draft adds one of these (see
-    // handleSaveDraft) — persisted by the parent so they survive the slider
-    // closing and reopening.
     ...(savedDraftHistorique ?? []),
     ...(wasEverCloturee
       ? [
@@ -1709,51 +1715,6 @@ export default function CreateReclamationSlider({
       );
       firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-  };
-
-  // Saves whatever's currently filled in without creating the réclamation —
-  // no validation, unlike handleSubmit, since it's meant to let the user
-  // pick up a partially filled dossier later. Only reachable from Q1's
-  // "oui" branch — a réouverture skips straight to "Annuler" ou "Créer la
-  // réclamation" instead, with no save-for-later step of its own.
-  const handleSaveDraft = () => {
-    const changed: { label: string; value: string }[] = [];
-    if (reclamantDraft.nom !== savedDraftSnapshot.nom) changed.push({ label: 'Nom', value: reclamantDraft.nom || '-' });
-    if (reclamantDraft.prenom !== savedDraftSnapshot.prenom)
-      changed.push({ label: 'Prénom', value: reclamantDraft.prenom || '-' });
-    if (reclamantDraft.email !== savedDraftSnapshot.email)
-      changed.push({ label: 'Email', value: reclamantDraft.email || '-' });
-    if (reclamantDraft.telephone !== savedDraftSnapshot.telephone)
-      changed.push({ label: 'Téléphone', value: reclamantDraft.telephone || '-' });
-    if (reclamantDraft.denominationSociale !== savedDraftSnapshot.denominationSociale)
-      changed.push({ label: 'Dénomination sociale', value: reclamantDraft.denominationSociale || '-' });
-    if (reclamantDraft.porteurDuRisque !== savedDraftSnapshot.porteurDuRisque)
-      changed.push({ label: 'Assureur / Porteur du risque', value: reclamantDraft.porteurDuRisque || '-' });
-    if (reclamantDraft.rattacheContrat !== savedDraftSnapshot.rattacheContrat)
-      changed.push({
-        label: 'Rattaché à un contrat',
-        value: reclamantDraft.rattacheContrat === 'oui' ? 'Oui' : reclamantDraft.rattacheContrat === 'non' ? 'Non' : '-',
-      });
-    if (reclamantDraft.statutClient !== savedDraftSnapshot.statutClient)
-      changed.push({
-        label: 'Statut du client',
-        value: reclamantDraft.statutClient ? STATUT_CLIENT_LABEL[reclamantDraft.statutClient] : '-',
-      });
-
-    onSaveReclamantDraft(reclamantDraft);
-    setSavedDraftSnapshot(reclamantDraft);
-    if (changed.length > 0) {
-      onAppendDraftHistorique({
-        title: "Modification des informations de l'auteur du commentaire",
-        description: `Champs modifiés : ${changed.map((c) => c.label).join(', ')}.`,
-        date: todayLabel,
-        author: 'Joe Bleau',
-        changes: changed,
-      });
-    }
-    setDraftSavedToast(true);
-    if (draftSavedToastTimeout.current) clearTimeout(draftSavedToastTimeout.current);
-    draftSavedToastTimeout.current = setTimeout(() => setDraftSavedToast(false), 3000);
   };
 
   // The mention stays open on clôture (unlike "Écarter") — a toast confirms
@@ -2143,7 +2104,11 @@ export default function CreateReclamationSlider({
         </div>
 
         <div className="create-claim-body" ref={bodyRef}>
-          <MentionTabsControl value={activeTab} onChange={setActiveTab} />
+          <MentionTabsControl
+            value={activeTab}
+            onChange={setActiveTab}
+            firstTabLabel={isReclamationView ? 'Traitement' : 'Informations'}
+          />
 
           {activeTab === 'informations' && (
             <div className="create-claim-section">
@@ -2174,11 +2139,11 @@ export default function CreateReclamationSlider({
               <div className="dossier-field-row">
                 <div className="dossier-field">
                   <span className="dossier-field-label">Email</span>
-                  <span className="dossier-field-readonly-value">{reclamantDraft.email || 'Non renseigné'}</span>
+                  <span className="dossier-field-readonly-value">{reclamantDraft.email || '-'}</span>
                 </div>
                 <div className="dossier-field">
                   <span className="dossier-field-label">Téléphone</span>
-                  <span className="dossier-field-readonly-value">{reclamantDraft.telephone || 'Non renseigné'}</span>
+                  <span className="dossier-field-readonly-value">{reclamantDraft.telephone || '-'}</span>
                 </div>
               </div>
 
@@ -2311,12 +2276,6 @@ export default function CreateReclamationSlider({
 
         <div className="create-claim-footer-wrap">
           <AlertSnackbar
-            visible={draftSavedToast}
-            message="Informations enregistrées."
-            variant="success"
-            className="alert-snackbar-local"
-          />
-          <AlertSnackbar
             visible={clotureToast}
             message="Mention clôturée."
             variant="success"
@@ -2348,17 +2307,7 @@ export default function CreateReclamationSlider({
                     Annuler
                   </button>
                 )}
-                {activeTab === 'informations' && showingReclamantFields && !reouvertureActive && (
-                  <button
-                    type="button"
-                    className="btn-text"
-                    disabled={!reclamantDraftDirty}
-                    onClick={handleSaveDraft}
-                  >
-                    Enregistrer
-                  </button>
-                )}
-                {activeTab === 'informations' && showingReclamantFields && (
+                {activeTab === 'informations' && showingReclamantFields && !!reclamantDraft.rattacheContrat && (
                   <button type="button" className="btn-filled" onClick={handleSubmit}>
                     {createSubmitLabel}
                   </button>
