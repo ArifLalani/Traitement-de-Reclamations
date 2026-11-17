@@ -30,7 +30,7 @@ export default function ComplaintCard({
 }: ComplaintCardProps) {
   const {
     ticket,
-    objet,
+    objets,
     dateReception,
     sourceUrl,
     requerant,
@@ -69,7 +69,14 @@ export default function ComplaintCard({
                 <HoverTooltip text="Numéro de référence de la réclamation" align="left">
                   <span className="chip complaint-ticket-chip">{ticket}</span>
                 </HoverTooltip>
-                <span className="card-source-name">{objet}</span>
+                <span className="card-objet">
+                  <span className="card-source-name card-objet-text">{objets[0]}</span>
+                  {objets.length > 1 && (
+                    <HoverTooltip text={objets.slice(1).join(', ')} className="card-objet-more-wrap">
+                      <span className="card-objet-more">+{objets.length - 1}</span>
+                    </HoverTooltip>
+                  )}
+                </span>
                 <span className="card-dot">·</span>
                 <span className="card-date">{dateReception}</span>
               </div>

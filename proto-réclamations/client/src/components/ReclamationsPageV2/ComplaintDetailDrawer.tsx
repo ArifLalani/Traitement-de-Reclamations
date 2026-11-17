@@ -2,8 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { createPortal } from 'react-dom';
 import drawerClose from '../../assets/figma/drawer-close.svg';
 import ArrowUpRight from './ArrowUpRight';
+import DossierHStepper from './DossierHStepper';
 import { FormField, FormTextareaAutoGrow } from './FormFields';
 import HoverTooltip from './HoverTooltip';
+import { MultiSelectField } from './MultiSelectField';
+import { formatObjets, OBJET_OPTIONS, sameObjets } from './objetOptions';
 import { exportComplaintsToCsv } from './exportComplaints';
 import {
   AVANCEMENT_LABEL,
@@ -17,7 +20,6 @@ import {
   padFrDate,
   STATUT_CLIENT_LABEL,
   type Complaint,
-  type DossierStep,
   type HistoriqueEntry,
   type Reclamant,
   type StatutClient,
@@ -44,46 +46,6 @@ const KEY_HISTORY_STEPS = new Set([
   'Analyse de la cause',
 ]);
 
-
-const DOSSIER_STEP_SHORT_LABELS = [
-  'Réception de la mention',
-  'Création de la réclamation',
-  'Accusé de réception',
-  'Réponse définitive',
-  'Analyse de la cause',
-];
-// Same compact stepper used in the create-réclamation slider preview (see
-// CreateReclamationSlider.tsx) — reused here as the persistent, always-open
-// replacement for the old collapsible "Avancement du dossier" section.
-function DossierHStepper({ steps }: { steps: DossierStep[] }) {
-  const completedCount = steps.filter((s) => s.status === 'done').length;
-  const fillFraction = Math.min(completedCount, steps.length - 1) / (steps.length - 1);
-
-  return (
-    <div className="dossier-hstepper">
-      <span className="dossier-hstepper-line" />
-      <span
-        className="dossier-hstepper-line-fill"
-        style={{ width: `calc(${fillFraction} * (100% - 88px))` }}
-      />
-      {steps.map((step, index) => (
-        <div key={step.label} className={`dossier-hstep dossier-hstep-${step.status}`}>
-          <span className="dossier-hstep-dot" aria-hidden>
-            {step.status === 'done' ? '✓' : index + 1}
-          </span>
-          <span className="dossier-hstep-label" title={step.label}>
-            {DOSSIER_STEP_SHORT_LABELS[index]}
-          </span>
-          {step.status === 'current' && step.badgeLabel && (
-            <span className={`dossier-hstep-badge ${step.badgeWarning ? 'dossier-hstep-badge-warning' : ''}`}>
-              {step.badgeLabel}
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 const CLOSE_ANIMATION_DURATION = 200;
 const ACCORDION_COLLAPSE_DURATION = 300;
@@ -776,6 +738,7 @@ export default function ComplaintDetailDrawer({
   // facultative) — mêmes champs manquants/erreur que pour l'AR.
   const [actionCorrectiveDateMissing, setActionCorrectiveDateMissing] = useState(false);
   const [actionRealiseeMissing, setActionRealiseeMissing] = useState(false);
+  const [reponseMessageMissing, setReponseMessageMissing] = useState(false);
   const [headerStuck, setHeaderStuck] = useState(false);
   const [tabsStuck, setTabsStuck] = useState(false);
   const [footerShadow, setFooterShadow] = useState(false);
@@ -866,7 +829,7 @@ export default function ComplaintDetailDrawer({
   // per the Figma redesign, so one save covers all three).
   const [infoDraft, setInfoDraft] = useState({
     dateReception: complaint.dateReception,
-    objet: complaint.objet,
+    objets: complaint.objets,
     description: complaint.description,
     sourceUrl: complaint.sourceUrl ?? '',
   });
@@ -874,7 +837,7 @@ export default function ComplaintDetailDrawer({
   const [notesDraft, setNotesDraft] = useState(complaint.notesInternes);
   const infoDirty =
     infoDraft.dateReception !== complaint.dateReception ||
-    infoDraft.objet !== complaint.objet ||
+    !sameObjets(infoDraft.objets, complaint.objets) ||
     infoDraft.description !== complaint.description ||
     infoDraft.sourceUrl !== (complaint.sourceUrl ?? '') ||
     traitementDraft.interlocuteur !== complaint.traitement.interlocuteur ||
@@ -883,7 +846,8 @@ export default function ComplaintDetailDrawer({
     const changed: ChangedField[] = [];
     if (infoDraft.dateReception !== complaint.dateReception)
       changed.push({ label: 'Date de réception', value: padFrDate(infoDraft.dateReception) || '-' });
-    if (infoDraft.objet !== complaint.objet) changed.push({ label: 'Objet de la réclamation', value: infoDraft.objet || '-' });
+    if (!sameObjets(infoDraft.objets, complaint.objets))
+      changed.push({ label: 'Objet de la réclamation', value: formatObjets(infoDraft.objets) || '-' });
     if (infoDraft.description !== complaint.description)
       changed.push({ label: 'Description', value: infoDraft.description || '-' });
     if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? ''))
@@ -1051,7 +1015,8 @@ export default function ComplaintDetailDrawer({
       const changed: ChangedField[] = [];
       if (infoDraft.dateReception !== complaint.dateReception)
         changed.push({ label: 'Date de réception', value: padFrDate(infoDraft.dateReception) || '-' });
-      if (infoDraft.objet !== complaint.objet) changed.push({ label: 'Objet de la réclamation', value: infoDraft.objet || '-' });
+      if (!sameObjets(infoDraft.objets, complaint.objets))
+      changed.push({ label: 'Objet de la réclamation', value: formatObjets(infoDraft.objets) || '-' });
       if (infoDraft.description !== complaint.description)
         changed.push({ label: 'Description', value: infoDraft.description || '-' });
       if (infoDraft.sourceUrl !== (complaint.sourceUrl ?? ''))
@@ -1061,6 +1026,7 @@ export default function ComplaintDetailDrawer({
       if (notesDraft !== complaint.notesInternes) changed.push({ label: 'Notes internes', value: notesDraft || '-' });
       Object.assign(updates, {
         ...infoDraft,
+        objets: infoDraft.objets.length ? infoDraft.objets : complaint.objets,
         dateReception: padFrDate(infoDraft.dateReception),
         sourceUrl: infoDraft.sourceUrl || undefined,
         traitement: traitementDraft,
@@ -1249,9 +1215,11 @@ export default function ComplaintDetailDrawer({
       // cas avant de pouvoir clôturer.
       const correctiveDateMissing = !suiviDraft.actionCorrective;
       const correctiveDescMissing = !suiviDraft.actionRealisee;
-      if (correctiveDateMissing || correctiveDescMissing) {
+      const messageMissing = !suiviDraft.reponseMessage.trim();
+      if (correctiveDateMissing || correctiveDescMissing || messageMissing) {
         setActionCorrectiveDateMissing(correctiveDateMissing);
         setActionRealiseeMissing(correctiveDescMissing);
+        setReponseMessageMissing(messageMissing);
         scrollToFirstError();
         return;
       }
@@ -1350,7 +1318,7 @@ export default function ComplaintDetailDrawer({
   const renderArTemplateBlock = () => (
     <div className="dossier-template-block">
       <div className="dossier-template-header">
-        <span className="dossier-template-title">Modèle de message à envoyer</span>
+        <span className="dossier-template-title">Modèles de message à copier et à envoyer</span>
         <span className="dossier-template-copy-wrap">
           <button
             type="button"
@@ -1448,11 +1416,17 @@ export default function ComplaintDetailDrawer({
         </div>
         {renderReponseDateField()}
         <FormTextareaAutoGrow
-          label="Message de la réponse définitive envoyé"
+          label={`Copiez-collez la proposition de résolution faite à votre ${contactTag === 'Prospect' ? 'prospect' : 'client'}.`}
+          labelPlacement="above"
           required
           placeholder="Indiquez ici le message envoyé au réclamant"
           value={suiviDraft.reponseMessage}
-          onChange={(v) => setSuiviDraft((d) => ({ ...d, reponseMessage: v }))}
+          error={reponseMessageMissing}
+          errorText={reponseMessageMissing ? 'Champ requis' : undefined}
+          onChange={(v) => {
+            setSuiviDraft((d) => ({ ...d, reponseMessage: v }));
+            if (v.trim()) setReponseMessageMissing(false);
+          }}
         />
         <p className="dossier-block-title">Action curative</p>
         <div className="dossier-alert-neutral">
@@ -1625,9 +1599,10 @@ export default function ComplaintDetailDrawer({
           <div ref={dossierContentInnerRef}>
           <div className={`dossier-sticky-header ${tabsStuck ? 'dossier-sticky-header-stuck' : ''}`}>
             <DossierTabsControl value={activeTab} onChange={setActiveTab} />
+            {/* Pinned with the tabs, so the progress stays visible while the
+                Traitement tab's content scrolls underneath. */}
+            {activeTab === 'traitement' && <DossierHStepper steps={steps} />}
           </div>
-
-          {activeTab === 'traitement' && <DossierHStepper steps={steps} />}
 
           {activeTab === 'traitement' && (
             <>
@@ -1692,12 +1667,17 @@ export default function ComplaintDetailDrawer({
               />
               <SectionTextField label="Date de clôture" value={complaint.dateCloture ?? '-'} readOnly />
             </div>
-            <SectionTextField
+            <MultiSelectField
+              appearance="section"
               label="Objet de la réclamation"
-              value={infoDraft.objet}
               required
+              placeholder="Sélectionnez un ou plusieurs objets"
+              options={OBJET_OPTIONS}
+              value={infoDraft.objets}
               readOnly={isClosed}
-              onChange={(v) => setInfoDraft((d) => ({ ...d, objet: v }))}
+              error={infoDraft.objets.length === 0}
+              errorText={infoDraft.objets.length === 0 ? 'Champ requis' : undefined}
+              onChange={(v) => setInfoDraft((d) => ({ ...d, objets: v }))}
             />
             <SectionTextField
               label="Description"
@@ -1741,7 +1721,7 @@ export default function ComplaintDetailDrawer({
               readOnly={isClosed}
               onChange={setNotesDraft}
             />
-            <SaveButton disabled={!infoDirty} onClick={saveInfo} />
+            <SaveButton disabled={!infoDirty || infoDraft.objets.length === 0} onClick={saveInfo} />
           </AccordionSection>
 
           <AccordionSection
@@ -1976,8 +1956,19 @@ export default function ComplaintDetailDrawer({
           </div>
         </div>
 
-        {traitementActions && (
+        {(traitementActions || !isClosed) && (
           <div className={`dossier-traitement-footer ${footerShadow ? 'dossier-traitement-footer-shadow' : ''}`}>
+            {!isClosed && (
+              <p className="create-claim-leave-hint">
+                <svg viewBox="0 0 24 24" width={16} height={16} fill="currentColor" aria-hidden="true">
+                  <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8" />
+                </svg>
+                <span>
+                  Vous pouvez quitter à tout moment : retrouvez cette réclamation et poursuivez son traitement quand vous
+                  le souhaitez dans la page « Mes réclamations ».
+                </span>
+              </p>
+            )}
             {traitementActions}
           </div>
         )}

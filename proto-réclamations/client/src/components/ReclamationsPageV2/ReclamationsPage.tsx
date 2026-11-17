@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import searchIcon from '../../assets/figma/search-icon.svg';
 import logoText from '../../assets/figma/logo-text.svg';
 import logoStarsRow from '../../assets/figma/logo-stars-row.svg';
 import logoSystemText from '../../assets/figma/logo-system-text.svg';
+import CompanyIdentity from './CompanyIdentity';
 import AlertSnackbar from './AlertSnackbar';
 import ComplaintCard from './ComplaintCard';
 import ComplaintDetailDrawer, { type ComplaintInformationsUpdate } from './ComplaintDetailDrawer';
@@ -13,6 +14,7 @@ import ComplaintsFiltersPanel, {
 } from './ComplaintsFiltersPanel';
 import ComplaintsSortPanel, { type ComplaintSortOrder } from './ComplaintsSortPanel';
 import CreateReclamationSlider, {
+  type NonReclamationQualification,
   type ClotureReason,
   type ReclamantDraftData,
   type ReclamationFormData,
@@ -223,14 +225,6 @@ function MenuIcon() {
   );
 }
 
-function ResetIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width={18} height={18} fill="currentColor">
-      <path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-    </svg>
-  );
-}
-
 
 const SEEN_IDS_STORAGE_KEY = 'reclamations-seen-ids-v3';
 const REPUTATION_INTRO_SEEN_KEY = 'reputation-intro-seen-v1';
@@ -313,10 +307,16 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     },
   });
   const [mentionDraftHistorique] = useState<Record<string, HistoriqueEntry[]>>({});
+  // Per-mention answers saved when the detail panel is closed mid-flow, so
+  // reopening it resumes where the user left off.
   // Which clôture path closed a mention — kept so "Mention clôturée" still
   // explains itself correctly after the slider's been fully closed and
   // reopened, not just within the session that closed it.
   const [mentionClotureReasons, setMentionClotureReasons] = useState<Record<string, ClotureReason>>({});
+  // Who qualified a mention as "non-réclamation", and when (audit trail).
+  const [nonReclamationQualifications, setNonReclamationQualifications] = useState<
+    Record<string, NonReclamationQualification>
+  >({});
   const [snackbar, setSnackbar] = useState<{
     id: string;
     message: string;
@@ -332,6 +332,23 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     ...initialComplaints,
     ...initialClosedComplaints,
   ]);
+  // Status of the réclamation (if any) created from each mention — drives the
+  // mention card's "Réclamation ouverte / clôturée" note, which replaces its
+  // action buttons; the réclamation itself is reached from "Mes réclamations".
+  const complaintStatusByMentionId = useMemo(() => {
+    const map = new Map<string, 'ouverte' | 'cloturee'>();
+    for (const c of complaintsList) {
+      if (c.sourceReclamationId) {
+        map.set(c.sourceReclamationId, c.avancement === 'cloture' ? 'cloturee' : 'ouverte');
+      }
+    }
+    return map;
+  }, [complaintsList]);
+  // Open/closed status shown on a mention card (badge + note). A "Clôturée"
+  // mention counts as closed even without a réclamation record behind it.
+  const getMentionComplaintStatus = (r: { id: string; state: ReclamationState }): 'ouverte' | 'cloturee' | null =>
+    complaintStatusByMentionId.get(r.id) ??
+    (r.state === 'mes-reclamations' ? 'ouverte' : r.state === 'cloturee' ? 'cloturee' : null);
   const [progressionFilter, setProgressionFilter] = useState<ProgressionFilter>('tous');
   const [conformiteFilter, setConformiteFilter] = useState<ConformiteFilter>('tous');
   // Not a filter — a primary view switch between the two réclamations
@@ -502,6 +519,54 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     }
   };
 
+  // « Mes réclamations » link in a mention card's complaint note: opens the
+  // réclamations page already anchored on that mention's réclamation — right
+  // segment, no filter/search hiding it, scrolled into view and highlighted.
+  const [anchoredComplaintId, setAnchoredComplaintId] = useState<string | null>(null);
+  const [highlightedComplaintId, setHighlightedComplaintId] = useState<string | null>(null);
+  const highlightTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleGoToComplaintFromMention = (mentionId: string) => {
+    const complaint = complaintsList.find((c) => c.sourceReclamationId === mentionId);
+    handleSelectTab('reclamations');
+    if (!complaint) {
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    const tag = getContactTag(complaint.reclamant.rattacheContrat);
+    setComplaintsContactSegment(tag === 'Client' ? 'client' : tag === 'Prospect' ? 'prospect' : 'auteur-a-determiner');
+    setComplaintsSearch('');
+    setProgressionFilter('tous');
+    setConformiteFilter('tous');
+    // Render the whole list so the anchored card exists, wherever it sorts.
+    setVisibleCount(Math.max(PAGE_SIZE, complaintsList.length));
+    setAnchoredComplaintId(complaint.id);
+    // Then open that réclamation's own panel, once the list has mounted and
+    // played its card entrance animation (0.6s, see .card-list > * in the CSS).
+    setTimeout(() => {
+      if (tag === null) openUnidentifiedComplaintSlider(complaint);
+      else setSelectedComplaint(complaint);
+    }, 650);
+  };
+
+  useEffect(() => {
+    if (!anchoredComplaintId || activeTab !== 'reclamations') return;
+    const el = cardRefs.current.get(anchoredComplaintId);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    setHighlightedComplaintId(anchoredComplaintId);
+    setAnchoredComplaintId(null);
+    if (highlightTimeout.current) clearTimeout(highlightTimeout.current);
+    highlightTimeout.current = setTimeout(() => setHighlightedComplaintId(null), 3500);
+  });
+
+  useEffect(
+    () => () => {
+      if (highlightTimeout.current) clearTimeout(highlightTimeout.current);
+    },
+    [],
+  );
+
   const markReputationIntroSeen = () => {
     try {
       localStorage.setItem(REPUTATION_INTRO_SEEN_KEY, '1');
@@ -610,7 +675,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   useEffect(() => {
     if (toastTrigger === 0) return;
     const showTimeout = setTimeout(() => setShowCreatedToast(true), 1500);
-    const hideTimeout = setTimeout(() => setShowCreatedToast(false), 1500 + 4000);
+    const hideTimeout = setTimeout(() => setShowCreatedToast(false), 1500 + 7000);
     return () => {
       clearTimeout(showTimeout);
       clearTimeout(hideTimeout);
@@ -643,17 +708,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     setCreateTargetIsReclamationView(true);
   };
 
-  // Same thing, but reached from "Voir la réclamation" inside an
-  // already-open mention slider — that *does* need the close + navigate +
-  // delay dance (same rhythm as openComplaintDetail), since it's coming
-  // from the mentions tab and the réclamations list itself still has to
-  // mount and play its own card entrance animation first.
-  const handleOpenUnidentifiedComplaint = (complaint: Complaint) => {
-    setCreateTarget(null);
-    handleSelectTab('reclamations');
-    setComplaintsContactSegment('auteur-a-determiner');
-    setTimeout(() => openUnidentifiedComplaintSlider(complaint), 650);
-  };
 
   const markIdsAsRead = (ids: string[]) => {
     prevTops.current = measureTops();
@@ -691,16 +745,6 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     if (idsToMark.length === 0) return;
     markIdsAsRead(idsToMark);
     exitSelectionMode();
-  };
-
-  const handleResetApp = () => {
-    try {
-      localStorage.removeItem(SEEN_IDS_STORAGE_KEY);
-      localStorage.removeItem(REPUTATION_INTRO_SEEN_KEY);
-    } catch {
-      // localStorage unavailable, ignore
-    }
-    window.location.reload();
   };
 
   const handleShowNewMentions = () => {
@@ -834,7 +878,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       denominateurSocial: formData.denominationSociale,
       assureur: '',
       email: formData.email,
-      objet: formData.objet,
+      objets: formData.objets,
       description: formData.description,
     });
     newComplaint.reclamant.telephone = formData.telephone;
@@ -915,6 +959,8 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
 
     const newComplaint = buildComplaintFromMention(id, createTarget.url, formData, mentionHistorique);
     upsertComplaint(newComplaint);
+    // Fully created — its treatment continues in "Mes réclamations" now, so
+    // the mention panel's in-progress answers are no longer needed.
 
     // Rather than closing the create slider and reopening a separate detail
     // drawer, swap what's shown inside the same panel — the réclamation was
@@ -932,38 +978,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
     setSelectedComplaint((prev) => (prev && prev.id === id ? { ...prev, ...updates } : prev));
   };
 
-  const openComplaintDetail = (complaint: Complaint) => {
-    handleSelectTab('reclamations');
-    // Switch the segmented control to whichever segment this complaint
-    // actually belongs to — otherwise the list behind the drawer stays on
-    // whatever was last selected (e.g. "Réclamations clients"), which reads
-    // as if the complaint just opened were misclassified even when it isn't
-    // (its own title/segment membership is correct either way).
-    const tag = getContactTag(complaint.reclamant.rattacheContrat);
-    setComplaintsContactSegment(tag === 'Prospect' ? 'prospect' : tag === 'Client' ? 'client' : 'auteur-a-determiner');
-    // Let the réclamations list finish mounting and playing its card entrance
-    // animation (0.6s, see .card-list > * in ReclamationsPage.css) before the
-    // detail drawer slides in, so the two animations don't overlap.
-    setTimeout(() => setSelectedComplaint(complaint), 650);
-  };
 
-  const handleViewComplaintFromMention = (reclamationId: string) => {
-    const complaint = complaintsList.find((c) => c.sourceReclamationId === reclamationId);
-    if (!complaint) {
-      setCreateTarget(null);
-      return;
-    }
-    if (getContactTag(complaint.reclamant.rattacheContrat) === null) {
-      // Still unidentified — stay in the mention slider, just switch it
-      // into the réclamation's own continuation view (same as opening it
-      // from "Non identifiés"), instead of ComplaintDetailDrawer's AR/RD
-      // flow, which assumes a known contact type.
-      handleOpenUnidentifiedComplaint(complaint);
-      return;
-    }
-    setCreateTarget(null);
-    openComplaintDetail(complaint);
-  };
 
   // Confirms either Q0's "Considérez-vous cette mention comme étant une
   // réclamation ?" or, further down, the plateforme/administrateur canal's
@@ -1089,8 +1104,14 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
   const matchesAppreciation = (r: (typeof effectiveReclamations)[number]) =>
     appreciationFilter === 'tous' || sentiment(r) === appreciationFilter;
 
-  const matchesReclamationsFacet = (r: (typeof effectiveReclamations)[number]) =>
-    reclamationsFacet === 'tous' || r.state === reclamationsFacet;
+  // Same state the card's badge shows — a mention whose réclamation has since
+  // been closed counts as "Clôturée", not "Réclamation ouverte".
+  const matchesReclamationsFacet = (r: (typeof effectiveReclamations)[number]) => {
+    if (reclamationsFacet === 'tous') return true;
+    const status = getMentionComplaintStatus(r);
+    const badgeState = status === 'cloturee' ? 'cloturee' : status === 'ouverte' ? 'mes-reclamations' : r.state;
+    return badgeState === reclamationsFacet;
+  };
 
   const matchesContact = (r: (typeof effectiveReclamations)[number]) => {
     if (contactFilter === 'tous') return true;
@@ -1151,7 +1172,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
       !complaintsQuery ||
       c.ticket.toLowerCase().includes(complaintsQuery) ||
       c.requerant.toLowerCase().includes(complaintsQuery) ||
-      c.objet.toLowerCase().includes(complaintsQuery) ||
+      c.objets.some((objet) => objet.toLowerCase().includes(complaintsQuery)) ||
       c.description.toLowerCase().includes(complaintsQuery);
     const matchesProgression = progressionFilter === 'tous' || c.avancement === progressionFilter;
     const matchesConformite = conformiteFilter === 'tous' || getEcheanceInfo(c).conformite === conformiteFilter;
@@ -1213,19 +1234,11 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           >
             <MenuIcon />
           </button>
-          <button
-            type="button"
-            className="icon-button reset-app-button"
-            aria-label="Réinitialiser le prototype"
-            title="Réinitialiser le prototype"
-            onClick={handleResetApp}
-          >
-            <ResetIcon />
-          </button>
         </div>
-        <div className="header-center">
+        <div className={`header-center ${sidebarOpen ? 'header-center-shifted' : ''}`}>
           <div className="header-top">
-            <div className="logo">
+            <CompanyIdentity />
+            <div className="logo logo-compact">
               <img src={logoText} alt="Opinion System" className="logo-text" />
               <div className="logo-sub">
                 <img src={logoStarsRow} alt="" className="logo-stars" />
@@ -1463,7 +1476,8 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                         selected={selectedIds.has(reclamation.id)}
                         onToggleSelect={() => toggleSelectId(reclamation.id)}
                         onCreate={() => handleRequestCreate(reclamation)}
-                        onViewComplaint={() => handleViewComplaintFromMention(reclamation.id)}
+                        complaintStatus={getMentionComplaintStatus(reclamation)}
+                        onOpenComplaintsPage={() => handleGoToComplaintFromMention(reclamation.id)}
                         contactTag={getMentionContactTag(reclamation)}
                       />
                     </div>
@@ -1565,6 +1579,7 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
                   {visibleComplaints.map((complaint) => (
                     <div
                       key={complaint.id}
+                      className={highlightedComplaintId === complaint.id ? 'complaint-card-anchored' : undefined}
                       ref={(el) => {
                         if (el) cardRefs.current.set(complaint.id, el);
                         else cardRefs.current.delete(complaint.id);
@@ -1664,11 +1679,11 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           reclamation={createTarget}
           onClose={() => setCreateTarget(null)}
           onSubmit={handleConfirmCreate}
-          onViewComplaint={() => handleViewComplaintFromMention(createTarget.id)}
           onConfirmContactAttempt={handleConfirmContactAttempt}
           onClotureMention={() => handleClotureMention(createTarget.id)}
           isReclamationView={createTargetIsReclamationView}
           savedCanalAnswer={complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.sourceCanal}
+          linkedComplaintObjets={complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.objets}
           linkedComplaintHistorique={
             complaintsList.find((c) => c.sourceReclamationId === createTarget.id)?.historique
           }
@@ -1677,6 +1692,12 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
           savedDraftHistorique={mentionDraftHistorique[createTarget.id]}
           savedClotureReason={mentionClotureReasons[createTarget.id]}
           onSetClotureReason={(reason) => handleSetClotureReason(createTarget.id, reason)}
+          nonReclamationQualification={nonReclamationQualifications[createTarget.id]}
+          onQualifyNonReclamation={(qualification) =>
+            setNonReclamationQualifications(({ [createTarget.id]: _previous, ...rest }) =>
+              qualification ? { ...rest, [createTarget.id]: qualification } : rest,
+            )
+          }
         />
       )}
 
@@ -1707,7 +1728,13 @@ export default function ReclamationsPage({ versionSwitcher }: ReclamationsPagePr
         <div className="created-toast-overlay">
           <div className="created-toast-band">
             <div className="dossier-created-toast">
-              {createdToastTicket ? `Réclamation ${createdToastTicket} créée avec succès !` : 'Réclamation créée avec succès'}
+              <strong className="dossier-created-toast-title">
+                {createdToastTicket ? `Réclamation ${createdToastTicket} créée avec succès !` : 'Réclamation créée avec succès'}
+              </strong>
+              <span>
+                Vous pouvez quitter à tout moment : retrouvez cette réclamation et poursuivez son traitement quand vous
+                le souhaitez dans la page « Mes réclamations ».
+              </span>
             </div>
           </div>
         </div>

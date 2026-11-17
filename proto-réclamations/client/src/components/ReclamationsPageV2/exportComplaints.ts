@@ -1,5 +1,6 @@
 import { AVANCEMENT_LABEL, type Complaint } from './complaintsData';
 import type { ExportPeriod } from './ExportMenu';
+import { formatObjets } from './objetOptions';
 
 type Column = { label: string; width: number; value: (c: Complaint) => string };
 
@@ -8,7 +9,7 @@ const COLUMNS: Column[] = [
   { label: 'Nom client / Réclamant', width: 24, value: (c) => c.requerant },
   { label: 'Dénomination sociale', width: 22, value: (c) => c.denominateurSocial },
   { label: 'Assureur / Porteur du risque', width: 26, value: (c) => c.assureur },
-  { label: 'Objet de la réclamation', width: 36, value: (c) => c.objet },
+  { label: 'Objet de la réclamation', width: 36, value: (c) => formatObjets(c.objets) },
   { label: 'Canal de réception', width: 18, value: (c) => c.canal },
   { label: "Date d'envoi / réception de la réclamation", width: 20, value: (c) => c.dateReception },
   { label: "Date d'AR / réponse intermédiaire", width: 20, value: () => '' },

@@ -4,6 +4,7 @@ import AlertSnackbar from './AlertSnackbar';
 import ArrowUpRight from './ArrowUpRight';
 import {
   getContactTag,
+  getUnidentifiedDossierSteps,
   STATUT_CLIENT_DESCRIPTION,
   STATUT_CLIENT_LABEL,
   type HistoriqueEntry,
@@ -12,9 +13,14 @@ import {
 } from './complaintsData';
 import type { Reclamation, ReclamationState } from './data';
 import { FormField, FormSelect, FormTextareaAutoGrow } from './FormFields';
+import { MultiSelectField } from './MultiSelectField';
+import DossierHStepper from './DossierHStepper';
+import { OBJET_OPTIONS } from './objetOptions';
 import HoverTooltip from './HoverTooltip';
 import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
+import { MENTION_BADGES, getMentionBadgeVariant } from './mentionBadge';
+import MentionBadgeLabel from './MentionBadgeLabel';
 
 // Same key-step flag as ComplaintDetailDrawer's FlagIcon, reused here for
 // the mention slider's own Historique tab.
@@ -85,12 +91,6 @@ Le service client`;
 function buildRelanceTemplate(mentionUrl: string): string {
   return `${RELANCE_TEMPLATE_BODY}\n\nLien de la mention : ${toHref(mentionUrl)}`;
 }
-
-const STATE_BADGE: Partial<Record<ReclamationState, { label: string; className: string }>> = {
-  'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
-  'en-attente': { label: 'En attente', className: 'chip-en-attente' },
-  cloturee: { label: 'Clôturée', className: 'chip-cloturee' },
-};
 
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
@@ -288,7 +288,7 @@ export type ReclamationFormData = {
   porteurDuRisque: string;
   rattacheContrat: 'oui' | 'non' | '';
   statutClient: StatutClient | '';
-  objet: string;
+  objets: string[];
   notesInternes: string;
   description: string;
 };
@@ -300,7 +300,6 @@ type CreateReclamationSliderProps = {
   // demande de contact, clôture...) so the new réclamation's own historique
   // continues the same trail instead of starting blank.
   onSubmit: (data: ReclamationFormData, mentionHistorique: HistoriqueEntry[]) => void;
-  onViewComplaint: () => void;
   // True when this slider was opened from the réclamations page's "Non
   // identifiés" segment (an existing réclamation whose author still isn't
   // identified) rather than from the mentions list. Once a réclamation
@@ -336,6 +335,10 @@ type CreateReclamationSliderProps = {
   // "Détail de la mention" when isReclamationView, since at that point this
   // is really that réclamation's own continuation, not the mention's.
   linkedComplaintTicket?: string;
+  // The existing réclamation's subjects (isReclamationView) — its panel never
+  // shows the "Objet de la réclamation" field (Q0 is already answered), but
+  // creating the identified réclamation still requires at least one.
+  linkedComplaintObjets?: string[];
   // Restores the reclamant fields when the slider reopens on the same
   // mention, so progress isn't lost across an in-session close/reopen.
   savedReclamantDraft?: ReclamantDraftData;
@@ -348,7 +351,15 @@ type CreateReclamationSliderProps = {
   // same session), same reasoning as savedDraftHistorique above.
   savedClotureReason?: ClotureReason;
   onSetClotureReason: (reason: ClotureReason) => void;
+  // Audit trail of Q0 = "Non, ce n'est pas une réclamation": who qualified
+  // the mention that way, and when. Kept by the parent per mention (it's a
+  // decision, not a draft) and shown as one line under the question.
+  nonReclamationQualification?: NonReclamationQualification;
+  onQualifyNonReclamation?: (qualification: NonReclamationQualification | null) => void;
 };
+
+
+export type NonReclamationQualification = { by: string; date: string };
 
 const CLOSE_ANIMATION_DURATION = 200;
 // Same duration as the réclamations page's own "Création de la
@@ -396,26 +407,33 @@ export default function CreateReclamationSlider({
   reclamation,
   onClose,
   onSubmit,
-  onViewComplaint,
   isReclamationView = false,
   savedCanalAnswer,
   onConfirmContactAttempt,
   onClotureMention,
   linkedComplaintHistorique,
   linkedComplaintTicket,
+  linkedComplaintObjets,
   savedReclamantDraft,
   savedDraftHistorique,
   savedClotureReason,
+  nonReclamationQualification,
+  onQualifyNonReclamation,
   onSetClotureReason,
 }: CreateReclamationSliderProps) {
   const isMesReclamations = reclamation.state === 'mes-reclamations';
   const isEnAttente = reclamation.state === 'en-attente';
   const isCloturee = reclamation.state === 'cloturee';
+  // An "En attente" mention opened from the mentions list: a demande de
+  // contact was already sent and no réclamation exists yet, so the panel
+  // picks up right at the wait loop (same continuation as the réclamation's
+  // own view) instead of the "Réclamation ouverte" notice.
+  const isEnAttenteMentionView = isEnAttente && !isReclamationView;
   const [prenom] = useState(() => (reclamation.author || '').split(' ')[0] ?? '');
   const [nom] = useState(() => (reclamation.author || '').split(' ').slice(1).join(' '));
   const canal = reclamation.source;
   const dateReception = formatDateFR(reclamation.date);
-  const [objet, setObjet] = useState('');
+  const [objets, setObjets] = useState<string[]>(linkedComplaintObjets ?? reclamation.objets ?? []);
   const [closing, setClosing] = useState(false);
   const [activeTab, setActiveTab] = useState<MentionTabKey>('informations');
   // The treatment block's own cascade delay (below) is forced to 0s so a
@@ -444,20 +462,22 @@ export default function CreateReclamationSlider({
   // existing réclamation from "Non identifiés" (isReclamationView), both
   // pre-fill "oui" — the réclamation already exists either way.
   const [reclamationTypeAnswer, setReclamationTypeAnswer] = useState<YesNo>(
-    isEnAttente || isReclamationView ? 'oui' : null,
+    isEnAttente || isReclamationView ? 'oui' : nonReclamationQualification ? 'non' : null,
   );
   // Q1 — same pre-fill logic as above: the author wasn't identified
   // directly, hence going through a canal to request their coordonnées —
   // the continuation is reached the same way regardless of which sub-path
   // led there.
-  const [identifiedAnswer, setIdentifiedAnswer] = useState<YesNo>(isEnAttente || isReclamationView ? 'non' : null);
+  const [identifiedAnswer, setIdentifiedAnswer] = useState<YesNo>(
+    (isEnAttente || isReclamationView ? 'non' : null),
+  );
   // Q1=Non branch — reopening an "en attente" mention always means
   // "plateforme" (the only canal that used to leave a mention en-attente);
   // opening an existing réclamation from "Non identifiés" uses whichever
   // canal actually created it (savedCanalAnswer), since all three can now
   // land there.
   const [canalAnswer, setCanalAnswer] = useState<CanalAnswer>(
-    isEnAttente ? 'plateforme' : isReclamationView ? (savedCanalAnswer ?? 'plateforme') : null,
+    (isEnAttente ? 'plateforme' : isReclamationView ? (savedCanalAnswer ?? 'plateforme') : null),
   );
   // reclamation.demandeContactDate only ever reflects mock data seeded ahead
   // of time — a réclamation actually created live (via handleConfirmDemande)
@@ -535,7 +555,9 @@ export default function CreateReclamationSlider({
     rattacheContrat: null,
     statutClient: '',
   };
-  const [reclamantDraft, setReclamantDraft] = useState<ReclamantDraftData>(initialReclamantDraft);
+  const [reclamantDraft, setReclamantDraft] = useState<ReclamantDraftData>(
+    initialReclamantDraft,
+  );
   // Tracks the last saved snapshot, restored on "Annuler" (réouverture) and
   // updated on submit.
   const [savedDraftSnapshot, setSavedDraftSnapshot] = useState<ReclamantDraftData>(initialReclamantDraft);
@@ -577,11 +599,16 @@ export default function CreateReclamationSlider({
   const clotureToastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [todayLabel] = useState(() => new Date().toLocaleDateString('fr-FR'));
   const bodyRef = useRef<HTMLDivElement>(null);
+  // Drives the pinned tabs/progress bar's drop shadow once content scrolls under it.
+  const [bodyScrolled, setBodyScrolled] = useState(false);
 
   // Each handler below only resets the *next* answer down the tree — deeper
   // answers are left untouched, so flipping back to a combination already
   // answered before re-reveals it pre-filled instead of blank.
   const handleReclamationTypeAnswerChange = (value: 'oui' | 'non') => {
+    if (value !== reclamationTypeAnswer) {
+      onQualifyNonReclamation?.(value === 'non' ? { by: 'Joe Bleau', date: todayLabel } : null);
+    }
     setReclamationTypeAnswer(value);
     setIdentifiedAnswer(null);
     setCanalAnswer(null);
@@ -663,8 +690,11 @@ export default function CreateReclamationSlider({
   // show its real état instead — "En attente" for plateforme/administrateur
   // (both stay open, waiting on a reply), "Clôturée" for "rien" (closed
   // right away, nobody left to contact).
-  const badgeState: ReclamationState =
-    isMesReclamations || enAttenteConfirmed
+  const badgeState: ReclamationState = isEnAttenteMentionView
+    ? mentionCloturee
+      ? 'cloturee'
+      : 'en-attente'
+    : isMesReclamations || enAttenteConfirmed
       ? isReclamationView
         ? canalAnswer === 'rien' ||
           mentionCloturee ||
@@ -682,7 +712,13 @@ export default function CreateReclamationSlider({
         : wasEverCloturee
           ? 'a-traiter'
           : reclamation.state;
-  const badge = STATE_BADGE[badgeState];
+  // "Réclamation client/prospect ouverte" once the réclamation is open —
+  // the type is carried by the badge itself, so no separate Client/Prospect
+  // chip next to the author name then (see below).
+  const badgeVariant = getMentionBadgeVariant(badgeState, contactTag);
+  const badge = badgeVariant ? MENTION_BADGES[badgeVariant] : null;
+  const badgeShowsContactType =
+    badgeVariant === 'reclamation-client-ouverte' || badgeVariant === 'reclamation-prospect-ouverte';
 
   // The "identité selon ce formulaire" question (which used to decide this)
   // belonged to the old Q1 — pending the next round of changes to the
@@ -784,14 +820,14 @@ export default function CreateReclamationSlider({
 
   const renderDemandeContactTemplate = () =>
     renderMessageTemplate(
-      "Message de demande de coordonnées à envoyer",
+      "Message de demande de coordonnées à copier et à envoyer",
       DEMANDE_CONTACT_TEMPLATE_BODY,
       templateCopied,
       handleCopyTemplate,
     );
 
   const renderRelanceTemplate = () =>
-    renderMessageTemplate('Message de relance à envoyer', RELANCE_TEMPLATE_BODY, relanceTemplateCopied, handleCopyRelanceTemplate);
+    renderMessageTemplate('Message de relance à copier et à envoyer', RELANCE_TEMPLATE_BODY, relanceTemplateCopied, handleCopyRelanceTemplate);
 
   // Reusable required "je certifie" checkbox — used for every step where a
   // manual action (sending a message, posting a courrier) has to be
@@ -1491,8 +1527,8 @@ export default function CreateReclamationSlider({
   // Q0 — asked before Q1: does this mention even qualify as a réclamation?
   // "Oui" carries on directly into the existing Q1 flow — no confirm/loading
   // step in between (that only happens once, at the end of the canal
-  // branch). "Non" has no outcome defined yet, so it just leaves the
-  // question showing for now.
+  // branch). "Non" records who qualified it that way and when (audit
+  // trail), shown as one line under the question; no other outcome yet.
   const getReclamationTypeStep = (): Step => {
     const row = (
       <div className="dossier-question-row dossier-question-row-stacked">
@@ -1507,16 +1543,37 @@ export default function CreateReclamationSlider({
         />
       </div>
     );
-    if (!reclamationTypeAnswer || reclamationTypeAnswer === 'non') return { phase: 'question', node: row };
+    if (reclamationTypeAnswer === 'non') {
+      return {
+        phase: 'question',
+        node: (
+          <>
+            {row}
+            {nonReclamationQualification && (
+              <p className="non-reclamation-trail">
+                <svg viewBox="0 0 24 24" width={16} height={16} fill="currentColor" aria-hidden="true">
+                  <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8" />
+                </svg>
+                <span>
+                  Qualifiée comme non-réclamation par {nonReclamationQualification.by} le {nonReclamationQualification.date}.
+                </span>
+              </p>
+            )}
+          </>
+        ),
+      };
+    }
+    if (!reclamationTypeAnswer) return { phase: 'question', node: row };
     const objetField = (
-      <FormField
+      <MultiSelectField
         label="Objet de la réclamation"
         required
-        placeholder="Ajoutez l'objet de la réclamation"
-        value={objet}
-        error={showContactErrors && !objet}
-        errorText={showContactErrors && !objet ? 'Champ requis' : undefined}
-        onChange={setObjet}
+        placeholder="Sélectionnez un ou plusieurs objets"
+        options={OBJET_OPTIONS}
+        value={objets}
+        error={showContactErrors && objets.length === 0}
+        errorText={showContactErrors && objets.length === 0 ? 'Champ requis' : undefined}
+        onChange={setObjets}
       />
     );
     const next = getTreatmentStep();
@@ -1588,9 +1645,13 @@ export default function CreateReclamationSlider({
   // Whether the sticky footer has anything to show — e.g. while waiting on
   // a retour answer, no action applies yet, so the footer itself shouldn't
   // render (an empty bar would just clip the content above it).
+  // Once a réclamation exists from this mention (created earlier, or just now
+  // in this session), the mention panel has no action left: the réclamation
+  // is handled from "Mes réclamations" (no "Voir la réclamation" button).
+  const complaintCreatedInMentionView =
+    (isMesReclamations || enAttenteConfirmed) && !isReclamationView && !isEnAttenteMentionView;
   const hasFooterActions =
-    (isMesReclamations && !isReclamationView) ||
-    (enAttenteConfirmed && !isReclamationView) ||
+    !complaintCreatedInMentionView &&
     (activeTab === 'informations' &&
       (showingClotureOffer ||
         showingReclamantFields ||
@@ -1601,8 +1662,22 @@ export default function CreateReclamationSlider({
         (mentionCloturee && !isReclamationView) ||
         reouvertureActive));
 
+  // Discreet line above the footer's main button saying whether it's safe
+  // to leave: once a réclamation exists, where to pick it up again; before
+  // that (mention still being qualified as a réclamation), that nothing
+  // entered so far is kept if the panel is closed.
+  const reclamationAlreadyCreated = (isMesReclamations || enAttenteConfirmed) && !isEnAttenteMentionView;
+  const leaveHint: string | null =
+    mentionCloturee || reouvertureActive
+      ? null
+      : isReclamationView
+        ? 'Vous pouvez quitter à tout moment : retrouvez cette réclamation et poursuivez son traitement quand vous le souhaitez dans la page « Mes réclamations ».'
+        : !reclamationAlreadyCreated && reclamationTypeAnswer === 'oui'
+          ? "Tant que la réclamation n'est pas créée, les informations saisies ne sont pas enregistrées."
+          : null;
+
   const reclamantFieldsMissing =
-    !objet ||
+    objets.length === 0 ||
     !reclamantDraft.nom ||
     !reclamantDraft.prenom ||
     !reclamantDraft.rattacheContrat ||
@@ -1703,7 +1778,9 @@ export default function CreateReclamationSlider({
   // between any more, so closing mid-réouverture (whatever was typed)
   // discards it the same way, no confirmation needed: the mention just ends
   // up clôturée, as if réouvrir had never been clicked.
-  const handleClose = () => requestClose(onClose);
+  const handleClose = () => {
+    requestClose(onClose);
+  };
 
   // Rather than disabling the button, a click with required fields still
   // empty opens the Traitement tab and flags exactly which ones are missing
@@ -1762,7 +1839,7 @@ export default function CreateReclamationSlider({
           porteurDuRisque: '',
           rattacheContrat: '',
           statutClient: '',
-          objet,
+          objets,
           notesInternes: '',
           description: reclamation.text,
         },
@@ -1869,7 +1946,7 @@ export default function CreateReclamationSlider({
           porteurDuRisque: '',
           rattacheContrat: '',
           statutClient: '',
-          objet,
+          objets,
           notesInternes: '',
           description: reclamation.text,
         },
@@ -1914,7 +1991,7 @@ export default function CreateReclamationSlider({
         porteurDuRisque: '',
         rattacheContrat: '',
         statutClient: '',
-        objet,
+        objets,
         notesInternes: '',
         description: reclamation.text,
       },
@@ -1996,7 +2073,7 @@ export default function CreateReclamationSlider({
         porteurDuRisque: '',
         rattacheContrat: '',
         statutClient: '',
-        objet,
+        objets,
         notesInternes: '',
         description: reclamation.text,
       },
@@ -2036,7 +2113,7 @@ export default function CreateReclamationSlider({
         porteurDuRisque: '',
         rattacheContrat: '',
         statutClient: '',
-        objet,
+        objets,
         notesInternes: '',
         description: reclamation.text,
       },
@@ -2072,7 +2149,7 @@ export default function CreateReclamationSlider({
         porteurDuRisque: reclamantDraft.porteurDuRisque,
         rattacheContrat: reclamantDraft.rattacheContrat ?? '',
         statutClient: reclamantDraft.statutClient,
-        objet,
+        objets,
         notesInternes: '',
         description: reclamation.text,
       },
@@ -2103,12 +2180,30 @@ export default function CreateReclamationSlider({
           </button>
         </div>
 
-        <div className="create-claim-body" ref={bodyRef}>
-          <MentionTabsControl
-            value={activeTab}
-            onChange={setActiveTab}
-            firstTabLabel={isReclamationView ? 'Traitement' : 'Informations'}
-          />
+        <div
+          className="create-claim-body"
+          ref={bodyRef}
+          onScroll={(e) => setBodyScrolled(e.currentTarget.scrollTop > 4)}
+        >
+          {/* An untreated mention ("À traiter") has no Historique tab — with
+              only Informations left, the tab bar is dropped entirely
+              (activeTab then always stays 'informations'). Treated mentions
+              (réclamation ouverte, en attente, clôturée) keep Informations /
+              Historique, and the réclamation's own view keeps Traitement /
+              Historique. */}
+          {isReclamationView ? (
+            // Same pinned tabs + progress bar as ComplaintDetailDrawer: the
+            // complaint exists, so step 1 is checked and "Création de la
+            // réclamation" stays current until the author is identified.
+            <div className={`create-claim-sticky-header ${bodyScrolled ? 'create-claim-sticky-header-stuck' : ''}`}>
+              <MentionTabsControl value={activeTab} onChange={setActiveTab} firstTabLabel="Traitement" />
+              {activeTab === 'informations' && <DossierHStepper steps={getUnidentifiedDossierSteps()} />}
+            </div>
+          ) : (
+            (isMesReclamations || isEnAttente || isCloturee) && (
+              <MentionTabsControl value={activeTab} onChange={setActiveTab} />
+            )
+          )}
 
           {activeTab === 'informations' && (
             <div className="create-claim-section">
@@ -2122,7 +2217,11 @@ export default function CreateReclamationSlider({
                   <span className="card-dot">·</span>
                   <span className="card-date">{reclamation.date}</span>
                   <div className="card-source-row-spacer" />
-                  {badge && <span className={`chip cta-badge ${badge.className}`}>{badge.label}</span>}
+                  {badge && badgeVariant && (
+                    <span className={`chip cta-badge ${badge.className}`}>
+                      <MentionBadgeLabel variant={badgeVariant} />
+                    </span>
+                  )}
                 </div>
                 <a
                   className="card-url-row"
@@ -2151,7 +2250,7 @@ export default function CreateReclamationSlider({
                 <div className="card-author-row">
                   <SentimentIcon text={reclamation.text} />
                   <span className="card-author">{reclamation.author}</span>
-                  {contactTag && <span className="chip chip-neutral">{contactTag}</span>}
+                  {contactTag && !badgeShowsContactType && <span className="chip chip-neutral">{contactTag}</span>}
                 </div>
                 <div className="card-text-wrapper">
                   <p className="card-text">{reclamation.text}</p>
@@ -2166,13 +2265,17 @@ export default function CreateReclamationSlider({
                   page, not here — unless this *is* that réclamation's own page
                   (isReclamationView), in which case that continuation is
                   exactly what shows below instead of this notice. */}
-              {!isReclamationView && (isMesReclamations || enAttenteConfirmed) && !mentionCloturee && (
+              {!isReclamationView &&
+                !isEnAttenteMentionView &&
+                (isMesReclamations || enAttenteConfirmed) &&
+                !mentionCloturee && (
                 <div className={treatmentBlockClassName()}>
                   <div className="dossier-alert-neutral">
                     <span className="dossier-alert-neutral-title">Réclamation ouverte</span>
                     <p>
-                      Une réclamation a été ouverte à partir de cette mention. La suite de son traitement se poursuit
-                      dans la page « Mes réclamations ».
+                      Une réclamation a été ouverte à partir de cette mention. Vous pouvez quitter à tout moment :
+                      retrouvez cette réclamation et poursuivez son traitement quand vous le souhaitez dans la page
+                      « Mes réclamations ».
                     </p>
                   </div>
                 </div>
@@ -2214,7 +2317,7 @@ export default function CreateReclamationSlider({
                   normal flow; step?.phase bubbles up the same way too, so
                   the footer's "Créer une réclamation" button still shows
                   right on cue. */}
-              {isReclamationView && !mentionCloturee && (
+              {(isReclamationView || isEnAttenteMentionView) && !mentionCloturee && (
                 <div className={treatmentBlockClassName()}>{renderReclamationContinuation()}</div>
               )}
 
@@ -2281,13 +2384,17 @@ export default function CreateReclamationSlider({
             variant="success"
             className="alert-snackbar-local"
           />
-          {hasFooterActions && (
+          {(hasFooterActions || leaveHint) && (
           <div className="modal-actions create-claim-actions">
-            {(isMesReclamations || enAttenteConfirmed) && !isReclamationView ? (
-              <button type="button" className="btn-filled" onClick={onViewComplaint}>
-                Voir la réclamation
-              </button>
-            ) : (
+            {leaveHint && (
+              <p className="create-claim-leave-hint">
+                <svg viewBox="0 0 24 24" width={16} height={16} fill="currentColor" aria-hidden="true">
+                  <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8" />
+                </svg>
+                <span>{leaveHint}</span>
+              </p>
+            )}
+            {complaintCreatedInMentionView ? null : (
               <>
                 {activeTab === 'informations' && showingClotureOffer && (
                   <button type="button" className="btn-filled" onClick={handleClotureMention}>

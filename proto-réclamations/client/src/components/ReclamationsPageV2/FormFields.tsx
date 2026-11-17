@@ -44,6 +44,9 @@ export type FormFieldProps = {
   // "date" restricts input to digits and auto-inserts the "/" separators as
   // the user types (14092026 → 14/09/2026), instead of taking free text.
   type?: 'text' | 'date';
+  // 'above': the label sits on its own line above the box instead of
+  // floating in its border — for instructions too long for a floating label.
+  labelPlacement?: 'floating' | 'above';
 };
 
 // Strips everything but digits, caps at 8 (JJMMAAAA), and inserts the "/"
@@ -328,8 +331,10 @@ export function FormTextareaAutoGrow({
   placeholder,
   error,
   errorText,
+  labelPlacement = 'floating',
 }: FormFieldProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const labelAbove = labelPlacement === 'above';
 
   useLayoutEffect(() => {
     const el = textareaRef.current;
@@ -339,7 +344,13 @@ export function FormTextareaAutoGrow({
   }, [value]);
 
   return (
-    <div className="field-outlined field-outlined-textarea">
+    <div className={`field-outlined field-outlined-textarea ${labelAbove ? 'field-outlined-label-above' : ''}`}>
+      {labelAbove && (
+        <span className="field-label-above">
+          {label}
+          {required && <span className="field-required">*</span>}
+        </span>
+      )}
       <div
         className={`field-border field-border-textarea field-border-textarea-autogrow ${error ? 'field-border-error' : ''}`}
       >
@@ -347,13 +358,16 @@ export function FormTextareaAutoGrow({
           ref={textareaRef}
           value={value}
           placeholder={placeholder}
+          aria-label={labelAbove ? label : undefined}
           onChange={(e) => onChange(e.target.value)}
         />
       </div>
-      <span className={`field-label field-label-floating ${error ? 'field-label-error' : ''}`}>
-        {label}
-        {required && <span className="field-required">*</span>}
-      </span>
+      {!labelAbove && (
+        <span className={`field-label field-label-floating ${error ? 'field-label-error' : ''}`}>
+          {label}
+          {required && <span className="field-required">*</span>}
+        </span>
+      )}
       {error && errorText && <span className="field-error-text">{errorText}</span>}
     </div>
   );

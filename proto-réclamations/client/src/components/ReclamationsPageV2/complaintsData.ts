@@ -1,5 +1,6 @@
 import type { Source } from './SourceIcon';
 import { reclamations } from './data';
+import { formatObjets, suggestObjets } from './objetOptions';
 
 export type Avancement = 'a-traiter' | 'cloture';
 export type Conformite = 'conforme' | 'non-conforme';
@@ -87,7 +88,8 @@ export type Complaint = {
   denominateurSocial: string;
   assureur: string;
   email: string;
-  objet: string;
+  // "Objet de la réclamation" — one or several values from OBJET_OPTIONS.
+  objets: string[];
   description: string;
   reclamant: Reclamant;
   classification: Classification;
@@ -286,12 +288,27 @@ export type DossierStep = {
   badgeWarning?: boolean;
 };
 
+// A complaint whose author isn't identified yet (Auteurs à identifier, "En
+// attente" included): the mention is received (step 1 always checked), and
+// "Création de la réclamation" stays the current step until the author is
+// identified — the AR / RD / analyse steps only apply after that.
+export function getUnidentifiedDossierSteps(): DossierStep[] {
+  return [
+    { label: 'Réception de la mention', status: 'done', badgeLabel: 'Complété' },
+    { label: 'Création de la réclamation', status: 'current' },
+    { label: "Confirmation de l'envoi de l'Accusé de Réception", status: 'upcoming' },
+    { label: 'Confirmation de l’envoi de la Réponse Définitive', status: 'upcoming' },
+    { label: 'Analyse de la cause', status: 'upcoming' },
+  ];
+}
+
 // Where a complaint's file currently sits in its 5-stage lifecycle. Steps 0-1
 // (mention received, complaint created) are implicit — a Complaint record
-// existing at all means both already happened.
+// existing at all means both already happened, once its author is identified.
 export function getDossierSteps(
   complaint: Pick<Complaint, 'avancement' | 'dateReception' | 'suiviCloture' | 'reclamant'>,
 ): DossierStep[] {
+  if (getContactTag(complaint.reclamant.rattacheContrat) === null) return getUnidentifiedDossierSteps();
   const { avancement, suiviCloture } = complaint;
   const { echeanceLabel, echeanceWarning } = getEcheanceInfo(complaint);
 
@@ -440,7 +457,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
       { title: 'Réception de la mention', description: `Mention reçue via ${c.canal}.`, date: dateReception, author: 'Système' },
       {
         title: 'Création de la réclamation',
-        description: `Créée depuis une mention ${c.canal} — « ${c.objet} »`,
+        description: `Créée depuis une mention ${c.canal} — « ${formatObjets(c.objets)} »`,
         date: dateReception,
         author: 'Système',
       },
@@ -547,7 +564,7 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
     },
     {
       title: 'Création de la réclamation',
-      description: `Créée depuis une mention ${c.canal} — « ${c.objet} »`,
+      description: `Créée depuis une mention ${c.canal} — « ${formatObjets(c.objets)} »`,
       date: dateReception,
       author: 'Système',
       changes: creationChanges,
@@ -619,23 +636,6 @@ export function attachDetails(c: ComplaintCore, index = 0): Complaint {
     notesInternes: enriched ? NOTES_TEMPLATES[index % NOTES_TEMPLATES.length] : '',
     historique,
   };
-}
-
-const OBJET_KEYWORDS: [RegExp, string][] = [
-  [/remboursement/i, 'Retard de remboursement'],
-  [/résiliat/i, 'Demande de résiliation de contrat'],
-  [/sinistre/i, 'Suivi de dossier sinistre'],
-  [/facturation|facture/i, 'Erreur de facturation'],
-  [/délai/i, 'Délai de traitement excessif'],
-  [/devis/i, 'Litige sur un devis'],
-  [/réponse|répond|contact|appel/i, 'Absence de réponse du service client'],
-];
-
-function suggestObjet(text: string): string {
-  const match = OBJET_KEYWORDS.find(([regex]) => regex.test(text));
-  if (match) return match[1];
-  const firstSentence = text.split(/[.!?]/)[0].trim();
-  return firstSentence.length > 60 ? `${firstSentence.slice(0, 60)}…` : firstSentence;
 }
 
 const DIACRITICS_REGEX = /[̀-ͯ]/g;
@@ -719,7 +719,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'isabelle.renaud@gmail.com',
-    objet: 'Remboursement sinistre automobile',
+    objets: ['Retard de remboursement', 'Délai de traitement'],
     description:
       "Réclamation relative au délai de remboursement suite à un sinistre automobile. Dossier traité et clôturé après versement de l'indemnisation le 14 janvier 2026.",
   },
@@ -733,7 +733,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'lucas.bernard@gmail.com',
-    objet: 'Contestation de résiliation de contrat',
+    objets: ['Mauvaise prise en charge du dossier'],
     description:
       "Le client contestait la résiliation de son contrat habitation. Après examen du dossier, la résiliation a été confirmée conforme aux conditions générales. Dossier clôturé après accord du client.",
   },
@@ -748,7 +748,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'nathalie.vasseur@gmail.com',
-    objet: 'Erreur de facturation sur prime annuelle',
+    objets: ['Retard de remboursement', 'Manque de transparence'],
     description:
       "Double prélèvement constaté sur le compte de la cliente. Erreur de facturation confirmée et remboursement effectué sous 5 jours ouvrés. Dossier clôturé avec geste commercial.",
   },
@@ -762,7 +762,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'arnaud.petit@gmail.com',
-    objet: 'Délai de traitement excessif — dossier sinistre',
+    objets: ['Retard de remboursement', 'Délai de traitement'],
     description:
       "Réclamation portant sur un délai de traitement jugé trop long pour un sinistre dégât des eaux. Dossier finalisé après intervention de l'expert et versement de l'indemnisation.",
   },
@@ -776,7 +776,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'celine.morel@gmail.com',
-    objet: 'Absence de réponse du service client',
+    objets: ["Manque d'accompagnement", 'Mauvaise prise en charge du dossier'],
     description:
       "La cliente signalait une absence de réponse à ses sollicitations. Après contact, il s'est avéré que les emails étaient redirigés dans les spams. Dossier clôturé après résolution.",
   },
@@ -791,7 +791,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'julien.garnier@gmail.com',
-    objet: 'Litige sur un devis de réparation',
+    objets: ['Manque de transparence', 'Mauvaise prise en charge du dossier'],
     description:
       "Le client contestait un écart entre le devis initial et la facture finale pour une réparation de toiture. Après médiation avec le prestataire, un avoir a été accordé et le dossier clôturé.",
   },
@@ -806,7 +806,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'mariec.dupuis@gmail.com',
-    objet: 'Retard de remboursement frais médicaux',
+    objets: ['Retard de remboursement', 'Délai de traitement'],
     description:
       "Réclamation portant sur un remboursement de frais médicaux tardif. Le virement a été effectué dans les délais réglementaires après correction d'une erreur de RIB. Dossier clôturé.",
   },
@@ -821,7 +821,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'thierry.blanchard@gmail.com',
-    objet: 'Demande de résiliation de contrat',
+    objets: ['Délai de traitement', 'Mauvaise prise en charge du dossier'],
     description:
       "Le client souhaitait résilier son contrat avec effet immédiat hors délai légal. Après examen, la demande n'entrait pas dans les cas de résiliation anticipée. Dossier clôturé.",
   },
@@ -836,7 +836,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'sophie.aubert@gmail.com',
-    objet: 'Suivi de dossier sinistre vol',
+    objets: ['Retard de remboursement', 'Délai de traitement'],
     description:
       "La cliente n'avait pas reçu de nouvelles de son dossier sinistre vol après 6 semaines. Après relance interne, l'expertise a été diligentée et l'indemnisation versée. Dossier clôturé.",
   },
@@ -850,7 +850,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'francois.lemaire@gmail.com',
-    objet: 'Erreur de facturation — doublon de cotisation',
+    objets: ['Retard de remboursement'],
     description:
       "Double prélèvement de la cotisation annuelle constaté en janvier. Remboursement effectué sous 48h après vérification comptable. Le client a confirmé la réception du virement.",
   },
@@ -864,7 +864,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'elise.fontaine@gmail.com',
-    objet: 'Délai de traitement excessif — expertise',
+    objets: ['Retard de remboursement', 'Délai de traitement'],
     description:
       "Attente de plus de deux mois pour le passage de l'expert suite à un dégât des eaux. Dossier escaladé, expert mandaté en urgence. Indemnisation versée et clôture formalisée.",
   },
@@ -878,7 +878,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'marc.girard@gmail.com',
-    objet: "Contestation clause d'exclusion",
+    objets: ['Manque de transparence', 'Mauvaise prise en charge du dossier'],
     description:
       "Le client contestait l'application d'une clause d'exclusion de garantie suite à un sinistre. Après analyse juridique, la clause a été jugée applicable. Dossier clôturé.",
   },
@@ -892,7 +892,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'patricia.chevalier@gmail.com',
-    objet: 'Absence de réponse — renouvellement contrat',
+    objets: ["Manque d'accompagnement", 'Mauvaise prise en charge du dossier'],
     description:
       "La cliente n'avait pas reçu ses documents de renouvellement malgré plusieurs relances. Erreur d'adresse email dans notre système. Corrigé et documents renvoyés. Dossier clôturé.",
   },
@@ -934,7 +934,7 @@ const complaintsCore: ComplaintCore[] = reclamations
       denominateurSocial: '',
       assureur: '',
       email,
-      objet: suggestObjet(description),
+      objets: suggestObjets(description),
       description,
       forceProspect: index === 1 || index === 4,
       // A few "Non identifiés" mocks — one per canal, so the segment isn't

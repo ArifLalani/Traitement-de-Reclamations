@@ -4,18 +4,8 @@ import HoverTooltip from './HoverTooltip';
 import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
 import type { Reclamation } from './data';
-
-const STATE_BADGE: Partial<Record<Reclamation['state'], { label: string; className: string }>> = {
-  'mes-reclamations': { label: 'Réclamation ouverte', className: 'chip-mes-reclamations' },
-  'en-attente': { label: 'En attente', className: 'chip-en-attente' },
-  cloturee: { label: 'Clôturée', className: 'chip-cloturee' },
-};
-
-const BADGE_TOOLTIP: Partial<Record<Reclamation['state'], string>> = {
-  'mes-reclamations': 'Une réclamation liée à cette mention a déjà été ouverte.',
-  'en-attente': "Une demande de coordonnées a été envoyée à l'auteur du commentaire, en attente de sa réponse.",
-  cloturee: "La demande n'a pas pu être traitée directement ; une demande a été transmise à l'administrateur de la plateforme.",
-};
+import { MENTION_BADGES, getMentionBadgeVariant } from './mentionBadge';
+import MentionBadgeLabel from './MentionBadgeLabel';
 
 function toHref(url: string) {
   const cleaned = url.replace(/\.{3}$/, '');
@@ -29,13 +19,15 @@ type ReclamationCardProps = {
   selected?: boolean;
   onToggleSelect?: () => void;
   onCreate: () => void;
-  // Only called (and the button only shown) once a réclamation already
-  // exists for this mention (state 'mes-reclamations') — jumps straight to
-  // it instead of reopening the mention slider.
-  onViewComplaint?: () => void;
+  // Status of the réclamation created from this mention, if any. When set,
+  // the card shows no action buttons, just a note pointing to
+  // "Mes réclamations" (where the réclamation is reached).
+  complaintStatus?: 'ouverte' | 'cloturee' | null;
+  onOpenComplaintsPage?: () => void;
   // Whether the author turned out to be a prospect ("non" to "rattaché à un
   // contrat") or a client (rattaché + statut précisé) — unknown until that
-  // question's been answered, hence optional.
+  // question's been answered, hence optional. Shown through the badge
+  // ("Réclamation client/prospect ouverte"), not as a separate chip.
   contactTag?: 'Prospect' | 'Client' | null;
 };
 
@@ -46,15 +38,25 @@ export default function ReclamationCard({
   selected = false,
   onToggleSelect,
   onCreate,
-  onViewComplaint,
+  complaintStatus = null,
+  onOpenComplaintsPage,
   contactTag,
 }: ReclamationCardProps) {
   const { ticket, state, source, date, url, author, text } = reclamation;
 
   const [badgeTooltipOpen, setBadgeTooltipOpen] = useState(false);
 
-  const badge = STATE_BADGE[state];
-  const badgeTooltipText = BADGE_TOOLTIP[state];
+  // The badge always agrees with the complaint note below: a closed
+  // réclamation reads "Clôturée", an open one "Réclamation client/prospect
+  // ouverte" depending on its type.
+  const badgeState: Reclamation['state'] =
+    complaintStatus === 'cloturee' ? 'cloturee' : complaintStatus === 'ouverte' ? 'mes-reclamations' : state;
+  const badgeVariant = getMentionBadgeVariant(badgeState, contactTag);
+  const badge = badgeVariant ? MENTION_BADGES[badgeVariant] : null;
+  const badgeTooltipText =
+    complaintStatus === 'cloturee' && state !== 'cloturee'
+      ? 'La réclamation liée à cette mention a été clôturée.'
+      : badge?.tooltip;
 
   const handleLinkClick = (e: MouseEvent) => {
     if (!selectionMode) return;
@@ -62,6 +64,20 @@ export default function ReclamationCard({
     e.stopPropagation();
     onToggleSelect?.();
   };
+
+  // In selection mode, a click anywhere on the card (link included) toggles
+  // selection — same as the mention URL link above.
+  const handleComplaintsLinkClick = (e: MouseEvent) => {
+    if (selectionMode) return;
+    e.stopPropagation();
+    onOpenComplaintsPage?.();
+  };
+
+  const complaintsLink = (
+    <button type="button" className="card-complaint-note-link" onClick={handleComplaintsLinkClick}>
+      « Mes réclamations »
+    </button>
+  );
 
   return (
     <div className={`card-wrapper ${isNew ? 'card-wrapper-unread' : ''}`}>
@@ -84,7 +100,9 @@ export default function ReclamationCard({
                 onMouseEnter={() => badgeTooltipText && setBadgeTooltipOpen(true)}
                 onMouseLeave={() => setBadgeTooltipOpen(false)}
               >
-                <span className={`chip cta-badge ${badge.className}`}>{badge.label}</span>
+                <span className={`chip cta-badge ${badge.className}`}>
+                  {badgeVariant && <MentionBadgeLabel variant={badgeVariant} />}
+                </span>
                 {badgeTooltipText && badgeTooltipOpen && (
                   <span className="cta-badge-tooltip">{badgeTooltipText}</span>
                 )}
@@ -101,39 +119,47 @@ export default function ReclamationCard({
           <div className="card-author-row">
             <SentimentIcon text={text} />
             <span className="card-author">{author}</span>
-            {contactTag && <span className="chip chip-neutral">{contactTag}</span>}
           </div>
           <div className="card-text-wrapper">
             <p className="card-text card-text-clamped">{text}</p>
           </div>
         </div>
 
-        <div className="card-footer">
-          <div className="card-actions">
-            <button
-              type="button"
-              className="btn-text"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreate();
-              }}
-            >
-              Voir les détails
-            </button>
-            {state === 'mes-reclamations' && onViewComplaint && (
+        {complaintStatus === 'ouverte' && (
+          <div className="dossier-alert-neutral card-complaint-note">
+            <span className="dossier-alert-neutral-title">Réclamation ouverte</span>
+            <p>
+              Une réclamation a été ouverte à partir de cette mention. La suite de son traitement se poursuit dans la
+              page {complaintsLink}.
+            </p>
+          </div>
+        )}
+        {complaintStatus === 'cloturee' && (
+          <div className="dossier-alert-neutral card-complaint-note">
+            <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
+            <p>
+              La réclamation ouverte à partir de cette mention est clôturée. Vous la retrouverez dans la page{' '}
+              {complaintsLink}.
+            </p>
+          </div>
+        )}
+
+        {!complaintStatus && (
+          <div className="card-footer">
+            <div className="card-actions">
               <button
                 type="button"
-                className="btn-filled"
+                className="btn-text"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onViewComplaint();
+                  onCreate();
                 }}
               >
-                Voir la réclamation
+                Voir les détails
               </button>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

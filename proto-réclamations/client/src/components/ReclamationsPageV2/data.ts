@@ -17,7 +17,18 @@ export type Reclamation = {
   // (state 'en-attente') — lets the create-réclamation slider pre-fill the
   // guiding question and its date when reopened.
   demandeContactDate?: string;
+  // "Objet de la réclamation", entered at the first step (Q0) — already
+  // answered for an "en-attente" mention, whose panel resumes past it.
+  objets?: string[];
 };
+
+const EN_ATTENTE_OBJETS: string[][] = [
+  ['Manque de transparence'],
+  ['Retard de remboursement', 'Délai de traitement'],
+  ['Mauvaise prise en charge du dossier', 'Délai de traitement'],
+  ["Manque d'accompagnement", 'Qualité de service'],
+  ['Délai de traitement'],
+];
 
 export type Sentiment = 'negative' | 'neutral' | 'positive';
 
@@ -247,7 +258,12 @@ function generate(state: ReclamationState, count: number, startId: number): Recl
       // Only "mes-reclamations" mentions can ever reach the create-réclamation
       // slider's "en attente" continuation (see CreateReclamationSlider's
       // demandeDateDraft) — every other state leaves this blank/unused.
-      ...(state === 'mes-reclamations' ? { demandeContactDate: pastFrDate(5 + (i % 10)) } : {}),
+      // "en-attente" mentions: a demande de contact was sent to the author
+      // and is awaiting a reply — its date pre-fills the panel's wait loop.
+      ...(state === 'mes-reclamations' || state === 'en-attente'
+        ? { demandeContactDate: pastFrDate(5 + (i % 10)) }
+        : {}),
+      ...(state === 'en-attente' ? { objets: EN_ATTENTE_OBJETS[i % EN_ATTENTE_OBJETS.length] } : {}),
     };
   });
 }
@@ -295,6 +311,9 @@ const sorted: Reclamation[] = [
   ...generate('a-traiter', 5, 300),
   ...generate('mes-reclamations', 14, 400),
   ...generate('cloturee', 4, 500),
+  // startId 610 lands on the older (June) dates, so each mention predates
+  // its demande de contact (sent 5–9 days ago).
+  ...generate('en-attente', 5, 610),
 ].sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date));
 
 // A mention only just posted hasn't been seen by anyone yet, so it defaults
