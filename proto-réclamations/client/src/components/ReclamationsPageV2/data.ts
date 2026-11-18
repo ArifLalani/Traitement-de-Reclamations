@@ -24,9 +24,9 @@ export type Reclamation = {
 
 const EN_ATTENTE_OBJETS: string[][] = [
   ['Manque de transparence'],
-  ['Retard de remboursement', 'Délai de traitement'],
-  ['Mauvaise prise en charge du dossier', 'Délai de traitement'],
-  ["Manque d'accompagnement", 'Qualité de service'],
+  ['Retard de remboursement'],
+  ['Mauvaise prise en charge du dossier'],
+  ["Manque d'accompagnement"],
   ['Délai de traitement'],
 ];
 

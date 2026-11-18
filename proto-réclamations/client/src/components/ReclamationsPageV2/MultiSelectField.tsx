@@ -28,11 +28,15 @@ type MultiSelectFieldProps = {
   // 'outlined': floating label in the border (mention panel's form fields).
   // 'section': label above the box (réclamation's Informations tab fields).
   appearance?: 'outlined' | 'section';
+  // Only one choice allowed: radio buttons in the menu, picking one replaces
+  // the current value and closes the menu, and the value shows as plain text.
+  single?: boolean;
 };
 
 // Dropdown allowing several choices — the selected values show as removable
 // chips inside the field, in the order they were picked. The menu stays open
-// while picking so several values can be ticked in a row.
+// while picking so several values can be ticked in a row. With `single`, it
+// becomes a one-choice radio list instead.
 export function MultiSelectField({
   label,
   required,
@@ -44,6 +48,7 @@ export function MultiSelectField({
   errorText,
   readOnly,
   appearance = 'outlined',
+  single = false,
 }: MultiSelectFieldProps) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{ top?: number; bottom?: number; left: number; width: number; maxHeight: number }>({
@@ -102,8 +107,14 @@ export function MultiSelectField({
     scrollParent?.scrollBy({ top: e.deltaY });
   };
 
-  const toggle = (option: string) =>
+  const toggle = (option: string) => {
+    if (single) {
+      onChange([option]);
+      setOpen(false);
+      return;
+    }
     onChange(value.includes(option) ? value.filter((v) => v !== option) : [...value, option]);
+  };
 
   const isSection = appearance === 'section';
   const labelNode = (
@@ -137,6 +148,8 @@ export function MultiSelectField({
       <div className="multiselect-chips">
         {value.length === 0 ? (
           <span className="multiselect-placeholder">{readOnly ? '-' : placeholder}</span>
+        ) : single ? (
+          <span className="multiselect-single-value">{value[0]}</span>
         ) : (
           value.map((v) => (
             <span key={v} className="multiselect-chip">
@@ -183,7 +196,7 @@ export function MultiSelectField({
               ref={menuRef}
               className="field-dropdown-menu"
               role="listbox"
-              aria-multiselectable="true"
+              aria-multiselectable={single ? undefined : true}
               style={{
                 top: menuStyle.top,
                 bottom: menuStyle.bottom,
@@ -204,13 +217,17 @@ export function MultiSelectField({
                     className={`field-dropdown-item multiselect-item ${checked ? 'field-dropdown-item-selected' : ''}`}
                     onClick={() => toggle(option)}
                   >
-                    <span className={`multiselect-checkbox ${checked ? 'multiselect-checkbox-checked' : ''}`} aria-hidden="true">
-                      {checked && (
-                        <svg viewBox="0 0 24 24" width={14} height={14} fill="currentColor">
-                          <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                        </svg>
-                      )}
-                    </span>
+                    {single ? (
+                      <span className={`multiselect-radio ${checked ? 'multiselect-radio-checked' : ''}`} aria-hidden="true" />
+                    ) : (
+                      <span className={`multiselect-checkbox ${checked ? 'multiselect-checkbox-checked' : ''}`} aria-hidden="true">
+                        {checked && (
+                          <svg viewBox="0 0 24 24" width={14} height={14} fill="currentColor">
+                            <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        )}
+                      </span>
+                    )}
                     <span className="field-dropdown-item-label">{option}</span>
                   </button>
                 );

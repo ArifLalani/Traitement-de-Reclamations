@@ -719,7 +719,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'isabelle.renaud@gmail.com',
-    objets: ['Retard de remboursement', 'Délai de traitement'],
+    objets: ['Retard de remboursement'],
     description:
       "Réclamation relative au délai de remboursement suite à un sinistre automobile. Dossier traité et clôturé après versement de l'indemnisation le 14 janvier 2026.",
   },
@@ -748,7 +748,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'nathalie.vasseur@gmail.com',
-    objets: ['Retard de remboursement', 'Manque de transparence'],
+    objets: ['Retard de remboursement'],
     description:
       "Double prélèvement constaté sur le compte de la cliente. Erreur de facturation confirmée et remboursement effectué sous 5 jours ouvrés. Dossier clôturé avec geste commercial.",
   },
@@ -762,7 +762,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'arnaud.petit@gmail.com',
-    objets: ['Retard de remboursement', 'Délai de traitement'],
+    objets: ['Retard de remboursement'],
     description:
       "Réclamation portant sur un délai de traitement jugé trop long pour un sinistre dégât des eaux. Dossier finalisé après intervention de l'expert et versement de l'indemnisation.",
   },
@@ -776,7 +776,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'celine.morel@gmail.com',
-    objets: ["Manque d'accompagnement", 'Mauvaise prise en charge du dossier'],
+    objets: ["Manque d'accompagnement"],
     description:
       "La cliente signalait une absence de réponse à ses sollicitations. Après contact, il s'est avéré que les emails étaient redirigés dans les spams. Dossier clôturé après résolution.",
   },
@@ -791,7 +791,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'julien.garnier@gmail.com',
-    objets: ['Manque de transparence', 'Mauvaise prise en charge du dossier'],
+    objets: ['Manque de transparence'],
     description:
       "Le client contestait un écart entre le devis initial et la facture finale pour une réparation de toiture. Après médiation avec le prestataire, un avoir a été accordé et le dossier clôturé.",
   },
@@ -806,7 +806,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'mariec.dupuis@gmail.com',
-    objets: ['Retard de remboursement', 'Délai de traitement'],
+    objets: ['Retard de remboursement'],
     description:
       "Réclamation portant sur un remboursement de frais médicaux tardif. Le virement a été effectué dans les délais réglementaires après correction d'une erreur de RIB. Dossier clôturé.",
   },
@@ -821,7 +821,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'thierry.blanchard@gmail.com',
-    objets: ['Délai de traitement', 'Mauvaise prise en charge du dossier'],
+    objets: ['Délai de traitement'],
     description:
       "Le client souhaitait résilier son contrat avec effet immédiat hors délai légal. Après examen, la demande n'entrait pas dans les cas de résiliation anticipée. Dossier clôturé.",
   },
@@ -836,7 +836,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'sophie.aubert@gmail.com',
-    objets: ['Retard de remboursement', 'Délai de traitement'],
+    objets: ['Retard de remboursement'],
     description:
       "La cliente n'avait pas reçu de nouvelles de son dossier sinistre vol après 6 semaines. Après relance interne, l'expertise a été diligentée et l'indemnisation versée. Dossier clôturé.",
   },
@@ -864,7 +864,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'elise.fontaine@gmail.com',
-    objets: ['Retard de remboursement', 'Délai de traitement'],
+    objets: ['Retard de remboursement'],
     description:
       "Attente de plus de deux mois pour le passage de l'expert suite à un dégât des eaux. Dossier escaladé, expert mandaté en urgence. Indemnisation versée et clôture formalisée.",
   },
@@ -878,7 +878,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'marc.girard@gmail.com',
-    objets: ['Manque de transparence', 'Mauvaise prise en charge du dossier'],
+    objets: ['Manque de transparence'],
     description:
       "Le client contestait l'application d'une clause d'exclusion de garantie suite à un sinistre. Après analyse juridique, la clause a été jugée applicable. Dossier clôturé.",
   },
@@ -892,7 +892,7 @@ const closedComplaintsCore: ComplaintCore[] = [
     denominateurSocial: '',
     assureur: '',
     email: 'patricia.chevalier@gmail.com',
-    objets: ["Manque d'accompagnement", 'Mauvaise prise en charge du dossier'],
+    objets: ["Manque d'accompagnement"],
     description:
       "La cliente n'avait pas reçu ses documents de renouvellement malgré plusieurs relances. Erreur d'adresse email dans notre système. Corrigé et documents renvoyés. Dossier clôturé.",
   },

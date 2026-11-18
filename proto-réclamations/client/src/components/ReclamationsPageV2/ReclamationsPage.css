@@ -67,8 +67,11 @@
 
 /* Sidebar closed on a narrow window: the column reaches the left edge, so
    keep the company image clear of the ☰ button (which sits at 16–56px). On
-   wider windows this resolves to the normal 24px. */
-.scope-v2 .header-center:not(.header-center-shifted) .header-top {
+   wider windows this resolves to the normal 24px. The search row and the
+   page content take the same left padding, so all three stay aligned. */
+.scope-v2 .header-center:not(.header-center-shifted) .header-top,
+.scope-v2 .body:not(.body-shifted) .appbar,
+.scope-v2 .body:not(.body-shifted) .content {
   padding-left: max(24px, calc(72px - (100vw - 1100px) / 2));
 }
 
@@ -203,7 +206,9 @@
 }
 
 /* Opinion System logo, smaller, at the right of the top bar. */
-.scope-v2 .logo-compact {
+/* .logo.logo-compact: must outrank .logo (declared below, adds a 20px right
+   padding) so the logo's right edge sits on the cards' right edge. */
+.scope-v2 .logo.logo-compact {
   flex-shrink: 0;
   padding-right: 0;
   gap: 1px;
@@ -700,7 +705,9 @@
   height: 88px;
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  /* Same 24px side padding as .content and .header-top: the search field
+     starts at the cards' left edge. */
+  padding: 0 24px;
 }
 
 .scope-v2 .search-field {
@@ -751,6 +758,9 @@
   gap: 4px;
   margin-left: 20px;
   flex-shrink: 0;
+  /* Pulls the last button out by its padding plus the ⋮ glyph's inner
+     margin, so the dots sit on the cards' (and the logo's) right edge. */
+  margin-right: -16px;
 }
 
 .scope-v2 .appbar-icon-button {
@@ -1045,6 +1055,8 @@
 .scope-v2 .mark-all-read-btn {
   cursor: pointer;
   padding: 6px 8px;
+  /* Text (not the hover pad) ends on the cards' right edge. */
+  margin-right: -8px;
   font: var(--font-button-medium);
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -1563,6 +1575,28 @@
   position: relative;
   display: inline-flex;
   margin-left: auto;
+}
+
+/* Badge of a mention whose réclamation exists (open or closed): clickable,
+   with a chevron, opens the réclamation's panel. */
+.scope-v2 .cta-badge-link {
+  gap: 2px;
+  padding-right: 4px;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.scope-v2 .cta-badge-link:hover {
+  box-shadow: inset 0 0 0 1px #a5d6a7;
+}
+
+.scope-v2 .cta-badge-link.chip-cloturee:hover {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.23);
+}
+
+.scope-v2 .cta-badge-link:focus-visible {
+  outline: 2px solid #2e7d32;
+  outline-offset: 2px;
 }
 
 .scope-v2 .cta-badge-tooltip {
@@ -2129,6 +2163,38 @@
   color: var(--color-white);
 }
 
+/* Single-choice variant: MUI-style radio (20px ring, filled dot). */
+.scope-v2 .multiselect-radio {
+  position: relative;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(0, 0, 0, 0.54);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.scope-v2 .multiselect-radio-checked {
+  border-color: var(--color-primary-blue);
+}
+
+.scope-v2 .multiselect-radio-checked::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--color-primary-blue);
+}
+
+.scope-v2 .multiselect-single-value {
+  font: var(--font-input-text);
+  letter-spacing: 0.15px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .scope-v2 .multiselect-checkbox-checked {
   background: var(--color-primary-blue);
   border-color: var(--color-primary-blue);
@@ -2584,8 +2650,6 @@
   flex-wrap: wrap;
 }
 
-/* "Vous pouvez fermer ce panneau à tout moment…" — sits on its own line
-   just above the footer's main button. */
 /* Audit line under Q0 once a mention is qualified as non-réclamation. */
 .scope-v2 .non-reclamation-trail {
   margin: 0;
@@ -2602,15 +2666,40 @@
   margin-top: 1px;
 }
 
+/* "Tant que la réclamation n'est pas créée…" — on the footer's left, beside
+   the main button (wrapping onto two lines if needed). */
 .scope-v2 .create-claim-leave-hint {
-  flex-basis: 100%;
-  margin: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 auto 0 0;
+  max-width: 360px;
   display: flex;
   align-items: flex-start;
   gap: 6px;
   font: 400 12px/1.5 var(--font-family);
   letter-spacing: 0.17px;
   color: var(--color-text-secondary);
+}
+
+/* "Reprendre plus tard" + info icon, at the left of a panel's footer. */
+.scope-v2 .resume-later {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -8px;
+}
+
+/* The mention panel's footer is padded 8px less than the dossier's. */
+.scope-v2 .create-claim-actions .resume-later {
+  margin-left: 0;
+}
+
+.scope-v2 .resume-later-info {
+  display: inline-flex;
+  padding: 4px;
+  color: var(--color-text-secondary);
+  cursor: help;
 }
 
 .scope-v2 .create-claim-leave-hint svg {
@@ -3887,21 +3976,18 @@
   font-weight: 700;
 }
 
-/* Mention card's "Réclamation ouverte / clôturée" note (replaces the card's
-   action buttons) — same look as the panel's notice above. */
-.scope-v2 .card-complaint-note-link {
-  display: inline;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  letter-spacing: inherit;
-  color: var(--color-primary-blue);
-  text-decoration: underline;
-  cursor: pointer;
+/* Soft green variant for an open réclamation (same green as its tag); a
+   closed one keeps the neutral grey. */
+.scope-v2 .dossier-alert-success {
+  background: var(--color-success-50);
+  color: var(--color-success-dark);
 }
 
-/* Réclamation reached from a mention card's « Mes réclamations » link —
+.scope-v2 .dossier-alert-success .dossier-alert-neutral-title {
+  color: var(--color-success-dark);
+}
+
+/* Réclamation reached from a mention card's badge —
    briefly outlined so it's easy to spot once scrolled into view. */
 .scope-v2 .complaint-card-anchored .card {
   animation: complaint-card-anchored 3.5s ease-out;

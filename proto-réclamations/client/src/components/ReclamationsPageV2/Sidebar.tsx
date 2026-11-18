@@ -122,7 +122,7 @@ export default function Sidebar({ active, onSelect, open = true, versionSwitcher
               onClick={() => onSelect('mentions')}
             >
               <ChatIcon />
-              <span>Mes mentions web</span>
+              <span>Opinion 360°</span>
             </button>
             <button
               type="button"

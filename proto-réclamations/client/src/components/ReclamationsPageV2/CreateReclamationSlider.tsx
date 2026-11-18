@@ -17,6 +17,7 @@ import { MultiSelectField } from './MultiSelectField';
 import DossierHStepper from './DossierHStepper';
 import { OBJET_OPTIONS } from './objetOptions';
 import HoverTooltip from './HoverTooltip';
+import ResumeLaterButton from './ResumeLaterButton';
 import SentimentIcon from './SentimentIcon';
 import SourceIcon from './SourceIcon';
 import { MENTION_BADGES, getMentionBadgeVariant } from './mentionBadge';
@@ -1568,7 +1569,8 @@ export default function CreateReclamationSlider({
       <MultiSelectField
         label="Objet de la réclamation"
         required
-        placeholder="Sélectionnez un ou plusieurs objets"
+        single
+        placeholder="Sélectionnez un objet"
         options={OBJET_OPTIONS}
         value={objets}
         error={showContactErrors && objets.length === 0}
@@ -1668,13 +1670,14 @@ export default function CreateReclamationSlider({
   // entered so far is kept if the panel is closed.
   const reclamationAlreadyCreated = (isMesReclamations || enAttenteConfirmed) && !isEnAttenteMentionView;
   const leaveHint: string | null =
-    mentionCloturee || reouvertureActive
+    mentionCloturee || reouvertureActive || isReclamationView
       ? null
-      : isReclamationView
-        ? 'Vous pouvez quitter à tout moment : retrouvez cette réclamation et poursuivez son traitement quand vous le souhaitez dans la page « Mes réclamations ».'
-        : !reclamationAlreadyCreated && reclamationTypeAnswer === 'oui'
-          ? "Tant que la réclamation n'est pas créée, les informations saisies ne sont pas enregistrées."
-          : null;
+      : !reclamationAlreadyCreated && reclamationTypeAnswer === 'oui'
+        ? "Tant que la réclamation n'est pas créée, les informations saisies ne sont pas enregistrées."
+        : null;
+  // An open réclamation can be left and picked up later: a "Reprendre plus
+  // tard" button (with the reassurance on hover) instead of a footer line.
+  const showResumeLater = isReclamationView && !mentionCloturee && !reouvertureActive;
 
   const reclamantFieldsMissing =
     objets.length === 0 ||
@@ -2270,7 +2273,7 @@ export default function CreateReclamationSlider({
                 (isMesReclamations || enAttenteConfirmed) &&
                 !mentionCloturee && (
                 <div className={treatmentBlockClassName()}>
-                  <div className="dossier-alert-neutral">
+                  <div className="dossier-alert-neutral dossier-alert-success">
                     <span className="dossier-alert-neutral-title">Réclamation ouverte</span>
                     <p>
                       Une réclamation a été ouverte à partir de cette mention. Vous pouvez quitter à tout moment :
@@ -2384,7 +2387,7 @@ export default function CreateReclamationSlider({
             variant="success"
             className="alert-snackbar-local"
           />
-          {(hasFooterActions || leaveHint) && (
+          {(hasFooterActions || leaveHint || showResumeLater) && (
           <div className="modal-actions create-claim-actions">
             {leaveHint && (
               <p className="create-claim-leave-hint">
@@ -2394,6 +2397,7 @@ export default function CreateReclamationSlider({
                 <span>{leaveHint}</span>
               </p>
             )}
+            {showResumeLater && <ResumeLaterButton onClick={handleClose} />}
             {complaintCreatedInMentionView ? null : (
               <>
                 {activeTab === 'informations' && showingClotureOffer && (

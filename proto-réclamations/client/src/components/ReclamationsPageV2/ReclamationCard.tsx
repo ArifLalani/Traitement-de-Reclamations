@@ -20,8 +20,8 @@ type ReclamationCardProps = {
   onToggleSelect?: () => void;
   onCreate: () => void;
   // Status of the réclamation created from this mention, if any. When set,
-  // the card shows no action buttons, just a note pointing to
-  // "Mes réclamations" (where the réclamation is reached).
+  // the card shows no action buttons: the réclamation is reached from its
+  // badge.
   complaintStatus?: 'ouverte' | 'cloturee' | null;
   onOpenComplaintsPage?: () => void;
   // Whether the author turned out to be a prospect ("non" to "rattaché à un
@@ -53,10 +53,16 @@ export default function ReclamationCard({
     complaintStatus === 'cloturee' ? 'cloturee' : complaintStatus === 'ouverte' ? 'mes-reclamations' : state;
   const badgeVariant = getMentionBadgeVariant(badgeState, contactTag);
   const badge = badgeVariant ? MENTION_BADGES[badgeVariant] : null;
+  // Once a réclamation exists (open or closed), the badge is itself the way
+  // in: it carries a chevron and opens the réclamation's panel, its tooltip
+  // saying what happened (no separate note on the card).
+  const badgeOpensComplaint = complaintStatus !== null;
   const badgeTooltipText =
-    complaintStatus === 'cloturee' && state !== 'cloturee'
-      ? 'La réclamation liée à cette mention a été clôturée.'
-      : badge?.tooltip;
+    complaintStatus === 'cloturee'
+      ? 'La réclamation ouverte à partir de cette mention est clôturée. Cliquez pour la consulter.'
+      : complaintStatus === 'ouverte'
+        ? 'Une réclamation a été ouverte à partir de cette mention. Cliquez pour lire la suite de son traitement.'
+        : badge?.tooltip;
 
   const handleLinkClick = (e: MouseEvent) => {
     if (!selectionMode) return;
@@ -72,12 +78,6 @@ export default function ReclamationCard({
     e.stopPropagation();
     onOpenComplaintsPage?.();
   };
-
-  const complaintsLink = (
-    <button type="button" className="card-complaint-note-link" onClick={handleComplaintsLinkClick}>
-      « Mes réclamations »
-    </button>
-  );
 
   return (
     <div className={`card-wrapper ${isNew ? 'card-wrapper-unread' : ''}`}>
@@ -100,9 +100,22 @@ export default function ReclamationCard({
                 onMouseEnter={() => badgeTooltipText && setBadgeTooltipOpen(true)}
                 onMouseLeave={() => setBadgeTooltipOpen(false)}
               >
-                <span className={`chip cta-badge ${badge.className}`}>
-                  {badgeVariant && <MentionBadgeLabel variant={badgeVariant} />}
-                </span>
+                {badgeOpensComplaint ? (
+                  <button
+                    type="button"
+                    className={`chip cta-badge cta-badge-link ${badge.className}`}
+                    onClick={handleComplaintsLinkClick}
+                  >
+                    <span>{badgeVariant && <MentionBadgeLabel variant={badgeVariant} />}</span>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                      <path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <span className={`chip cta-badge ${badge.className}`}>
+                    {badgeVariant && <MentionBadgeLabel variant={badgeVariant} />}
+                  </span>
+                )}
                 {badgeTooltipText && badgeTooltipOpen && (
                   <span className="cta-badge-tooltip">{badgeTooltipText}</span>
                 )}
@@ -124,25 +137,6 @@ export default function ReclamationCard({
             <p className="card-text card-text-clamped">{text}</p>
           </div>
         </div>
-
-        {complaintStatus === 'ouverte' && (
-          <div className="dossier-alert-neutral card-complaint-note">
-            <span className="dossier-alert-neutral-title">Réclamation ouverte</span>
-            <p>
-              Une réclamation a été ouverte à partir de cette mention. La suite de son traitement se poursuit dans la
-              page {complaintsLink}.
-            </p>
-          </div>
-        )}
-        {complaintStatus === 'cloturee' && (
-          <div className="dossier-alert-neutral card-complaint-note">
-            <span className="dossier-alert-neutral-title">Réclamation clôturée</span>
-            <p>
-              La réclamation ouverte à partir de cette mention est clôturée. Vous la retrouverez dans la page{' '}
-              {complaintsLink}.
-            </p>
-          </div>
-        )}
 
         {!complaintStatus && (
           <div className="card-footer">

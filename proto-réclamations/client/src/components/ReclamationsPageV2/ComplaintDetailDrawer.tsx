@@ -5,6 +5,7 @@ import ArrowUpRight from './ArrowUpRight';
 import DossierHStepper from './DossierHStepper';
 import { FormField, FormTextareaAutoGrow } from './FormFields';
 import HoverTooltip from './HoverTooltip';
+import ResumeLaterButton from './ResumeLaterButton';
 import { MultiSelectField } from './MultiSelectField';
 import { formatObjets, OBJET_OPTIONS, sameObjets } from './objetOptions';
 import { exportComplaintsToCsv } from './exportComplaints';
@@ -1671,7 +1672,8 @@ export default function ComplaintDetailDrawer({
               appearance="section"
               label="Objet de la réclamation"
               required
-              placeholder="Sélectionnez un ou plusieurs objets"
+              single
+              placeholder="Sélectionnez un objet"
               options={OBJET_OPTIONS}
               value={infoDraft.objets}
               readOnly={isClosed}
@@ -1958,17 +1960,7 @@ export default function ComplaintDetailDrawer({
 
         {(traitementActions || !isClosed) && (
           <div className={`dossier-traitement-footer ${footerShadow ? 'dossier-traitement-footer-shadow' : ''}`}>
-            {!isClosed && (
-              <p className="create-claim-leave-hint">
-                <svg viewBox="0 0 24 24" width={16} height={16} fill="currentColor" aria-hidden="true">
-                  <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8" />
-                </svg>
-                <span>
-                  Vous pouvez quitter à tout moment : retrouvez cette réclamation et poursuivez son traitement quand vous
-                  le souhaitez dans la page « Mes réclamations ».
-                </span>
-              </p>
-            )}
+            {!isClosed && <ResumeLaterButton onClick={performClose} />}
             {traitementActions}
           </div>
         )}
